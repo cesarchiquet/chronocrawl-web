@@ -156,7 +156,9 @@ export default function Home() {
             name="early-access"
             method="POST"
             data-netlify="true"
-            onSubmit={() => setSubmitted(true)}
+            onSubmit={() => {
+  setTimeout(() => setSubmitted(true), 100);
+}}
             className="flex flex-col sm:flex-row gap-4"
           >
             <input type="hidden" name="form-name" value="early-access" />
