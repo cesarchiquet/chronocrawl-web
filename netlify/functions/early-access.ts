@@ -2,7 +2,6 @@ import type { Handler } from "@netlify/functions";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 
-// Clients
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const supabase = createClient(
@@ -13,9 +12,7 @@ const supabase = createClient(
 export const handler: Handler = async (event) => {
   console.log("🚀 Function early-access appelée");
 
-  // Autoriser uniquement POST
   if (event.httpMethod !== "POST") {
-    console.log("❌ Mauvaise méthode :", event.httpMethod);
     return {
       statusCode: 405,
       body: "Method Not Allowed",
@@ -23,13 +20,9 @@ export const handler: Handler = async (event) => {
   }
 
   try {
-    // Parse du body
     const body = JSON.parse(event.body || "{}");
-    console.log("📩 Body reçu :", body);
-
     const email = body.email;
 
-    // 🔒 Vérification email AVANT tout
     if (!email) {
       console.log("❌ Email manquant");
       return {
@@ -40,7 +33,7 @@ export const handler: Handler = async (event) => {
 
     console.log("📧 Email reçu :", email);
 
-    // 💾 Insertion dans Supabase
+    // 1️⃣ Insertion Supabase
     const { error } = await supabase
       .from("early_access")
       .insert([{ email }]);
@@ -49,11 +42,11 @@ export const handler: Handler = async (event) => {
       console.error("❌ Erreur Supabase :", error);
       return {
         statusCode: 500,
-        body: "Erreur base de données",
+        body: "Erreur Supabase",
       };
     }
 
-    // ✉️ Envoi email via Resend
+    // 2️⃣ Envoi email
     console.log("✉️ Envoi email via Resend...");
 
     await resend.emails.send({
@@ -67,7 +60,7 @@ export const handler: Handler = async (event) => {
       `,
     });
 
-    console.log("✅ Email envoyé avec succès");
+    console.log("✅ Email envoyé");
 
     return {
       statusCode: 200,
@@ -75,7 +68,6 @@ export const handler: Handler = async (event) => {
     };
   } catch (err) {
     console.error("🔥 Erreur serveur :", err);
-
     return {
       statusCode: 500,
       body: "Erreur serveur",
