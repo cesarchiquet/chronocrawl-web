@@ -1,11 +1,19 @@
 import type { Handler } from "@netlify/functions";
 import { Resend } from "resend";
+import { createClient } from "@supabase/supabase-js";
 
+// Clients
 const resend = new Resend(process.env.RESEND_API_KEY);
+
+const supabase = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_ANON_KEY!
+);
 
 export const handler: Handler = async (event) => {
   console.log("🚀 Function early-access appelée");
 
+  // Autoriser uniquement POST
   if (event.httpMethod !== "POST") {
     console.log("❌ Mauvaise méthode :", event.httpMethod);
     return {
@@ -15,11 +23,13 @@ export const handler: Handler = async (event) => {
   }
 
   try {
+    // Parse du body
     const body = JSON.parse(event.body || "{}");
     console.log("📩 Body reçu :", body);
 
     const email = body.email;
 
+    // 🔒 Vérification email AVANT tout
     if (!email) {
       console.log("❌ Email manquant");
       return {
@@ -29,6 +39,21 @@ export const handler: Handler = async (event) => {
     }
 
     console.log("📧 Email reçu :", email);
+
+    // 💾 Insertion dans Supabase
+    const { error } = await supabase
+      .from("early_access")
+      .insert([{ email }]);
+
+    if (error) {
+      console.error("❌ Erreur Supabase :", error);
+      return {
+        statusCode: 500,
+        body: "Erreur base de données",
+      };
+    }
+
+    // ✉️ Envoi email via Resend
     console.log("✉️ Envoi email via Resend...");
 
     await resend.emails.send({
@@ -46,7 +71,7 @@ export const handler: Handler = async (event) => {
 
     return {
       statusCode: 200,
-      body: "Email envoyé",
+      body: "Inscription réussie",
     };
   } catch (err) {
     console.error("🔥 Erreur serveur :", err);
