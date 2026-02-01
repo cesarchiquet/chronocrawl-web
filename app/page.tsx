@@ -152,32 +152,42 @@ export default function Home() {
         </p>
 
         {!submitted ? (
-          <form
-            name="early-access"
-            method="POST"
-            data-netlify="true"
-            onSubmit={() => {
-  setTimeout(() => setSubmitted(true), 100);
-}}
-            className="flex flex-col sm:flex-row gap-4"
-          >
-            <input type="hidden" name="form-name" value="early-access" />
+         <form
+  onSubmit={async (e) => {
+    e.preventDefault();
 
-            <input
-              type="email"
-              name="email"
-              required
-              placeholder="ton@email.com"
-              className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
-            />
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get("email");
 
-            <button
-              type="submit"
-              className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
-            >
-              Être notifié
-            </button>
-          </form>
+    const res = await fetch("/.netlify/functions/early-access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+
+    if (res.ok) {
+      setSubmitted(true);
+    } else {
+      alert("Erreur lors de l’inscription");
+    }
+  }}
+  className="flex flex-col sm:flex-row gap-4"
+>
+  <input
+    type="email"
+    name="email"
+    required
+    placeholder="ton@email.com"
+    className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+  />
+
+  <button
+    type="submit"
+    className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+  >
+    Être notifié
+  </button>
+</form>
         ) : (
           <motion.div
             initial={{ opacity: 0 }}
