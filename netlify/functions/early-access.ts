@@ -1,3 +1,4 @@
+import { EMAIL_TEMPLATE } from "./emails/template";
 import type { Handler } from "@netlify/functions";
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
@@ -70,23 +71,19 @@ export const handler: Handler = async (event) => {
 
     // 4️⃣ Envoi email
     console.log("✉️ Envoi email via Resend...");
-
+const html = EMAIL_TEMPLATE
+  .replace("{{TITLE}}", "Bienvenue sur ChronoCrawl 🚀")
+  .replace(
+    "{{MESSAGE}}",
+    "Merci pour ton inscription à l’accès anticipé.<br/><br/>On te prévient très vite 🔔"
+  )
+  .replace("{{CTA_URL}}", "https://chronocrawl.com")
+  .replace("{{CTA_LABEL}}", "Découvrir ChronoCrawl");
     await resend.emails.send({
       from: "ChronoCrawl <hello@chronocrawl.com>",
       to: email,
       subject: "Bienvenue sur ChronoCrawl 🚀",
-      html: `
-        <div style="font-family: Arial, sans-serif; background:#0f172a; padding:40px; color:#e5e7eb">
-          <div style="max-width:600px;margin:auto;background:#020617;padding:32px;border-radius:12px">
-            <h1 style="color:#38bdf8">Bienvenue sur ChronoCrawl 🚀</h1>
-            <p>Merci pour ton inscription à l’accès anticipé.</p>
-            <p>On te prévient très vite 🔔</p>
-            <p style="margin-top:32px;font-size:12px;color:#94a3b8">
-              © ChronoCrawl
-            </p>
-          </div>
-        </div>
-      `,
+      html, 
     });
 
     console.log("✅ Email envoyé");
