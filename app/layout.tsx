@@ -13,24 +13,28 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ChronoCrawl — Surveille tes concurrents automatiquement",
+  metadataBase: new URL("https://chronocrawl.com"),
+
+  title: {
+    default: "ChronoCrawl — Surveille tes concurrents automatiquement",
+    template: "%s | ChronoCrawl",
+  },
+
   description:
     "ChronoCrawl détecte automatiquement les changements sur les sites concurrents et t’alerte dès qu’une page évolue.",
-
-  metadataBase: new URL("https://chronocrawl.com"),
 
   openGraph: {
     title: "ChronoCrawl — Surveille tes concurrents automatiquement",
     description:
-      "Détection intelligente des changements sur les sites concurrents. Reçois une alerte dès qu’une page évolue.",
+      "Détecte les changements sur les sites concurrents et reçois une alerte instantanée.",
     url: "https://chronocrawl.com",
     siteName: "ChronoCrawl",
     images: [
       {
-        url: "/og.png",
+        url: "/og-image.png",
         width: 1200,
         height: 630,
-        alt: "ChronoCrawl – Surveillance de concurrents",
+        alt: "ChronoCrawl – Veille concurrentielle automatisée",
       },
     ],
     locale: "fr_FR",
@@ -39,10 +43,10 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "ChronoCrawl — Surveillance de concurrents",
+    title: "ChronoCrawl — Surveille tes concurrents automatiquement",
     description:
-      "Détecte automatiquement les changements sur les sites concurrents.",
-    images: ["/og.png"],
+      "ChronoCrawl surveille les sites concurrents et t’alerte dès qu’un changement est détecté.",
+    images: ["/og-image.png"],
   },
 
   robots: {
