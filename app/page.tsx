@@ -291,6 +291,29 @@ export default function Home() {
           ))}
         </div>
       </section>
+
+      {/* CONTACT */}
+      <section className="max-w-4xl mx-auto px-6 pb-32 text-center">
+        <motion.h2
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="text-3xl font-bold mb-4"
+        >
+          Contact
+        </motion.h2>
+        <p className="text-gray-300 mb-8">
+          Une question sur la veille concurrentielle ou besoin d’un conseil ?
+          Écris‑nous et on te répond rapidement.
+        </p>
+        <a
+          href="mailto:hello@chronocrawl.com?subject=Contact%20ChronoCrawl"
+          className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+        >
+          hello@chronocrawl.com
+        </a>
+      </section>
     </main>
   );
 }
