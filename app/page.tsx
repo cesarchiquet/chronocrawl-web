@@ -98,6 +98,12 @@ export default function Home() {
           Comment fonctionne ChronoCrawl
         </motion.h2>
 
+        <p className="text-gray-300 text-center max-w-2xl mx-auto mb-10">
+          En trois étapes simples, tu mets en place une veille concurrentielle
+          efficace : ajoute tes URLs, laisse ChronoCrawl surveiller, puis reçois
+          une alerte dès qu’un site concurrent change.
+        </p>
+
         <div className="grid md:grid-cols-3 gap-6">
           {[
             {
