@@ -45,7 +45,7 @@ export default function Home() {
             </button>
           </a>
           <a
-            href="mailto:hello@chronocrawl.com?subject=Contact%20ChronoCrawl"
+            href="#contact"
             className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
           >
             Contact
@@ -293,7 +293,7 @@ export default function Home() {
       </section>
 
       {/* CONTACT */}
-      <section className="max-w-4xl mx-auto px-6 pb-32 text-center">
+      <section id="contact" className="max-w-4xl mx-auto px-6 pb-32 text-center">
         <motion.h2
           variants={fadeUp}
           initial="hidden"
