@@ -44,6 +44,12 @@ export default function Home() {
               Demander un accès
             </button>
           </a>
+          <a
+            href="mailto:hello@chronocrawl.com?subject=Contact%20ChronoCrawl"
+            className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
+          >
+            Contact
+          </a>
           <a href="#fonctionnement">
             <button className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition">
               Voir comment ça marche
