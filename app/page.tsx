@@ -63,15 +63,15 @@ export default function Home() {
         {[
           {
             title: "Détection intelligente",
-            text: "Analyse uniquement les vrais changements de contenu, sans faux positifs.",
+            text: "Détecte les changements importants sur les sites concurrents et réduit les faux positifs.",
           },
           {
             title: "Alertes instantanées",
-            text: "Email dès qu’un concurrent modifie une page stratégique.",
+            text: "Alerte changement site web envoyée dès qu’une page concurrente évolue.",
           },
           {
             title: "Pensé pour la veille pro",
-            text: "SaaS, e-commerce, SEO, pricing, pages clés.",
+            text: "Veille concurrentielle pour SaaS, e‑commerce, SEO, pricing et pages clés.",
           },
         ].map((item, i) => (
           <motion.div
