@@ -44,12 +44,20 @@ export default function Home() {
               Demander un accès
             </button>
           </a>
-          <a
-            href="#contact"
-            className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
-          >
-            Contact
-          </a>
+          <div className="flex flex-col items-center gap-3">
+            <a
+              href="#contact"
+              className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
+            >
+              Contact
+            </a>
+            <a
+              href="/blog"
+              className="text-sm text-gray-300 underline underline-offset-4 hover:text-white transition"
+            >
+              Lire le guide
+            </a>
+          </div>
           <a href="#fonctionnement">
             <button className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition">
               Voir comment ça marche
