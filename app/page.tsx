@@ -167,11 +167,16 @@ export default function Home() {
         body: JSON.stringify({ email }),
       });
 
-      const text = await res.text();
+      let payload: { status?: string } | null = null;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
 
-      if (res.ok && text === "Inscription réussie") {
+      if (res.ok && payload?.status === "success") {
         setStatus("success");
-      } else if (res.ok && text === "Déjà inscrit") {
+      } else if (res.ok && payload?.status === "exists") {
         setStatus("exists");
       } else {
         setStatus("error");

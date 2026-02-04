@@ -15,12 +15,15 @@ const supabase = createClient(
 export const handler: Handler = async (event) => {
   console.log("🚀 Function early-access appelée");
 
+  const json = (statusCode: number, payload: Record<string, unknown>) => ({
+    statusCode,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
   // ❌ Mauvaise méthode
   if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      body: "Method Not Allowed",
-    };
+    return json(405, { status: "error", message: "Method Not Allowed" });
   }
 
   try {
@@ -31,27 +34,26 @@ export const handler: Handler = async (event) => {
     // 1️⃣ Validation email
     if (!email) {
       console.log("❌ Email manquant");
-      return {
-        statusCode: 400,
-        body: "Email manquant",
-      };
+      return json(400, { status: "error", message: "Email manquant" });
     }
 
     console.log("📧 Email reçu :", email);
 
     // 2️⃣ Vérifie si déjà inscrit
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("early_access")
       .select("id")
       .eq("email", email)
-      .single();
+      .maybeSingle();
+
+    if (existingError) {
+      console.error("❌ Erreur Supabase (lookup) :", existingError);
+      return json(500, { status: "error", message: "Erreur Supabase" });
+    }
 
     if (existing) {
       console.log("⚠️ Email déjà inscrit :", email);
-      return {
-        statusCode: 200,
-        body: "Déjà inscrit",
-      };
+      return json(200, { status: "exists" });
     }
 
     // 3️⃣ Insert en base
@@ -60,11 +62,11 @@ export const handler: Handler = async (event) => {
       .insert([{ email }]);
 
     if (error) {
+      if (error.code === "23505") {
+        return json(200, { status: "exists" });
+      }
       console.error("❌ Erreur Supabase :", error);
-      return {
-        statusCode: 500,
-        body: "Erreur Supabase",
-      };
+      return json(500, { status: "error", message: "Erreur Supabase" });
     }
 
     console.log("✅ Email inséré en base");
@@ -88,15 +90,9 @@ const html = renderEmail({
     console.log("✅ Email envoyé");
 
     // 5️⃣ Success
-    return {
-      statusCode: 200,
-      body: "Inscription réussie",
-    };
+    return json(200, { status: "success" });
   } catch (err) {
     console.error("🔥 Erreur serveur :", err);
-    return {
-      statusCode: 500,
-      body: "Erreur serveur",
-    };
+    return json(500, { status: "error", message: "Erreur serveur" });
   }
 };
