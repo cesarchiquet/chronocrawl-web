@@ -10,17 +10,17 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://chronocrawl.com"),
 
   title: {
-    default: "ChronoCrawl — Surveille tes concurrents automatiquement",
+    default: "Surveiller un site concurrent | ChronoCrawl",
     template: "%s | ChronoCrawl",
   },
 
   description:
-    "ChronoCrawl détecte automatiquement les changements sur les sites concurrents et t’alerte dès qu’une page évolue.",
+    "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
 
   openGraph: {
-    title: "ChronoCrawl — Surveille tes concurrents automatiquement",
+    title: "Surveiller un site concurrent | ChronoCrawl",
     description:
-      "Détecte les changements sur les sites concurrents et reçois une alerte instantanée.",
+      "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
     url: "https://chronocrawl.com",
     siteName: "ChronoCrawl",
     images: [
@@ -37,9 +37,9 @@ export const metadata: Metadata = {
 
   twitter: {
     card: "summary_large_image",
-    title: "ChronoCrawl — Surveille tes concurrents automatiquement",
+    title: "Surveiller un site concurrent | ChronoCrawl",
     description:
-      "ChronoCrawl surveille les sites concurrents et t’alerte dès qu’un changement est détecté.",
+      "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
     images: ["/og-image.png"],
   },
 
