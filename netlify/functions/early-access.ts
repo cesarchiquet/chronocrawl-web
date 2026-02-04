@@ -83,7 +83,7 @@ const html = renderEmail({
     await resend.emails.send({
       from: "ChronoCrawl <hello@chronocrawl.com>",
       to: email,
-      subject: "Bienvenue sur ChronoCrawl 🚀",
+      subject: "ChronoCrawl — Bienvenue",
       html, 
     });
 

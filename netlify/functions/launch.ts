@@ -37,7 +37,7 @@ export const handler: Handler = async () => {
       await resend.emails.send({
         from: "ChronoCrawl <hello@chronocrawl.com>",
         to: user.email,
-        subject: "ChronoCrawl est ouvert 🚀",
+        subject: "ChronoCrawl — Ouverture officielle",
         html,
       });
     }

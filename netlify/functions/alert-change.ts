@@ -32,7 +32,7 @@ export const handler: Handler = async (event) => {
     await resend.emails.send({
       from: "ChronoCrawl <hello@chronocrawl.com>",
       to: email,
-      subject: "Changement détecté sur un site surveillé 👀",
+      subject: "ChronoCrawl — Changement détecté",
       html,
     });
 
