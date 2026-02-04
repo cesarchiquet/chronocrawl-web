@@ -57,6 +57,12 @@ export default function Home() {
             >
               Lire le guide
             </a>
+            <a
+              href="/dashboard"
+              className="text-xs text-gray-400 hover:text-white transition"
+            >
+              Accéder au dashboard (beta)
+            </a>
           </div>
           <a href="#fonctionnement">
             <button className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition">
