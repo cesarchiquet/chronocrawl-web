@@ -28,8 +28,8 @@ export default function Home() {
         className="max-w-5xl mx-auto px-6 pt-28 pb-24 text-center"
       >
         <h1 className="text-4xl md:text-6xl font-bold leading-tight">
-          Surveille tes concurrents{" "}
-          <span className="text-indigo-400">sans lever le petit doigt</span>
+          Surveiller un site concurrent{" "}
+          <span className="text-indigo-400">automatiquement</span>
         </h1>
 
         <p className="mt-6 text-lg text-gray-300 max-w-2xl mx-auto">
