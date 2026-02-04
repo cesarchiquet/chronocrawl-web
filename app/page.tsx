@@ -33,8 +33,9 @@ export default function Home() {
         </h1>
 
         <p className="mt-6 text-lg text-gray-300 max-w-2xl mx-auto">
-          ChronoCrawl détecte automatiquement les changements sur les sites
-          concurrents et t’alerte dès qu’une page évolue.
+          Veille concurrentielle automatisée : ChronoCrawl surveille les sites
+          concurrents et t’envoie une alerte changement site web dès qu’une
+          page évolue.
         </p>
 
         <div className="mt-10 flex justify-center gap-4">
