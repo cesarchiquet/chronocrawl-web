@@ -157,7 +157,8 @@ export default function Home() {
         </motion.h2>
 
         <p className="text-gray-300 mb-8">
-          Laisse ton email pour être prévenu dès l’ouverture.
+          Laisse ton email pour être prévenu dès l’ouverture et commencer ta
+          veille concurrentielle en premier.
         </p>
 
         {status === "idle" && (
@@ -237,6 +238,52 @@ export default function Home() {
     ❌ Une erreur est survenue. Réessaie plus tard.
   </motion.div>
 )}
+      </section>
+
+      {/* FAQ */}
+      <section className="max-w-5xl mx-auto px-6 pb-24">
+        <motion.h2
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="text-3xl font-bold text-center mb-10"
+        >
+          FAQ — Veille concurrentielle
+        </motion.h2>
+
+        <div className="grid md:grid-cols-2 gap-6">
+          {[
+            {
+              q: "Que surveille ChronoCrawl ?",
+              a: "Les pages que tu choisis : pages concurrentes, pricing, landing pages, pages produits et contenus SEO.",
+            },
+            {
+              q: "Comment fonctionne l’alerte changement site web ?",
+              a: "Dès qu’un changement est détecté, tu reçois une notification par email avec un lien direct.",
+            },
+            {
+              q: "À qui s’adresse l’outil ?",
+              a: "SaaS, e‑commerce, agences et équipes marketing qui veulent une veille concurrentielle simple et fiable.",
+            },
+            {
+              q: "Faut‑il installer quelque chose ?",
+              a: "Non, ChronoCrawl est un service SaaS : tu ajoutes tes URLs et la surveillance démarre.",
+            },
+          ].map((item, i) => (
+            <motion.div
+              key={i}
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="rounded-xl bg-white/5 border border-white/10 p-6"
+            >
+              <h3 className="text-lg font-semibold mb-2">{item.q}</h3>
+              <p className="text-gray-300 text-sm">{item.a}</p>
+            </motion.div>
+          ))}
+        </div>
       </section>
     </main>
   );
