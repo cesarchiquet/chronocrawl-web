@@ -13,7 +13,9 @@ const fadeUp: Variants = {
 };
 
 export default function Home() {
-  const [submitted, setSubmitted] = useState(false);
+  const [status, setStatus] = useState<
+  "idle" | "success" | "exists" | "error"
+>("idle");
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
@@ -151,52 +153,78 @@ export default function Home() {
           Laisse ton email pour être prévenu dès l’ouverture.
         </p>
 
-        {!submitted ? (
-         <form
-  onSubmit={async (e) => {
-    e.preventDefault();
+        {status === "idle" && (
+  <form
+    onSubmit={async (e) => {
+      e.preventDefault();
 
-    const formData = new FormData(e.currentTarget);
-    const email = formData.get("email");
+      const formData = new FormData(e.currentTarget);
+      const email = String(formData.get("email"));
 
-    const res = await fetch("/.netlify/functions/early-access", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email }),
-    });
+      const res = await fetch("/.netlify/functions/early-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
 
-    if (res.ok) {
-      setSubmitted(true);
-    } else {
-      alert("Erreur lors de l’inscription");
-    }
-  }}
-  className="flex flex-col sm:flex-row gap-4"
->
-  <input
-    type="email"
-    name="email"
-    required
-    placeholder="ton@email.com"
-    className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
-  />
+      const text = await res.text();
 
-  <button
-    type="submit"
-    className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+      if (res.ok && text === "Inscription réussie") {
+        setStatus("success");
+      } else if (res.ok && text === "Déjà inscrit") {
+        setStatus("exists");
+      } else {
+        setStatus("error");
+      }
+    }}
+    className="flex flex-col sm:flex-row gap-4"
   >
-    Être notifié
-  </button>
-</form>
-        ) : (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="mt-6 text-green-400 font-medium"
-          >
-            ✅ Merci ! Ton accès est enregistré.
-          </motion.div>
-        )}
+    <input
+      type="email"
+      name="email"
+      required
+      placeholder="ton@email.com"
+      className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+    />
+
+    <button
+      type="submit"
+      className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+    >
+      Être notifié
+    </button>
+  </form>
+)}
+
+{status === "success" && (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className="mt-6 text-green-400 font-medium"
+  >
+    ✅ Merci ! Ton accès est enregistré.
+  </motion.div>
+)}
+
+{status === "exists" && (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className="mt-6 text-yellow-400 font-medium"
+  >
+    👀 Cet email est déjà inscrit.
+  </motion.div>
+)}
+
+{status === "error" && (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    className="mt-6 text-red-400 font-medium"
+  >
+    ❌ Une erreur est survenue. Réessaie plus tard.
+  </motion.div>
+)}
       </section>
     </main>
   );
