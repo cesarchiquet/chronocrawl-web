@@ -4,3 +4,9 @@ publish = ".next"
 
 [functions]
 directory = "netlify/functions"
+
+[[redirects]]
+from = "https://chronocrawl.com/*"
+to = "https://www.chronocrawl.com/:splat"
+status = 301
+force = true
