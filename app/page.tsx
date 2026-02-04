@@ -38,11 +38,12 @@ export default function Home() {
           page évolue.
         </p>
 
-        <div className="mt-10 flex justify-center gap-4">
-          <a href="#acces">
-            <button className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium">
-              Demander un accès
-            </button>
+        <div className="mt-10 flex justify-center items-start gap-2">
+          <a
+            href="#acces"
+            className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+          >
+            Demander un accès
           </a>
           <div className="flex flex-col items-center gap-3">
             <a
@@ -64,10 +65,11 @@ export default function Home() {
               Accéder au dashboard (beta)
             </a>
           </div>
-          <a href="#fonctionnement">
-            <button className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition">
-              Voir comment ça marche
-            </button>
+          <a
+            href="#fonctionnement"
+            className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
+          >
+            Voir comment ça marche
           </a>
         </div>
       </motion.section>
