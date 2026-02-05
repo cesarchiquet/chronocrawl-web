@@ -99,9 +99,9 @@ export default function Home() {
         </p>
 
         <div className="mt-8 mx-auto w-fit rounded-full border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
-          Essai gratuit 7 jours
+          Starter gratuit 7 jours
           <a
-            href="/signup"
+            href="#tarifs"
             className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
           >
             Démarrer l’essai
@@ -219,6 +219,108 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
+      </section>
+
+      {/* PRICING */}
+      <section id="tarifs" className="max-w-6xl mx-auto px-6 pb-24">
+        <motion.h2
+          variants={fadeUp}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true }}
+          className="text-3xl font-bold text-center mb-4"
+        >
+          Tarifs
+        </motion.h2>
+        <p className="text-gray-300 text-center max-w-2xl mx-auto mb-10">
+          Choisis le plan qui correspond à ta veille concurrentielle. Tu peux
+          changer ou arrêter à tout moment.
+        </p>
+
+        <div className="grid md:grid-cols-3 gap-6">
+          {[
+            {
+              name: "Starter",
+              price: "12 €/mois",
+              desc: "7 jours d’essai gratuit, idéal pour démarrer.",
+              features: [
+                "10 URLs surveillées",
+                "Fréquence toutes les 6h",
+                "Alertes email",
+                "Historique 7 jours",
+              ],
+            },
+            {
+              name: "Pro",
+              price: "29 €/mois",
+              desc: "Le meilleur équilibre.",
+              features: [
+                "50 URLs surveillées",
+                "Fréquence toutes les 60 min",
+                "Alertes email + Slack",
+                "Historique 30 jours",
+              ],
+              highlight: true,
+            },
+            {
+              name: "Agency",
+              price: "79 €/mois",
+              desc: "Pour les équipes.",
+              features: [
+                "200 URLs surveillées",
+                "Fréquence toutes les 15 min",
+                "Alertes email + Slack + Webhook",
+                "Historique 90 jours",
+              ],
+            },
+          ].map((plan, i) => (
+            <motion.div
+              key={i}
+              variants={fadeUp}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className={`rounded-2xl border p-6 ${
+                plan.highlight
+                  ? "bg-indigo-500/10 border-indigo-400/40"
+                  : "bg-white/5 border-white/10"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-lg font-semibold">{plan.name}</h3>
+                {plan.highlight && (
+                  <span className="text-xs px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
+                    Populaire
+                  </span>
+                )}
+              </div>
+              <div className="text-3xl font-bold">{plan.price}</div>
+              <p className="text-gray-300 text-sm mt-2">{plan.desc}</p>
+              <ul className="mt-4 space-y-2 text-sm text-gray-300">
+                {plan.features.map((feature) => (
+                  <li key={feature}>• {feature}</li>
+                ))}
+              </ul>
+              <a
+                href="/signup"
+                className={`mt-6 inline-flex w-full items-center justify-center rounded-lg px-4 py-3 font-medium transition ${
+                  plan.highlight
+                    ? "bg-indigo-500 hover:bg-indigo-400 text-white"
+                    : "border border-white/20 hover:bg-white/5"
+                }`}
+              >
+                {plan.name === "Starter"
+                  ? "Démarrer l’essai"
+                  : plan.name === "Pro"
+                    ? "Passer à Pro"
+                    : "Passer à Agency"}
+              </a>
+            </motion.div>
+          ))}
+        </div>
+        <p className="mt-6 text-center text-xs text-gray-400">
+          -20% avec l’abonnement annuel. Annulation à tout moment.
+        </p>
       </section>
 
       {/* FAQ */}
