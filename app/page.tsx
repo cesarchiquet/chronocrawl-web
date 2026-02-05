@@ -27,6 +27,20 @@ export default function Home() {
         animate="visible"
         className="max-w-5xl mx-auto px-6 pt-28 pb-24 text-center"
       >
+        <div className="flex justify-end gap-3 text-sm mb-10">
+          <a
+            href="/login"
+            className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/5 transition"
+          >
+            Se connecter
+          </a>
+          <a
+            href="/signup"
+            className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+          >
+            Créer un compte
+          </a>
+        </div>
         <h1 className="text-4xl md:text-6xl font-bold leading-tight">
           Surveiller un site concurrent{" "}
           <span className="text-indigo-400">automatiquement</span>
