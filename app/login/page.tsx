@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -14,6 +15,7 @@ const fadeUp = {
 };
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error" | "ok">(
@@ -37,7 +39,7 @@ export default function LoginPage() {
       return;
     }
     setStatus("ok");
-    setMessage("Connecté. Tu peux aller au dashboard.");
+    router.push("/");
   };
 
   const handleSignUp = async () => {
@@ -52,7 +54,7 @@ export default function LoginPage() {
       return;
     }
     setStatus("ok");
-    setMessage("Inscription réussie. Tu peux te connecter.");
+    router.push("/");
   };
 
   return (

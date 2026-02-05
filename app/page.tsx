@@ -1,7 +1,8 @@
 "use client";
 
 import { motion, Variants } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -16,6 +17,23 @@ export default function Home() {
   const [status, setStatus] = useState<
   "idle" | "success" | "exists" | "error"
 >("idle");
+  const [session, setSession] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, currentSession) => {
+        setSession(currentSession);
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
@@ -27,19 +45,47 @@ export default function Home() {
         animate="visible"
         className="max-w-5xl mx-auto px-6 pt-28 pb-24 text-center"
       >
-        <div className="flex justify-end gap-3 text-sm mb-10">
-          <a
-            href="/login"
-            className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/5 transition"
-          >
-            Se connecter
-          </a>
-          <a
-            href="/signup"
-            className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
-          >
-            Créer un compte
-          </a>
+        <div className="flex items-center justify-between text-sm mb-10">
+          {session?.user ? (
+            <div className="px-4 py-2 rounded-lg border border-indigo-400/30 bg-indigo-500/10 text-indigo-200">
+              Connecté : {session.user.email}
+            </div>
+          ) : (
+            <div />
+          )}
+          <div className="flex items-center gap-3">
+            {session?.user ? (
+              <>
+                <a
+                  href="/dashboard"
+                  className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+                >
+                  Dashboard
+                </a>
+                <button
+                  onClick={() => supabase.auth.signOut()}
+                  className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/5 transition"
+                >
+                  Se déconnecter
+                </button>
+              </>
+            ) : (
+              <>
+                <a
+                  href="/login"
+                  className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/5 transition"
+                >
+                  Se connecter
+                </a>
+                <a
+                  href="/signup"
+                  className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+                >
+                  Créer un compte
+                </a>
+              </>
+            )}
+          </div>
         </div>
         <h1 className="text-4xl md:text-6xl font-bold leading-tight">
           Surveiller un site concurrent{" "}
@@ -51,6 +97,16 @@ export default function Home() {
           concurrents et t’envoie une alerte changement site web dès qu’une
           page évolue.
         </p>
+
+        <div className="mt-8 mx-auto w-fit rounded-full border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
+          Essai gratuit 7 jours
+          <a
+            href="/signup"
+            className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
+          >
+            Démarrer l’essai
+          </a>
+        </div>
 
         <div className="mt-10 flex justify-center items-start gap-2">
           <a
@@ -68,7 +124,7 @@ export default function Home() {
             </a>
           </div>
           <a
-            href="/login"
+            href={session?.user ? "/dashboard" : "/login"}
             className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
           >
             Accéder au dashboard

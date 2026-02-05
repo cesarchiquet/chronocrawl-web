@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -14,6 +15,7 @@ const fadeUp = {
 };
 
 export default function SignupPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -41,7 +43,7 @@ export default function SignupPage() {
     }
 
     setStatus("loading");
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -59,7 +61,11 @@ export default function SignupPage() {
     }
 
     setStatus("ok");
-    setMessage("Compte créé. Tu peux maintenant te connecter.");
+    if (data.session) {
+      router.push("/");
+      return;
+    }
+    setMessage("Compte créé. Vérifie ton email pour confirmer, puis connecte-toi.");
   };
 
   return (
