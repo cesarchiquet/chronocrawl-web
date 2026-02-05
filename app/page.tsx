@@ -18,6 +18,7 @@ export default function Home() {
   "idle" | "success" | "exists" | "error"
 >("idle");
   const [session, setSession] = useState<any>(null);
+  const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -34,6 +35,24 @@ export default function Home() {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  const startCheckout = async (plan: "starter" | "pro" | "agency") => {
+    setCheckoutError("");
+    try {
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.url) {
+        throw new Error(data?.error || "Impossible de démarrer le paiement.");
+      }
+      window.location.href = data.url;
+    } catch (error: any) {
+      setCheckoutError(error.message || "Erreur de paiement.");
+    }
+  };
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
@@ -100,13 +119,25 @@ export default function Home() {
 
         <div className="mt-8 mx-auto w-fit rounded-full border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
           Starter gratuit 7 jours
-          <a
-            href="#tarifs"
-            className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
-          >
-            Démarrer l’essai
-          </a>
+          {session?.user ? (
+            <button
+              onClick={() => startCheckout("starter")}
+              className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
+            >
+              Démarrer l’essai
+            </button>
+          ) : (
+            <a
+              href="#tarifs"
+              className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
+            >
+              Démarrer l’essai
+            </a>
+          )}
         </div>
+        {checkoutError && (
+          <p className="mt-3 text-xs text-red-300">{checkoutError}</p>
+        )}
 
         <div className="mt-10 flex justify-center items-start gap-2">
           <a
@@ -301,20 +332,45 @@ export default function Home() {
                   <li key={feature}>• {feature}</li>
                 ))}
               </ul>
-              <a
-                href="/signup"
-                className={`mt-6 inline-flex w-full items-center justify-center rounded-lg px-4 py-3 font-medium transition ${
-                  plan.highlight
-                    ? "bg-indigo-500 hover:bg-indigo-400 text-white"
-                    : "border border-white/20 hover:bg-white/5"
-                }`}
-              >
-                {plan.name === "Starter"
-                  ? "Démarrer l’essai"
-                  : plan.name === "Pro"
-                    ? "Passer à Pro"
-                    : "Passer à Agency"}
-              </a>
+              {session?.user ? (
+                <button
+                  onClick={() =>
+                    startCheckout(
+                      plan.name === "Starter"
+                        ? "starter"
+                        : plan.name === "Pro"
+                          ? "pro"
+                          : "agency"
+                    )
+                  }
+                  className={`mt-6 inline-flex w-full items-center justify-center rounded-lg px-4 py-3 font-medium transition ${
+                    plan.highlight
+                      ? "bg-indigo-500 hover:bg-indigo-400 text-white"
+                      : "border border-white/20 hover:bg-white/5"
+                  }`}
+                >
+                  {plan.name === "Starter"
+                    ? "Démarrer l’essai"
+                    : plan.name === "Pro"
+                      ? "Passer à Pro"
+                      : "Passer à Agency"}
+                </button>
+              ) : (
+                <a
+                  href="/signup"
+                  className={`mt-6 inline-flex w-full items-center justify-center rounded-lg px-4 py-3 font-medium transition ${
+                    plan.highlight
+                      ? "bg-indigo-500 hover:bg-indigo-400 text-white"
+                      : "border border-white/20 hover:bg-white/5"
+                  }`}
+                >
+                  {plan.name === "Starter"
+                    ? "Démarrer l’essai"
+                    : plan.name === "Pro"
+                      ? "Passer à Pro"
+                      : "Passer à Agency"}
+                </a>
+              )}
             </motion.div>
           ))}
         </div>
