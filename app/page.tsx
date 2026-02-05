@@ -40,10 +40,10 @@ export default function Home() {
 
         <div className="mt-10 flex justify-center items-start gap-2">
           <a
-            href="#acces"
+            href="/blog"
             className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
           >
-            Demander un accès
+            Lire le guide
           </a>
           <div className="flex flex-col items-center gap-3">
             <a
@@ -52,24 +52,12 @@ export default function Home() {
             >
               Contact
             </a>
-            <a
-              href="/blog"
-              className="text-sm text-gray-300 underline underline-offset-4 hover:text-white transition"
-            >
-              Lire le guide
-            </a>
-            <a
-              href="/dashboard"
-              className="text-xs text-gray-400 hover:text-white transition"
-            >
-              Accéder au dashboard (beta)
-            </a>
           </div>
           <a
-            href="#fonctionnement"
-            className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
+            href="/login"
+            className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
           >
-            Voir comment ça marche
+            Accéder au dashboard
           </a>
         </div>
       </motion.section>
@@ -161,105 +149,6 @@ export default function Home() {
             </motion.div>
           ))}
         </div>
-      </section>
-
-      {/* FORM */}
-      <section
-        id="acces"
-        className="max-w-xl mx-auto px-6 pb-32 text-center"
-      >
-        <motion.h2
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="text-3xl font-bold mb-4"
-        >
-          Accès anticipé
-        </motion.h2>
-
-        <p className="text-gray-300 mb-8">
-          Laisse ton email pour être prévenu dès l’ouverture et commencer ta
-          veille concurrentielle en premier.
-        </p>
-
-        {status === "idle" && (
-  <form
-    onSubmit={async (e) => {
-      e.preventDefault();
-
-      const formData = new FormData(e.currentTarget);
-      const email = String(formData.get("email"));
-
-      const res = await fetch("/.netlify/functions/early-access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      let payload: { status?: string } | null = null;
-      try {
-        payload = await res.json();
-      } catch {
-        payload = null;
-      }
-
-      if (res.ok && payload?.status === "success") {
-        setStatus("success");
-      } else if (res.ok && payload?.status === "exists") {
-        setStatus("exists");
-      } else {
-        setStatus("error");
-      }
-    }}
-    className="flex flex-col sm:flex-row gap-4"
-  >
-    <input
-      type="email"
-      name="email"
-      required
-      placeholder="ton@email.com"
-      className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
-    />
-
-    <button
-      type="submit"
-      className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
-    >
-      Être notifié
-    </button>
-  </form>
-)}
-
-{status === "success" && (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    className="mt-6 text-green-400 font-medium"
-  >
-    ✅ Merci ! Ton accès est enregistré.
-  </motion.div>
-)}
-
-{status === "exists" && (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    className="mt-6 text-yellow-400 font-medium"
-  >
-    👀 Cet email est déjà inscrit.
-  </motion.div>
-)}
-
-{status === "error" && (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    className="mt-6 text-red-400 font-medium"
-  >
-    ❌ Une erreur est survenue. Réessaie plus tard.
-  </motion.div>
-)}
       </section>
 
       {/* FAQ */}
