@@ -24,9 +24,13 @@ type MonitoredUrl = {
 
 type ChangeEvent = {
   id: string;
-  url_id: string;
-  summary: string | null;
+  monitored_url_id: string;
+  domain: "seo" | "pricing" | "cta" | "content";
+  severity: "low" | "medium" | "high";
+  field_key: string;
+  metadata: { summary?: string; url?: string } | null;
   detected_at: string | null;
+  is_read: boolean | null;
 };
 
 export default function DashboardPage() {
@@ -37,6 +41,11 @@ export default function DashboardPage() {
   const [newUrl, setNewUrl] = useState("");
   const [message, setMessage] = useState("");
   const [billingMessage, setBillingMessage] = useState("");
+  const [analysisMessage, setAnalysisMessage] = useState("");
+  const [analysisRunning, setAnalysisRunning] = useState(false);
+  const [alertFilter, setAlertFilter] = useState<"all" | "unread" | "read">(
+    "all"
+  );
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -94,12 +103,62 @@ export default function DashboardPage() {
     setUrls(urlsData || []);
 
     const { data: eventsData } = await supabase
-      .from("change_events")
-      .select("id,url_id,summary,detected_at")
+      .from("detected_changes")
+      .select(
+        "id,monitored_url_id,domain,severity,field_key,metadata,detected_at,is_read"
+      )
       .order("detected_at", { ascending: false })
-      .limit(5);
+      .limit(80);
 
-    setEvents(eventsData || []);
+    const domainRank: Record<ChangeEvent["domain"], number> = {
+      seo: 0,
+      pricing: 1,
+      cta: 2,
+      content: 3,
+    };
+    const severityRank: Record<ChangeEvent["severity"], number> = {
+      high: 0,
+      medium: 1,
+      low: 2,
+    };
+
+    const ranked = ((eventsData || []) as ChangeEvent[])
+      .sort((a, b) => {
+        const domainDelta = domainRank[a.domain] - domainRank[b.domain];
+        if (domainDelta !== 0) return domainDelta;
+        const sevDelta = severityRank[a.severity] - severityRank[b.severity];
+        if (sevDelta !== 0) return sevDelta;
+        return (b.detected_at || "").localeCompare(a.detected_at || "");
+      })
+      .slice(0, 8);
+
+    setEvents(ranked);
+  };
+
+  const markAlertAsRead = async (id: string, isRead: boolean) => {
+    const { error } = await supabase
+      .from("detected_changes")
+      .update({ is_read: isRead })
+      .eq("id", id);
+
+    if (!error) {
+      setEvents((prev) =>
+        prev.map((item) => (item.id === id ? { ...item, is_read: isRead } : item))
+      );
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!session?.user) return;
+    const { error } = await supabase
+      .from("detected_changes")
+      .update({ is_read: true })
+      .eq("user_id", session.user.id)
+      .eq("is_read", false);
+
+    if (!error) {
+      setEvents((prev) => prev.map((item) => ({ ...item, is_read: true })));
+    }
   };
 
   useEffect(() => {
@@ -132,6 +191,39 @@ export default function DashboardPage() {
   const removeUrl = async (id: string) => {
     await supabase.from("monitored_urls").delete().eq("id", id);
     await loadData();
+  };
+
+  const runAnalysis = async () => {
+    if (!session?.user?.id) return;
+    setAnalysisMessage("");
+    setAnalysisRunning(true);
+
+    try {
+      const response = await fetch("/api/monitor/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session.user.id }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Analyse impossible.");
+      }
+
+      const failedCount = Array.isArray(data?.failed) ? data.failed.length : 0;
+      const dedupedCount = Number(data?.deduped || 0);
+      const noiseCount = Number(data?.noiseFiltered || 0);
+      setAnalysisMessage(
+        `Analyse terminee: ${data.checked ?? 0} URL verifiee(s), ${data.changes ?? 0} changement(s), ${dedupedCount} dedoublonne(s), ${noiseCount} bruit(s) ignore(s), ${failedCount} echec(s).`
+      );
+      await loadData();
+    } catch (error: unknown) {
+      const details =
+        error instanceof Error ? error.message : "Erreur pendant l'analyse.";
+      setAnalysisMessage(details);
+    } finally {
+      setAnalysisRunning(false);
+    }
   };
 
   const plan =
@@ -175,6 +267,12 @@ export default function DashboardPage() {
           )
         )
       : null;
+  const unreadCount = events.filter((item) => !item.is_read).length;
+  const filteredEvents = events.filter((item) => {
+    if (alertFilter === "unread") return !item.is_read;
+    if (alertFilter === "read") return !!item.is_read;
+    return true;
+  });
   const openBillingPortal = async () => {
     setBillingMessage("");
     try {
@@ -305,7 +403,7 @@ export default function DashboardPage() {
         </div>
       </motion.section>
 
-      <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6">
+      <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 rounded-xl bg-white/5 border border-white/10 p-6">
           <h2 className="text-xl font-semibold mb-4">URLs surveillées</h2>
           <div className="space-y-4">
@@ -342,18 +440,92 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white/5 border border-white/10 p-6">
-          <h2 className="text-xl font-semibold mb-4">Derniers changements</h2>
+        <div className="rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto">
+          <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <h2 className="text-xl font-semibold">Centre d&apos;alertes</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-xs px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
+                {unreadCount} non lu{unreadCount > 1 ? "s" : ""}
+              </span>
+              <button
+                onClick={markAllAsRead}
+                className="text-xs px-2 py-1 rounded border border-white/15 hover:bg-white/5 transition"
+                disabled={unreadCount === 0}
+              >
+                Tout marquer lu
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={() => setAlertFilter("all")}
+              className={`text-xs px-2 py-1 rounded-full border transition ${
+                alertFilter === "all"
+                  ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
+                  : "border-white/15 text-gray-300 hover:bg-white/5"
+              }`}
+            >
+              Toutes
+            </button>
+            <button
+              onClick={() => setAlertFilter("unread")}
+              className={`text-xs px-2 py-1 rounded-full border transition ${
+                alertFilter === "unread"
+                  ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
+                  : "border-white/15 text-gray-300 hover:bg-white/5"
+              }`}
+            >
+              Non lues
+            </button>
+            <button
+              onClick={() => setAlertFilter("read")}
+              className={`text-xs px-2 py-1 rounded-full border transition ${
+                alertFilter === "read"
+                  ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
+                  : "border-white/15 text-gray-300 hover:bg-white/5"
+              }`}
+            >
+              Lues
+            </button>
+          </div>
           <div className="space-y-4">
-            {events.length === 0 && (
+            {filteredEvents.length === 0 && (
               <p className="text-gray-400 text-sm">Aucun changement détecté.</p>
             )}
-            {events.map((item) => (
+            {filteredEvents.map((item) => (
               <div key={item.id} className="rounded-lg border border-white/10 p-4">
-                <p className="text-sm text-gray-200">{item.summary}</p>
-                <p className="text-xs text-gray-500 mt-2">
-                  {item.detected_at || "—"}
+                <div className="flex flex-wrap items-center gap-2 mb-2">
+                  <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
+                    {item.domain}
+                  </span>
+                  <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
+                    {item.severity}
+                  </span>
+                  <span
+                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${
+                      item.is_read
+                        ? "bg-emerald-500/15 text-emerald-200"
+                        : "bg-amber-500/15 text-amber-200"
+                    }`}
+                  >
+                    {item.is_read ? "lu" : "non lu"}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-200">
+                  {item.metadata?.summary || item.field_key}
                 </p>
+                {item.metadata?.url && (
+                  <p className="text-xs text-gray-400 mt-1">{item.metadata.url}</p>
+                )}
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-xs text-gray-500">{item.detected_at || "—"}</p>
+                  <button
+                    onClick={() => markAlertAsRead(item.id, !item.is_read)}
+                    className="text-xs text-indigo-200 hover:text-indigo-100"
+                  >
+                    {item.is_read ? "Marquer non lu" : "Marquer lu"}
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -367,6 +539,18 @@ export default function DashboardPage() {
             Ajoute une page concurrente à surveiller. La détection des
             changements sera activée automatiquement.
           </p>
+          <div className="mb-4">
+            <button
+              onClick={runAnalysis}
+              className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={(!hasActiveSubscription && !isBypass) || analysisRunning}
+            >
+              {analysisRunning ? "Analyse en cours..." : "Analyser maintenant"}
+            </button>
+            {analysisMessage && (
+              <p className="text-indigo-200 text-sm mt-2">{analysisMessage}</p>
+            )}
+          </div>
           <div className="flex flex-col md:flex-row gap-3">
             <input
               type="url"

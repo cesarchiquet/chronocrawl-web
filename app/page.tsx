@@ -3,6 +3,7 @@
 import { motion, Variants } from "framer-motion";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import type { Session } from "@supabase/supabase-js";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -14,16 +15,22 @@ const fadeUp: Variants = {
 };
 
 export default function Home() {
-  const [status, setStatus] = useState<
-  "idle" | "success" | "exists" | "error"
->("idle");
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [checkoutError, setCheckoutError] = useState("");
+  const [billingError, setBillingError] = useState("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    const hydrateSession = async () => {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) {
+        setSession(refreshed.session);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
       setSession(data.session);
-    });
+    };
+    hydrateSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, currentSession) => {
@@ -35,6 +42,26 @@ export default function Home() {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const currentStatus =
+      (session.user.user_metadata?.subscription_status as string | undefined) ||
+      "inactive";
+    const isActive =
+      currentStatus === "active" || currentStatus === "trialing";
+    if (isActive) return;
+
+    const interval = setInterval(async () => {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) {
+        setSession(refreshed.session);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [session?.user?.id, session?.user?.user_metadata?.subscription_status]);
 
   const startCheckout = async (plan: "starter" | "pro" | "agency") => {
     if (!session?.user?.id || !session?.user?.email) {
@@ -58,10 +85,45 @@ export default function Home() {
         throw new Error(data?.error || "Impossible de démarrer le paiement.");
       }
       window.location.href = data.url;
-    } catch (error: any) {
-      setCheckoutError(error.message || "Erreur de paiement.");
+    } catch (error: unknown) {
+      const details =
+        error instanceof Error ? error.message : "Erreur de paiement.";
+      setCheckoutError(details);
     }
   };
+
+  const openBillingPortal = async () => {
+    if (!session?.user?.id) {
+      setBillingError("Connecte-toi pour gerer ton abonnement.");
+      return;
+    }
+
+    setBillingError("");
+    try {
+      const response = await fetch("/api/billing/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session.user.id }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data?.url) {
+        throw new Error(
+          data?.error || "Impossible d'ouvrir la gestion d'abonnement."
+        );
+      }
+
+      window.location.href = data.url;
+    } catch (error: unknown) {
+      const details =
+        error instanceof Error ? error.message : "Erreur portail abonnement.";
+      setBillingError(details);
+    }
+  };
+
+  const plan = session?.user?.user_metadata?.plan || "starter";
+  const subscriptionStatus =
+    session?.user?.user_metadata?.subscription_status || "inactive";
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
@@ -90,6 +152,12 @@ export default function Home() {
                 >
                   Dashboard
                 </a>
+                <button
+                  onClick={openBillingPortal}
+                  className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition"
+                >
+                  Gérer l&apos;abonnement
+                </button>
                 <button
                   onClick={() => supabase.auth.signOut()}
                   className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/5 transition"
@@ -146,6 +214,15 @@ export default function Home() {
         </div>
         {checkoutError && (
           <p className="mt-3 text-xs text-red-300">{checkoutError}</p>
+        )}
+        {billingError && (
+          <p className="mt-2 text-xs text-red-300">{billingError}</p>
+        )}
+        {session?.user && (
+          <p className="mt-2 text-xs text-indigo-200">
+            Plan actif: {String(plan).toUpperCase()} | Statut:{" "}
+            {String(subscriptionStatus).toUpperCase()}
+          </p>
         )}
 
         <div className="mt-10 flex justify-center items-start gap-2">

@@ -56,9 +56,14 @@ export async function POST(request: Request) {
   }
 
   const existingMetadata = userData.user.user_metadata ?? {};
-  const existingCustomerId = existingMetadata.stripe_customer_id as
+  const existingCustomerIdRaw = existingMetadata.stripe_customer_id as
     | string
     | undefined;
+  const existingCustomerId =
+    typeof existingCustomerIdRaw === "string" &&
+    existingCustomerIdRaw.startsWith("cus_")
+      ? existingCustomerIdRaw
+      : undefined;
 
   const customerId =
     existingCustomerId ||
@@ -74,7 +79,6 @@ export async function POST(request: Request) {
     payment_method_types: ["card"],
     customer: customerId,
     client_reference_id: userId,
-    customer_email: existingCustomerId ? undefined : email,
     metadata: { user_id: userId, plan },
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${origin}/dashboard`,
