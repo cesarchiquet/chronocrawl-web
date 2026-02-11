@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { extractSignalsFromHtml } from "@/lib/monitorSignals";
 import { renderAlertEmail } from "@/lib/emailTemplates";
 import { Resend } from "resend";
+import { requireUserFromRequest } from "@/lib/routeAuth";
 
 type DbSnapshot = {
   id: string;
@@ -269,11 +270,11 @@ async function fetchPageHtml(url: string) {
 }
 
 export async function POST(request: Request) {
-  const { userId } = (await request.json()) as { userId?: string };
-
-  if (!userId) {
-    return NextResponse.json({ error: "Utilisateur manquant." }, { status: 400 });
+  const auth = await requireUserFromRequest(request);
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+  const userId = auth.user.id;
 
   const { data: userData, error: userError } =
     await supabaseAdmin.auth.admin.getUserById(userId);

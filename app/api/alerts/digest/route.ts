@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { renderAlertEmail } from "@/lib/emailTemplates";
+import { requireUserFromRequest } from "@/lib/routeAuth";
 
 type AlertSettingRow = {
   user_id: string;
@@ -40,8 +41,23 @@ export async function POST(request: Request) {
     userId?: string;
   };
   const userId = payload.userId?.trim();
+  const hasBearer = request.headers.get("authorization")?.startsWith("Bearer ");
 
-  if (!userId && digestSecret) {
+  if (hasBearer) {
+    const auth = await requireUserFromRequest(request);
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
+    if (userId && userId !== auth.user.id) {
+      return NextResponse.json({ error: "Utilisateur invalide." }, { status: 403 });
+    }
+  } else {
+    if (!digestSecret) {
+      return NextResponse.json(
+        { error: "Mode cron non configure (ALERT_DIGEST_SECRET)." },
+        { status: 401 }
+      );
+    }
     const provided = request.headers.get("x-digest-secret");
     if (!provided || provided !== digestSecret) {
       return NextResponse.json({ error: "Non autorise." }, { status: 401 });

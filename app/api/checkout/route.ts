@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUserFromRequest } from "@/lib/routeAuth";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const priceStarter = process.env.STRIPE_PRICE_STARTER;
@@ -21,11 +22,16 @@ export async function POST(request: Request) {
     );
   }
 
-  const { plan, userId, email } = (await request.json()) as {
+  const auth = await requireUserFromRequest(request);
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const { plan } = (await request.json()) as {
     plan?: Plan;
-    userId?: string;
-    email?: string;
   };
+  const userId = auth.user.id;
+  const email = auth.user.email;
   const priceId =
     plan === "starter"
       ? priceStarter

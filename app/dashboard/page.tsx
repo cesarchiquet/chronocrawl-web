@@ -279,13 +279,16 @@ export default function DashboardPage() {
   };
 
   const runDailyDigestNow = async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || !session?.access_token) return;
     setDigestMessage("");
     setRunningDigest(true);
     try {
       const response = await fetch("/api/alerts/digest", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({ userId: session.user.id }),
       });
       const data = await response.json();
@@ -331,15 +334,18 @@ export default function DashboardPage() {
   };
 
   const runAnalysis = async () => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || !session?.access_token) return;
     setAnalysisMessage("");
     setAnalysisRunning(true);
 
     try {
       const response = await fetch("/api/monitor/run", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: session.user.id }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
       });
 
       const data = await response.json();
@@ -421,11 +427,18 @@ export default function DashboardPage() {
   });
   const openBillingPortal = async () => {
     setBillingMessage("");
+    if (!session?.access_token) {
+      setBillingMessage("Session invalide. Reconnecte-toi.");
+      return;
+    }
     try {
       const response = await fetch("/api/billing/portal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: session?.user?.id }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
       });
       const data = await response.json();
       if (!response.ok || !data?.url) {

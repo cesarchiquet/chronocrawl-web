@@ -84,7 +84,7 @@ export default function Home() {
   }, [session?.user?.id, session?.user?.user_metadata?.subscription_status]);
 
   const startCheckout = async (plan: "starter" | "pro" | "agency") => {
-    if (!session?.user?.id || !session?.user?.email) {
+    if (!session?.user?.id || !session?.access_token) {
       setCheckoutError("Connecte-toi pour continuer.");
       return;
     }
@@ -93,11 +93,12 @@ export default function Home() {
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           plan,
-          userId: session.user.id,
-          email: session.user.email,
         }),
       });
       const data = await response.json();
@@ -113,7 +114,7 @@ export default function Home() {
   };
 
   const openBillingPortal = async () => {
-    if (!session?.user?.id) {
+    if (!session?.user?.id || !session?.access_token) {
       setBillingError("Connecte-toi pour gerer ton abonnement.");
       return;
     }
@@ -122,8 +123,11 @@ export default function Home() {
     try {
       const response = await fetch("/api/billing/portal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: session.user.id }),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({}),
       });
 
       const data = await response.json();

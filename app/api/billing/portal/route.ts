@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { requireUserFromRequest } from "@/lib/routeAuth";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
@@ -13,14 +14,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const { userId } = (await request.json()) as { userId?: string };
-
-  if (!userId) {
-    return NextResponse.json(
-      { error: "Utilisateur manquant." },
-      { status: 400 }
-    );
+  const auth = await requireUserFromRequest(request);
+  if ("error" in auth) {
+    return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
+  const userId = auth.user.id;
 
   const { data: userData, error: userError } =
     await supabaseAdmin.auth.admin.getUserById(userId);
