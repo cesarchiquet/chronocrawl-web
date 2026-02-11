@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const priceStarter = process.env.STRIPE_PRICE_STARTER;
@@ -20,7 +21,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const { plan } = (await request.json()) as { plan?: Plan };
+  const { plan, userId, email } = (await request.json()) as {
+    plan?: Plan;
+    userId?: string;
+    email?: string;
+  };
   const priceId =
     plan === "starter"
       ? priceStarter
@@ -30,9 +35,9 @@ export async function POST(request: Request) {
           ? priceAgency
           : null;
 
-  if (!plan || !priceId) {
+  if (!plan || !priceId || !userId || !email) {
     return NextResponse.json(
-      { error: "Plan ou prix Stripe invalide." },
+      { error: "Plan, utilisateur ou prix Stripe invalide." },
       { status: 400 }
     );
   }
@@ -40,18 +45,61 @@ export async function POST(request: Request) {
   const origin =
     process.env.NEXT_PUBLIC_SITE_URL || request.headers.get("origin") || "";
 
+  const { data: userData, error: userError } =
+    await supabaseAdmin.auth.admin.getUserById(userId);
+
+  if (userError || !userData.user) {
+    return NextResponse.json(
+      { error: "Utilisateur introuvable pour le checkout." },
+      { status: 400 }
+    );
+  }
+
+  const existingMetadata = userData.user.user_metadata ?? {};
+  const existingCustomerId = existingMetadata.stripe_customer_id as
+    | string
+    | undefined;
+
+  const customerId =
+    existingCustomerId ||
+    (
+      await stripe.customers.create({
+        email,
+        metadata: { user_id: userId },
+      })
+    ).id;
+
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     payment_method_types: ["card"],
+    customer: customerId,
+    client_reference_id: userId,
+    customer_email: existingCustomerId ? undefined : email,
+    metadata: { user_id: userId, plan },
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: `${origin}/dashboard`,
     cancel_url: `${origin}/#tarifs`,
     ...(plan === "starter"
       ? {
-          subscription_data: { trial_period_days: 7 },
+          subscription_data: {
+            trial_period_days: 7,
+            metadata: { user_id: userId, plan },
+          },
           payment_method_collection: "always",
         }
-      : {}),
+      : {
+          subscription_data: {
+            metadata: { user_id: userId, plan },
+          },
+        }
+    ),
+  });
+
+  await supabaseAdmin.auth.admin.updateUserById(userId, {
+    user_metadata: {
+      ...existingMetadata,
+      stripe_customer_id: customerId,
+    },
   });
 
   return NextResponse.json({ url: session.url });

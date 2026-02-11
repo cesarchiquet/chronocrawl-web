@@ -37,12 +37,21 @@ export default function Home() {
   }, []);
 
   const startCheckout = async (plan: "starter" | "pro" | "agency") => {
+    if (!session?.user?.id || !session?.user?.email) {
+      setCheckoutError("Connecte-toi pour continuer.");
+      return;
+    }
+
     setCheckoutError("");
     try {
       const response = await fetch("/api/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({
+          plan,
+          userId: session.user.id,
+          email: session.user.email,
+        }),
       });
       const data = await response.json();
       if (!response.ok || !data?.url) {

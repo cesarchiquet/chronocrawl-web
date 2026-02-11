@@ -126,20 +126,17 @@ export default function DashboardPage() {
   const userEmail = session?.user?.email?.toLowerCase();
   const isBypass = testMode && !!userEmail && bypassEmails.includes(userEmail);
   const subscriptionStatus = session?.user?.user_metadata?.subscription_status;
-  const hasActiveSubscription = subscriptionStatus === "active";
+  const hasActiveSubscription =
+    subscriptionStatus === "active" || subscriptionStatus === "trialing";
   const canAddUrl =
     (isBypass || hasActiveSubscription) && currentCount < limit;
-  const stripeCustomerId = session?.user?.user_metadata?.stripe_customer_id as
-    | string
-    | undefined;
-
   const openBillingPortal = async () => {
     setBillingMessage("");
     try {
       const response = await fetch("/api/billing/portal", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ customerId: stripeCustomerId }),
+        body: JSON.stringify({ userId: session?.user?.id }),
       });
       const data = await response.json();
       if (!response.ok || !data?.url) {
