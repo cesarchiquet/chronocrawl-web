@@ -281,8 +281,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Utilisateur introuvable." }, { status: 400 });
   }
 
-  const plan = (userData.user.user_metadata?.plan as string | undefined) || "starter";
+  const { data: subscriptionRow } = await supabaseAdmin
+    .from("user_subscriptions")
+    .select("plan,status")
+    .eq("user_id", userId)
+    .maybeSingle<{ plan: string; status: string }>();
+
+  const plan =
+    subscriptionRow?.plan ||
+    (userData.user.user_metadata?.plan as string | undefined) ||
+    "starter";
   const status =
+    subscriptionRow?.status ||
     (userData.user.user_metadata?.subscription_status as string | undefined) ||
     "inactive";
   let alertSettings: AlertSettings = {
@@ -309,6 +319,65 @@ export async function POST(request: Request) {
       { status: 403 }
     );
   }
+
+  const nowIso = new Date().toISOString();
+  const { data: usageRow } = await supabaseAdmin
+    .from("user_monitor_usage")
+    .select("window_started_at,run_count,last_run_at")
+    .eq("user_id", userId)
+    .maybeSingle<{
+      window_started_at: string;
+      run_count: number;
+      last_run_at: string | null;
+    }>();
+
+  const dailyRunLimitByPlan: Record<string, number> = {
+    starter: 50,
+    pro: 300,
+    agency: 1200,
+  };
+  const dailyLimit = dailyRunLimitByPlan[plan] || dailyRunLimitByPlan.starter;
+  const cooldownMs = 15_000;
+
+  const now = Date.now();
+  const windowStartedAt = usageRow?.window_started_at
+    ? new Date(usageRow.window_started_at).getTime()
+    : now;
+  const windowExpired = now - windowStartedAt >= 24 * 60 * 60 * 1000;
+  const runCount = windowExpired ? 0 : usageRow?.run_count || 0;
+  const lastRunAt = usageRow?.last_run_at
+    ? new Date(usageRow.last_run_at).getTime()
+    : null;
+
+  if (lastRunAt && now - lastRunAt < cooldownMs) {
+    return NextResponse.json(
+      {
+        error:
+          "Analyse trop frequente. Attends 15 secondes avant de relancer.",
+      },
+      { status: 429 }
+    );
+  }
+
+  if (runCount >= dailyLimit) {
+    return NextResponse.json(
+      {
+        error: `Limite journaliere atteinte (${dailyLimit} analyses). Reviens demain ou upgrade ton plan.`,
+      },
+      { status: 429 }
+    );
+  }
+
+  await supabaseAdmin.from("user_monitor_usage").upsert(
+    {
+      user_id: userId,
+      window_started_at: windowExpired ? nowIso : usageRow?.window_started_at || nowIso,
+      run_count: runCount + 1,
+      last_run_at: nowIso,
+      updated_at: nowIso,
+    },
+    { onConflict: "user_id" }
+  );
 
   const limitByPlan: Record<string, number> = {
     starter: 10,

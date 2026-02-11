@@ -18,6 +18,10 @@ export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [checkoutError, setCheckoutError] = useState("");
   const [billingError, setBillingError] = useState("");
+  const [subscriptionState, setSubscriptionState] = useState<{
+    plan: "starter" | "pro" | "agency";
+    status: string;
+  } | null>(null);
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -42,6 +46,22 @@ export default function Home() {
       authListener.subscription.unsubscribe();
     };
   }, []);
+
+  useEffect(() => {
+    const loadSubscriptionState = async () => {
+      if (!session?.user?.id) {
+        setSubscriptionState(null);
+        return;
+      }
+      const { data } = await supabase
+        .from("user_subscriptions")
+        .select("plan,status")
+        .eq("user_id", session.user.id)
+        .maybeSingle<{ plan: "starter" | "pro" | "agency"; status: string }>();
+      setSubscriptionState(data || null);
+    };
+    loadSubscriptionState();
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -121,9 +141,12 @@ export default function Home() {
     }
   };
 
-  const plan = session?.user?.user_metadata?.plan || "starter";
+  const plan =
+    subscriptionState?.plan || session?.user?.user_metadata?.plan || "starter";
   const subscriptionStatus =
-    session?.user?.user_metadata?.subscription_status || "inactive";
+    subscriptionState?.status ||
+    session?.user?.user_metadata?.subscription_status ||
+    "inactive";
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">

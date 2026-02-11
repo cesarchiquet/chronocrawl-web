@@ -33,6 +33,12 @@ type ChangeEvent = {
   is_read: boolean | null;
 };
 
+type SubscriptionState = {
+  plan: "starter" | "pro" | "agency";
+  status: string;
+  trial_end: string | null;
+};
+
 export default function DashboardPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +63,12 @@ export default function DashboardPage() {
   const [digestMessage, setDigestMessage] = useState("");
   const [savingAlertSettings, setSavingAlertSettings] = useState(false);
   const [runningDigest, setRunningDigest] = useState(false);
+  const [subscriptionState, setSubscriptionState] =
+    useState<SubscriptionState | null>(null);
+  const [changes24h, setChanges24h] = useState(0);
+  const [high7d, setHigh7d] = useState(0);
+  const [dailyRunCount, setDailyRunCount] = useState(0);
+  const [dailyRunStartedAt, setDailyRunStartedAt] = useState<string | null>(null);
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -144,6 +156,40 @@ export default function DashboardPage() {
       .slice(0, 8);
 
     setEvents(ranked);
+
+    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    const { count: changeCount24h } = await supabase
+      .from("detected_changes")
+      .select("id", { count: "exact", head: true })
+      .gt("detected_at", since24h);
+
+    const { count: highCount7d } = await supabase
+      .from("detected_changes")
+      .select("id", { count: "exact", head: true })
+      .eq("severity", "high")
+      .gt("detected_at", since7d);
+
+    const { data: usage } = await supabase
+      .from("user_monitor_usage")
+      .select("run_count,window_started_at")
+      .maybeSingle<{ run_count: number; window_started_at: string }>();
+
+    setChanges24h(changeCount24h || 0);
+    setHigh7d(highCount7d || 0);
+    setDailyRunCount(usage?.run_count || 0);
+    setDailyRunStartedAt(usage?.window_started_at || null);
+  };
+
+  const loadSubscriptionState = async () => {
+    if (!session?.user) return;
+    const { data } = await supabase
+      .from("user_subscriptions")
+      .select("plan,status,trial_end")
+      .eq("user_id", session.user.id)
+      .maybeSingle<SubscriptionState>();
+    setSubscriptionState(data || null);
   };
 
   const loadAlertSettings = async () => {
@@ -199,6 +245,7 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (session?.user) {
+      loadSubscriptionState();
       loadData();
       loadAlertSettings();
     }
@@ -317,6 +364,11 @@ export default function DashboardPage() {
   };
 
   const plan =
+    (subscriptionState?.plan as
+      | "starter"
+      | "pro"
+      | "agency"
+      | undefined) ||
     (session?.user?.user_metadata?.plan as
       | "starter"
       | "pro"
@@ -339,10 +391,14 @@ export default function DashboardPage() {
       .filter(Boolean) || [];
   const userEmail = session?.user?.email?.toLowerCase();
   const isBypass = testMode && !!userEmail && bypassEmails.includes(userEmail);
-  const subscriptionStatus = session?.user?.user_metadata?.subscription_status;
-  const trialEndRaw = session?.user?.user_metadata?.subscription_trial_end as
+  const subscriptionStatus =
+    subscriptionState?.status ||
+    (session?.user?.user_metadata?.subscription_status as string | undefined);
+  const trialEndRaw =
+    subscriptionState?.trial_end ||
+    (session?.user?.user_metadata?.subscription_trial_end as
     | string
-    | undefined;
+    | undefined);
   const hasActiveSubscription =
     subscriptionStatus === "active" || subscriptionStatus === "trialing";
   const canAddUrl =
@@ -490,6 +546,20 @@ export default function DashboardPage() {
               Mode test activé
             </span>
           )}
+        </div>
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+          <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
+            Changements 24h: <span className="font-semibold">{changes24h}</span>
+          </div>
+          <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
+            Alertes HIGH 7j: <span className="font-semibold">{high7d}</span>
+          </div>
+          <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
+            Analyses 24h: <span className="font-semibold">{dailyRunCount}</span>
+            {dailyRunStartedAt ? (
+              <span className="text-gray-400"> (depuis {new Date(dailyRunStartedAt).toLocaleString("fr-FR")})</span>
+            ) : null}
+          </div>
         </div>
       </motion.section>
 

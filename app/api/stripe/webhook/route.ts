@@ -67,6 +67,64 @@ async function updateUserSubscriptionById({
   }
 }
 
+async function upsertSubscriptionState(params: {
+  userId: string;
+  plan: string;
+  status: string;
+  customerId?: string | null;
+  subscriptionId?: string | null;
+  trialEnd?: string | null;
+  currentPeriodEnd?: string | null;
+  cancelAtPeriodEnd?: boolean;
+}) {
+  const {
+    userId,
+    plan,
+    status,
+    customerId,
+    subscriptionId,
+    trialEnd,
+    currentPeriodEnd,
+    cancelAtPeriodEnd,
+  } = params;
+
+  const { data: existingRow } = await supabaseAdmin
+    .from("user_subscriptions")
+    .select(
+      "stripe_customer_id,stripe_subscription_id,trial_end,current_period_end,cancel_at_period_end"
+    )
+    .eq("user_id", userId)
+    .maybeSingle<{
+      stripe_customer_id: string | null;
+      stripe_subscription_id: string | null;
+      trial_end: string | null;
+      current_period_end: string | null;
+      cancel_at_period_end: boolean | null;
+    }>();
+
+  const { error } = await supabaseAdmin.from("user_subscriptions").upsert(
+    {
+      user_id: userId,
+      plan,
+      status,
+      stripe_customer_id: customerId ?? existingRow?.stripe_customer_id ?? null,
+      stripe_subscription_id:
+        subscriptionId ?? existingRow?.stripe_subscription_id ?? null,
+      trial_end: trialEnd ?? existingRow?.trial_end ?? null,
+      current_period_end:
+        currentPeriodEnd ?? existingRow?.current_period_end ?? null,
+      cancel_at_period_end:
+        cancelAtPeriodEnd ?? existingRow?.cancel_at_period_end ?? false,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
+
+  if (error) {
+    throw new Error(`Echec upsert user_subscriptions: ${error.message}`);
+  }
+}
+
 export async function POST(request: Request) {
   if (!stripe || !webhookSecret) {
     return NextResponse.json(
@@ -91,6 +149,31 @@ export async function POST(request: Request) {
   }
 
   try {
+    const { data: existingEvent } = await supabaseAdmin
+      .from("stripe_webhook_events")
+      .select("event_id,status")
+      .eq("event_id", event.id)
+      .maybeSingle<{ event_id: string; status: string }>();
+
+    if (existingEvent?.status === "processed") {
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+
+    if (!existingEvent) {
+      const { error: insertEventError } = await supabaseAdmin
+        .from("stripe_webhook_events")
+        .insert({
+          event_id: event.id,
+          event_type: event.type,
+          status: "processing",
+        });
+      if (insertEventError && insertEventError.code !== "23505") {
+        throw new Error(
+          `Echec enregistrement webhook event ${event.id}: ${insertEventError.message}`
+        );
+      }
+    }
+
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId =
@@ -108,7 +191,16 @@ export async function POST(request: Request) {
         await updateUserSubscriptionById({
           userId,
           plan: getPlanFromPriceId(priceId),
-          status: "active",
+          status: "trialing",
+          customerId: typeof session.customer === "string" ? session.customer : null,
+          subscriptionId:
+            typeof session.subscription === "string" ? session.subscription : null,
+        });
+
+        await upsertSubscriptionState({
+          userId,
+          plan: getPlanFromPriceId(priceId),
+          status: "trialing",
           customerId: typeof session.customer === "string" ? session.customer : null,
           subscriptionId:
             typeof session.subscription === "string" ? session.subscription : null,
@@ -131,22 +223,66 @@ export async function POST(request: Request) {
         hasScheduledCancellation;
 
       if (userId) {
+        const status = shouldDowngrade ? "inactive" : subscription.status;
+        const plan = shouldDowngrade ? "starter" : getPlanFromPriceId(priceId);
+        const trialEnd = subscription.trial_end
+          ? new Date(subscription.trial_end * 1000).toISOString()
+          : null;
+        const currentPeriodEnd = subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000).toISOString()
+          : null;
+
         await updateUserSubscriptionById({
           userId,
-          plan: shouldDowngrade ? "starter" : getPlanFromPriceId(priceId),
-          status: shouldDowngrade ? "inactive" : subscription.status,
+          plan,
+          status,
           customerId:
             typeof subscription.customer === "string"
               ? subscription.customer
               : null,
           subscriptionId: subscription.id,
-          trialEnd: subscription.trial_end
-            ? new Date(subscription.trial_end * 1000).toISOString()
-            : null,
+          trialEnd,
+        });
+
+        await upsertSubscriptionState({
+          userId,
+          plan,
+          status,
+          customerId:
+            typeof subscription.customer === "string"
+              ? subscription.customer
+              : null,
+          subscriptionId: subscription.id,
+          trialEnd,
+          currentPeriodEnd,
+          cancelAtPeriodEnd: subscription.cancel_at_period_end,
         });
       }
     }
+
+    await supabaseAdmin
+      .from("stripe_webhook_events")
+      .update({
+        status: "processed",
+        processed_at: new Date().toISOString(),
+        error_message: null,
+      })
+      .eq("event_id", event.id);
   } catch (error) {
+    await supabaseAdmin
+      .from("stripe_webhook_events")
+      .upsert(
+        {
+          event_id: event.id,
+          event_type: event.type,
+          status: "failed",
+          processed_at: new Date().toISOString(),
+          error_message:
+            error instanceof Error ? error.message : "Erreur webhook Stripe.",
+        },
+        { onConflict: "event_id" }
+      );
+
     return NextResponse.json(
       {
         error:

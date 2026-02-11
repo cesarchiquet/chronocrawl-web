@@ -56,9 +56,14 @@ export async function POST(request: Request) {
   }
 
   const existingMetadata = userData.user.user_metadata ?? {};
-  const existingCustomerIdRaw = existingMetadata.stripe_customer_id as
-    | string
-    | undefined;
+  const { data: subscriptionRow } = await supabaseAdmin
+    .from("user_subscriptions")
+    .select("stripe_customer_id")
+    .eq("user_id", userId)
+    .maybeSingle<{ stripe_customer_id: string | null }>();
+  const existingCustomerIdRaw =
+    subscriptionRow?.stripe_customer_id ||
+    (existingMetadata.stripe_customer_id as string | undefined);
   const existingCustomerId =
     typeof existingCustomerIdRaw === "string" &&
     existingCustomerIdRaw.startsWith("cus_")
@@ -105,6 +110,17 @@ export async function POST(request: Request) {
       stripe_customer_id: customerId,
     },
   });
+
+  await supabaseAdmin.from("user_subscriptions").upsert(
+    {
+      user_id: userId,
+      plan,
+      status: "pending_checkout",
+      stripe_customer_id: customerId,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id" }
+  );
 
   return NextResponse.json({ url: session.url });
 }

@@ -81,6 +81,48 @@ export default function AlertsHistoryPage() {
     });
   }, [events, severityFilter, urlFilter, readFilter]);
 
+  const exportCsv = () => {
+    const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`;
+    const rows = filtered.map((event) => {
+      const detectedAt = event.detected_at || "";
+      const domain = event.domain || "";
+      const severity = event.severity || "";
+      const readState = event.is_read ? "read" : "unread";
+      const url = event.metadata?.url || "";
+      const summary = event.metadata?.summary || "Alerte détectée";
+      return [
+        detectedAt,
+        domain,
+        severity,
+        readState,
+        url,
+        summary,
+      ]
+        .map((item) => escapeCsv(String(item)))
+        .join(",");
+    });
+
+    const header = [
+      "detected_at",
+      "domain",
+      "severity",
+      "read_state",
+      "url",
+      "summary",
+    ]
+      .map((item) => `"${item}"`)
+      .join(",");
+
+    const content = [header, ...rows].join("\n");
+    const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = "chronocrawl-alerts.csv";
+    link.click();
+    URL.revokeObjectURL(objectUrl);
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816]" />
@@ -115,6 +157,12 @@ export default function AlertsHistoryPage() {
             <h1 className="text-3xl md:text-4xl font-bold">Historique d&apos;alertes</h1>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={exportCsv}
+              className="px-5 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition"
+            >
+              Export CSV
+            </button>
             <a
               href="/dashboard"
               className="px-5 py-2 rounded-lg border border-white/20 hover:bg-white/5 transition"
@@ -222,4 +270,3 @@ export default function AlertsHistoryPage() {
     </main>
   );
 }
-

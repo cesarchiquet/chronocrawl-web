@@ -36,7 +36,16 @@ export async function POST(request: Request) {
     | string
     | undefined;
 
-  if (!customerId) {
+  const { data: subscriptionRow } = await supabaseAdmin
+    .from("user_subscriptions")
+    .select("stripe_customer_id")
+    .eq("user_id", userId)
+    .maybeSingle<{ stripe_customer_id: string | null }>();
+
+  const resolvedCustomerId =
+    subscriptionRow?.stripe_customer_id || customerId;
+
+  if (!resolvedCustomerId) {
     return NextResponse.json(
       { error: "Compte client Stripe introuvable pour cet utilisateur." },
       { status: 400 }
@@ -47,7 +56,7 @@ export async function POST(request: Request) {
     process.env.NEXT_PUBLIC_SITE_URL || request.headers.get("origin") || "";
 
   const session = await stripe.billingPortal.sessions.create({
-    customer: customerId,
+    customer: resolvedCustomerId,
     return_url: `${origin}/dashboard`,
   });
 
