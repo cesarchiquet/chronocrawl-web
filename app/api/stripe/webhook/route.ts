@@ -124,9 +124,11 @@ export async function POST(request: Request) {
       const subscription = event.data.object as Stripe.Subscription;
       const userId = subscription.metadata?.user_id;
       const priceId = subscription.items.data[0]?.price?.id;
+      const hasScheduledCancellation = subscription.cancel_at_period_end === true;
       const shouldDowngrade =
         event.type === "customer.subscription.deleted" ||
-        subscription.status === "canceled";
+        subscription.status === "canceled" ||
+        hasScheduledCancellation;
 
       if (userId) {
         await updateUserSubscriptionById({
