@@ -35,6 +35,7 @@ export default function DashboardPage() {
   const [events, setEvents] = useState<ChangeEvent[]>([]);
   const [newUrl, setNewUrl] = useState("");
   const [message, setMessage] = useState("");
+  const [billingMessage, setBillingMessage] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -101,6 +102,60 @@ export default function DashboardPage() {
     await loadData();
   };
 
+  const plan =
+    (session?.user?.user_metadata?.plan as
+      | "starter"
+      | "pro"
+      | "agency"
+      | undefined) || "starter";
+
+  const limits: Record<string, number> = {
+    starter: 10,
+    pro: 50,
+    agency: 200,
+  };
+
+  const limit = limits[plan] || limits.starter;
+  const currentCount = urls.length;
+
+  const testMode = process.env.NEXT_PUBLIC_TEST_MODE === "true";
+  const bypassEmails =
+    process.env.NEXT_PUBLIC_TEST_BYPASS_EMAILS?.split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean) || [];
+  const userEmail = session?.user?.email?.toLowerCase();
+  const isBypass = testMode && !!userEmail && bypassEmails.includes(userEmail);
+  const subscriptionStatus = session?.user?.user_metadata?.subscription_status;
+  const hasActiveSubscription = subscriptionStatus === "active";
+  const canAddUrl =
+    (isBypass || hasActiveSubscription) && currentCount < limit;
+  const stripeCustomerId = session?.user?.user_metadata?.stripe_customer_id as
+    | string
+    | undefined;
+
+  const openBillingPortal = async () => {
+    setBillingMessage("");
+    try {
+      const response = await fetch("/api/billing/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customerId: stripeCustomerId }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data?.url) {
+        throw new Error(
+          data?.error ||
+            "Impossible d'ouvrir la gestion d'abonnement pour le moment."
+        );
+      }
+      window.location.href = data.url;
+    } catch (error: unknown) {
+      const details =
+        error instanceof Error ? error.message : "Erreur Stripe.";
+      setBillingMessage(details);
+    }
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white" />
@@ -152,12 +207,41 @@ export default function DashboardPage() {
               temps réel.
             </p>
           </div>
-          <button
-            onClick={() => supabase.auth.signOut()}
-            className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
-          >
-            Se déconnecter
-          </button>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={openBillingPortal}
+              className="px-6 py-3 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition"
+            >
+              Gérer l&apos;abonnement
+            </button>
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
+            >
+              Se déconnecter
+            </button>
+          </div>
+        </div>
+        {billingMessage && (
+          <p className="mt-3 text-sm text-amber-200">{billingMessage}</p>
+        )}
+        <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
+          <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200">
+            Plan: {plan.toUpperCase()}
+          </span>
+          <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200">
+            {currentCount}/{limit} URLs
+          </span>
+          {!hasActiveSubscription && !isBypass && (
+            <span className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-400/30 text-amber-200">
+              Abonnement requis pour activer la surveillance
+            </span>
+          )}
+          {isBypass && (
+            <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-400/30 text-indigo-200">
+              Mode test activé
+            </span>
+          )}
         </div>
       </motion.section>
 
@@ -233,11 +317,24 @@ export default function DashboardPage() {
             />
             <button
               onClick={addUrl}
-              className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+              className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!canAddUrl}
             >
               Ajouter
             </button>
           </div>
+          {!hasActiveSubscription && !isBypass && (
+            <p className="text-amber-200 text-sm mt-3">
+              Ajout bloque : ton abonnement n&apos;est pas encore actif.
+              Selectionne un plan depuis la landing, puis reviens ici.
+            </p>
+          )}
+          {currentCount >= limit && (
+            <p className="text-amber-200 text-sm mt-3">
+              Limite atteinte : ton plan {plan.toUpperCase()} autorise {limit}{" "}
+              URLs max. Supprime une URL ou upgrade ton abonnement.
+            </p>
+          )}
           {message && <p className="text-red-400 text-sm mt-3">{message}</p>}
         </div>
       </section>
