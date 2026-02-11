@@ -46,6 +46,17 @@ export default function DashboardPage() {
   const [alertFilter, setAlertFilter] = useState<"all" | "unread" | "read">(
     "all"
   );
+  const [emailMode, setEmailMode] = useState<"instant" | "daily" | "off">(
+    "instant"
+  );
+  const [minEmailSeverity, setMinEmailSeverity] = useState<
+    "low" | "medium" | "high"
+  >("high");
+  const [digestHour, setDigestHour] = useState(8);
+  const [alertSettingsMessage, setAlertSettingsMessage] = useState("");
+  const [digestMessage, setDigestMessage] = useState("");
+  const [savingAlertSettings, setSavingAlertSettings] = useState(false);
+  const [runningDigest, setRunningDigest] = useState(false);
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -135,6 +146,31 @@ export default function DashboardPage() {
     setEvents(ranked);
   };
 
+  const loadAlertSettings = async () => {
+    if (!session?.user) return;
+    const { data, error } = await supabase
+      .from("user_alert_settings")
+      .select("email_mode,min_email_severity,digest_hour")
+      .eq("user_id", session.user.id)
+      .maybeSingle<{
+        email_mode: "instant" | "daily" | "off";
+        min_email_severity: "low" | "medium" | "high";
+        digest_hour: number;
+      }>();
+
+    if (error) {
+      setAlertSettingsMessage(
+        "Preferences alertes indisponibles (verifie la migration SQL et recharge)."
+      );
+      return;
+    }
+
+    if (!data) return;
+    setEmailMode(data.email_mode || "instant");
+    setMinEmailSeverity(data.min_email_severity || "high");
+    setDigestHour(Number.isFinite(data.digest_hour) ? data.digest_hour : 8);
+  };
+
   const markAlertAsRead = async (id: string, isRead: boolean) => {
     const { error } = await supabase
       .from("detected_changes")
@@ -164,8 +200,62 @@ export default function DashboardPage() {
   useEffect(() => {
     if (session?.user) {
       loadData();
+      loadAlertSettings();
     }
   }, [session]);
+
+  const saveAlertSettings = async () => {
+    if (!session?.user) return;
+    setAlertSettingsMessage("");
+    setSavingAlertSettings(true);
+    const { error } = await supabase.from("user_alert_settings").upsert(
+      {
+        user_id: session.user.id,
+        email_mode: emailMode,
+        min_email_severity: minEmailSeverity,
+        digest_hour: digestHour,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id" }
+    );
+
+    if (error) {
+      setAlertSettingsMessage(
+        "Impossible de sauvegarder les preferences. Verifie la migration SQL."
+      );
+      setSavingAlertSettings(false);
+      return;
+    }
+
+    setAlertSettingsMessage("Preferences enregistrees.");
+    setSavingAlertSettings(false);
+  };
+
+  const runDailyDigestNow = async () => {
+    if (!session?.user?.id) return;
+    setDigestMessage("");
+    setRunningDigest(true);
+    try {
+      const response = await fetch("/api/alerts/digest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session.user.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Digest impossible.");
+      }
+      setDigestMessage(
+        `Digest traite: ${data.processed ?? 0} compte(s), ${data.sent ?? 0} email(s) envoye(s).`
+      );
+    } catch (error: unknown) {
+      setDigestMessage(
+        error instanceof Error ? error.message : "Erreur digest."
+      );
+    } finally {
+      setRunningDigest(false);
+    }
+  };
 
   const addUrl = async () => {
     if (!newUrl || !session?.user) return;
@@ -404,7 +494,7 @@ export default function DashboardPage() {
       </motion.section>
 
       <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 rounded-xl bg-white/5 border border-white/10 p-6">
+        <div className="lg:col-span-2 rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4">URLs surveillées</h2>
           <div className="space-y-4">
             {urls.length === 0 && (
@@ -444,6 +534,12 @@ export default function DashboardPage() {
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 className="text-xl font-semibold">Centre d&apos;alertes</h2>
             <div className="flex items-center gap-2">
+              <a
+                href="/dashboard/alerts"
+                className="text-xs px-2 py-1 rounded border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition"
+              >
+                Historique
+              </a>
               <span className="text-xs px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
                 {unreadCount} non lu{unreadCount > 1 ? "s" : ""}
               </span>
@@ -533,6 +629,73 @@ export default function DashboardPage() {
       </section>
 
       <section className="max-w-6xl mx-auto px-6 pb-24">
+        <div className="rounded-xl bg-white/5 border border-white/10 p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Preferences d&apos;alertes</h2>
+          <div className="grid md:grid-cols-4 gap-3">
+            <label className="text-sm text-gray-300 flex flex-col gap-2">
+              Mode email
+              <select
+                value={emailMode}
+                onChange={(e) =>
+                  setEmailMode(e.target.value as "instant" | "daily" | "off")
+                }
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              >
+                <option value="instant">Instant</option>
+                <option value="daily">Digest quotidien</option>
+                <option value="off">Aucun email</option>
+              </select>
+            </label>
+            <label className="text-sm text-gray-300 flex flex-col gap-2">
+              Seuil email
+              <select
+                value={minEmailSeverity}
+                onChange={(e) =>
+                  setMinEmailSeverity(e.target.value as "low" | "medium" | "high")
+                }
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+              </select>
+            </label>
+            <label className="text-sm text-gray-300 flex flex-col gap-2">
+              Heure digest (0-23)
+              <input
+                type="number"
+                min={0}
+                max={23}
+                value={digestHour}
+                onChange={(e) => setDigestHour(Number(e.target.value || 0))}
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              />
+            </label>
+            <div className="flex flex-col gap-2 justify-end">
+              <button
+                onClick={saveAlertSettings}
+                disabled={savingAlertSettings}
+                className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {savingAlertSettings ? "Sauvegarde..." : "Sauvegarder"}
+              </button>
+              <button
+                onClick={runDailyDigestNow}
+                disabled={runningDigest}
+                className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {runningDigest ? "Digest..." : "Tester digest"}
+              </button>
+            </div>
+          </div>
+          {alertSettingsMessage && (
+            <p className="text-sm text-indigo-200 mt-3">{alertSettingsMessage}</p>
+          )}
+          {digestMessage && (
+            <p className="text-sm text-indigo-200 mt-1">{digestMessage}</p>
+          )}
+        </div>
+
         <div className="rounded-xl bg-white/5 border border-white/10 p-6">
           <h2 className="text-xl font-semibold mb-4">Ajouter une URL</h2>
           <p className="text-gray-300 text-sm mb-4">

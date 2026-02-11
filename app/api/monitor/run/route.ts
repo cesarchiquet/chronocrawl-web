@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { extractSignalsFromHtml } from "@/lib/monitorSignals";
+import { renderAlertEmail } from "@/lib/emailTemplates";
 import { Resend } from "resend";
 
 type DbSnapshot = {
@@ -38,6 +39,11 @@ type LastChange = {
   domain: "content" | "seo" | "pricing" | "cta";
   field_key: string;
   after_value: string | null;
+};
+
+type AlertSettings = {
+  email_mode: "instant" | "daily" | "off";
+  min_email_severity: "low" | "medium" | "high";
 };
 
 const resend = process.env.RESEND_API_KEY
@@ -81,6 +87,18 @@ function domainLabel(domain: ChangeRow["domain"]) {
     content: "Content",
   };
   return labels[domain];
+}
+
+function severityAtLeast(
+  value: ChangeRow["severity"],
+  threshold: ChangeRow["severity"]
+) {
+  const rank: Record<ChangeRow["severity"], number> = {
+    low: 0,
+    medium: 1,
+    high: 2,
+  };
+  return rank[value] >= rank[threshold];
 }
 
 function buildDiffRows(params: {
@@ -267,6 +285,23 @@ export async function POST(request: Request) {
   const status =
     (userData.user.user_metadata?.subscription_status as string | undefined) ||
     "inactive";
+  let alertSettings: AlertSettings = {
+    email_mode: "instant",
+    min_email_severity: "high",
+  };
+
+  const { data: alertSettingsRow } = await supabaseAdmin
+    .from("user_alert_settings")
+    .select("email_mode,min_email_severity")
+    .eq("user_id", userId)
+    .maybeSingle<AlertSettings>();
+
+  if (alertSettingsRow) {
+    alertSettings = {
+      email_mode: alertSettingsRow.email_mode ?? "instant",
+      min_email_severity: alertSettingsRow.min_email_severity ?? "high",
+    };
+  }
 
   if (!["active", "trialing"].includes(status)) {
     return NextResponse.json(
@@ -400,7 +435,10 @@ export async function POST(request: Request) {
         if (!insertChangesError) {
           changes += dedupedRows.length;
           for (const row of dedupedRows) {
-            if (row.severity === "high") {
+            if (
+              row.severity &&
+              severityAtLeast(row.severity, alertSettings.min_email_severity)
+            ) {
               const summary = (row.metadata.summary as string) || row.field_key;
               highSeverityAlerts.push(`${summary} sur ${item.url}`);
             }
@@ -431,22 +469,28 @@ export async function POST(request: Request) {
     }
   }
 
-  if (resend && userEmail && highSeverityAlerts.length > 0) {
+  if (
+    resend &&
+    userEmail &&
+    alertSettings.email_mode === "instant" &&
+    highSeverityAlerts.length > 0
+  ) {
     try {
       const uniqueAlerts = Array.from(new Set(highSeverityAlerts)).slice(0, 12);
-      const list = uniqueAlerts.map((entry) => `<li>${entry}</li>`).join("");
+      const { html, text } = renderAlertEmail({
+        title: "Alertes detectees",
+        intro: `Voici les changements detectes lors de la derniere analyse (seuil: ${alertSettings.min_email_severity.toUpperCase()}).`,
+        items: uniqueAlerts,
+        ctaUrl: "https://chronocrawl.com/dashboard",
+        ctaLabel: "Ouvrir le dashboard",
+        footerNote: "Tu recois cet email car les alertes instantanees sont actives sur ton compte.",
+      });
       await resend.emails.send({
         from: "ChronoCrawl <hello@chronocrawl.com>",
         to: userEmail,
-        subject: "ChronoCrawl — Alerte changements critiques detectes",
-        html: `
-          <div style="font-family:Arial,sans-serif;line-height:1.6;color:#111">
-            <h2>Changements importants detectes</h2>
-            <p>Voici les changements de severite haute detectes lors de la derniere analyse :</p>
-            <ul>${list}</ul>
-            <p><a href="https://chronocrawl.com/dashboard">Ouvrir le dashboard</a></p>
-          </div>
-        `,
+        subject: "ChronoCrawl — Alertes detectees",
+        html,
+        text,
       });
     } catch {
       // Non-blocking: monitoring result must still be returned even if email fails.
