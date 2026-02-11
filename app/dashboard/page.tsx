@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
+import type { Session } from "@supabase/supabase-js";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -29,7 +30,7 @@ type ChangeEvent = {
 };
 
 export default function DashboardPage() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [urls, setUrls] = useState<MonitoredUrl[]>([]);
   const [events, setEvents] = useState<ChangeEvent[]>([]);
@@ -38,10 +39,20 @@ export default function DashboardPage() {
   const [billingMessage, setBillingMessage] = useState("");
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
+    const hydrateSession = async () => {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) {
+        setSession(refreshed.session);
+        setLoading(false);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
       setSession(data.session);
       setLoading(false);
-    });
+    };
+
+    hydrateSession();
 
     const {
       data: { subscription },
@@ -51,6 +62,27 @@ export default function DashboardPage() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    if (!session?.user) return;
+
+    const currentStatus =
+      (session.user.user_metadata?.subscription_status as string | undefined) ||
+      "inactive";
+    const isActive =
+      currentStatus === "active" || currentStatus === "trialing";
+
+    if (isActive) return;
+
+    const interval = setInterval(async () => {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) {
+        setSession(refreshed.session);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [session?.user?.id, session?.user?.user_metadata?.subscription_status]);
 
   const loadData = async () => {
     if (!session?.user) return;
@@ -126,10 +158,23 @@ export default function DashboardPage() {
   const userEmail = session?.user?.email?.toLowerCase();
   const isBypass = testMode && !!userEmail && bypassEmails.includes(userEmail);
   const subscriptionStatus = session?.user?.user_metadata?.subscription_status;
+  const trialEndRaw = session?.user?.user_metadata?.subscription_trial_end as
+    | string
+    | undefined;
   const hasActiveSubscription =
     subscriptionStatus === "active" || subscriptionStatus === "trialing";
   const canAddUrl =
     (isBypass || hasActiveSubscription) && currentCount < limit;
+  const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null;
+  const trialDaysLeft =
+    trialEndDate && Number.isFinite(trialEndDate.getTime())
+      ? Math.max(
+          0,
+          Math.ceil(
+            (trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+          )
+        )
+      : null;
   const openBillingPortal = async () => {
     setBillingMessage("");
     try {
@@ -221,6 +266,24 @@ export default function DashboardPage() {
         </div>
         {billingMessage && (
           <p className="mt-3 text-sm text-amber-200">{billingMessage}</p>
+        )}
+        {subscriptionStatus === "trialing" && (
+          <div className="mt-4 rounded-lg border border-indigo-400/30 bg-indigo-500/10 p-4 text-sm text-indigo-100">
+            <p className="font-medium">Essai en cours</p>
+            <p className="mt-1 text-indigo-200">
+              {trialDaysLeft !== null
+                ? `Il te reste ${trialDaysLeft} jour${trialDaysLeft > 1 ? "s" : ""} d'essai.`
+                : "Ton essai est actif. Upgrade quand tu veux depuis \"Gérer l'abonnement\"."}
+            </p>
+          </div>
+        )}
+        {subscriptionStatus === "inactive" && (
+          <div className="mt-4 rounded-lg border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+            <p className="font-medium">Abonnement inactif</p>
+            <p className="mt-1 text-amber-200">
+              Ton compte a ete retrograde sur STARTER. Choisis un abonnement actif pour relancer la surveillance.
+            </p>
+          </div>
         )}
         <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
           <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200">
