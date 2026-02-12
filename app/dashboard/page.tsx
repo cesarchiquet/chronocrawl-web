@@ -355,7 +355,7 @@ export default function DashboardPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({}),
+          body: JSON.stringify({ continueQueue: rounds > 0 }),
         });
 
         const data = await response.json();

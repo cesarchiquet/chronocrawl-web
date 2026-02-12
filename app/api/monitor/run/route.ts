@@ -278,6 +278,14 @@ async function fetchPageHtml(url: string) {
 }
 
 export async function POST(request: Request) {
+  let continueQueue = false;
+  try {
+    const body = (await request.json()) as { continueQueue?: boolean };
+    continueQueue = !!body?.continueQueue;
+  } catch {
+    continueQueue = false;
+  }
+
   const auth = await requireUserFromRequest(request);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -358,35 +366,38 @@ export async function POST(request: Request) {
     ? new Date(usageRow.last_run_at).getTime()
     : null;
 
-  if (lastRunAt && now - lastRunAt < cooldownMs) {
-    return NextResponse.json(
+  if (!continueQueue) {
+    if (lastRunAt && now - lastRunAt < cooldownMs) {
+      return NextResponse.json(
+        {
+          error:
+            "Analyse trop frequente. Attends 15 secondes avant de relancer.",
+        },
+        { status: 429 }
+      );
+    }
+
+    if (runCount >= dailyLimit) {
+      return NextResponse.json(
+        {
+          error: `Limite journaliere atteinte (${dailyLimit} analyses). Reviens demain ou upgrade ton plan.`,
+        },
+        { status: 429 }
+      );
+    }
+
+    await supabaseAdmin.from("user_monitor_usage").upsert(
       {
-        error:
-          "Analyse trop frequente. Attends 15 secondes avant de relancer.",
+        user_id: userId,
+        window_started_at:
+          windowExpired ? nowIso : usageRow?.window_started_at || nowIso,
+        run_count: runCount + 1,
+        last_run_at: nowIso,
+        updated_at: nowIso,
       },
-      { status: 429 }
+      { onConflict: "user_id" }
     );
   }
-
-  if (runCount >= dailyLimit) {
-    return NextResponse.json(
-      {
-        error: `Limite journaliere atteinte (${dailyLimit} analyses). Reviens demain ou upgrade ton plan.`,
-      },
-      { status: 429 }
-    );
-  }
-
-  await supabaseAdmin.from("user_monitor_usage").upsert(
-    {
-      user_id: userId,
-      window_started_at: windowExpired ? nowIso : usageRow?.window_started_at || nowIso,
-      run_count: runCount + 1,
-      last_run_at: nowIso,
-      updated_at: nowIso,
-    },
-    { onConflict: "user_id" }
-  );
 
   const limitByPlan: Record<string, number> = {
     starter: 10,
@@ -417,18 +428,20 @@ export async function POST(request: Request) {
 
   const queueNowIso = new Date().toISOString();
 
-  const queuePayload = urls.map((item) => ({
-    user_id: userId,
-    monitored_url_id: item.id,
-    status: "queued" as const,
-    scheduled_at: queueNowIso,
-    last_error: null,
-    updated_at: queueNowIso,
-  }));
+  if (!continueQueue) {
+    const queuePayload = urls.map((item) => ({
+      user_id: userId,
+      monitored_url_id: item.id,
+      status: "queued" as const,
+      scheduled_at: queueNowIso,
+      last_error: null,
+      updated_at: queueNowIso,
+    }));
 
-  await supabaseAdmin.from("monitor_jobs").upsert(queuePayload, {
-    onConflict: "user_id,monitored_url_id",
-  });
+    await supabaseAdmin.from("monitor_jobs").upsert(queuePayload, {
+      onConflict: "user_id,monitored_url_id",
+    });
+  }
 
   const { data: queuedJobs } = await supabaseAdmin
     .from("monitor_jobs")
