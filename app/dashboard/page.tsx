@@ -339,25 +339,50 @@ export default function DashboardPage() {
     setAnalysisRunning(true);
 
     try {
-      const response = await fetch("/api/monitor/run", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({}),
-      });
+      let totalChecked = 0;
+      let totalChanges = 0;
+      let totalDeduped = 0;
+      let totalNoise = 0;
+      let totalFailed = 0;
+      let queuedRemaining = 0;
+      let rounds = 0;
+      const maxRounds = 30;
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error || "Analyse impossible.");
-      }
+      do {
+        const response = await fetch("/api/monitor/run", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({}),
+        });
 
-      const failedCount = Array.isArray(data?.failed) ? data.failed.length : 0;
-      const dedupedCount = Number(data?.deduped || 0);
-      const noiseCount = Number(data?.noiseFiltered || 0);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error || "Analyse impossible.");
+        }
+
+        totalChecked += Number(data?.checked || 0);
+        totalChanges += Number(data?.changes || 0);
+        totalDeduped += Number(data?.deduped || 0);
+        totalNoise += Number(data?.noiseFiltered || 0);
+        totalFailed += Array.isArray(data?.failed) ? data.failed.length : 0;
+        queuedRemaining = Number(data?.queuedRemaining || 0);
+        rounds += 1;
+
+        if (queuedRemaining > 0) {
+          await new Promise((resolve) => setTimeout(resolve, 120));
+        }
+      } while (queuedRemaining > 0 && rounds < maxRounds);
+
+      const overflowNote =
+        queuedRemaining > 0
+          ? ` File partiellement traitee (${queuedRemaining} URL(s) restantes). Relance l'analyse.`
+          : "";
+
       setAnalysisMessage(
-        `Analyse terminee: ${data.checked ?? 0} URL verifiee(s), ${data.changes ?? 0} changement(s), ${dedupedCount} dedoublonne(s), ${noiseCount} bruit(s) ignore(s), ${failedCount} echec(s).`
+        `Analyse terminee: ${totalChecked} URL verifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalFailed} echec(s).${overflowNote}`
       );
       await loadData();
     } catch (error: unknown) {

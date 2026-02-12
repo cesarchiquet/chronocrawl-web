@@ -23,6 +23,13 @@ type MonitoredUrl = {
   url: string;
 };
 
+type MonitorJob = {
+  user_id: string;
+  monitored_url_id: string;
+  status: "queued" | "processing" | "done" | "failed";
+  attempt_count: number;
+};
+
 type ChangeRow = {
   user_id: string;
   monitored_url_id: string;
@@ -50,6 +57,7 @@ type AlertSettings = {
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
+const JOB_BATCH_SIZE = 8;
 
 function asText(input: unknown) {
   if (input === null || input === undefined) return "";
@@ -407,6 +415,56 @@ export async function POST(request: Request) {
     });
   }
 
+  const queueNowIso = new Date().toISOString();
+
+  const queuePayload = urls.map((item) => ({
+    user_id: userId,
+    monitored_url_id: item.id,
+    status: "queued" as const,
+    scheduled_at: queueNowIso,
+    last_error: null,
+    updated_at: queueNowIso,
+  }));
+
+  await supabaseAdmin.from("monitor_jobs").upsert(queuePayload, {
+    onConflict: "user_id,monitored_url_id",
+  });
+
+  const { data: queuedJobs } = await supabaseAdmin
+    .from("monitor_jobs")
+    .select("user_id,monitored_url_id,status,attempt_count")
+    .eq("user_id", userId)
+    .eq("status", "queued")
+    .order("scheduled_at", { ascending: true })
+    .limit(JOB_BATCH_SIZE);
+
+  const jobs = (queuedJobs || []) as MonitorJob[];
+  if (jobs.length === 0) {
+    return NextResponse.json({
+      checked: 0,
+      changes: 0,
+      deduped: 0,
+      noiseFiltered: 0,
+      failed: [],
+      queuedRemaining: 0,
+      message: "Aucun job en attente.",
+    });
+  }
+
+  const jobIds = jobs.map((job) => job.monitored_url_id);
+  await supabaseAdmin
+    .from("monitor_jobs")
+    .update({
+      status: "processing",
+      started_at: queueNowIso,
+      updated_at: queueNowIso,
+    })
+    .eq("user_id", userId)
+    .in("monitored_url_id", jobIds)
+    .eq("status", "queued");
+
+  const urlById = new Map(urls.map((item) => [item.id, item]));
+
   let checked = 0;
   let changes = 0;
   let deduped = 0;
@@ -415,7 +473,22 @@ export async function POST(request: Request) {
   const highSeverityAlerts: string[] = [];
   const userEmail = userData.user.email || "";
 
-  for (const item of urls) {
+  for (const job of jobs) {
+    const item = urlById.get(job.monitored_url_id);
+    if (!item) {
+      await supabaseAdmin
+        .from("monitor_jobs")
+        .update({
+          status: "failed",
+          last_error: "URL introuvable",
+          finished_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId)
+        .eq("monitored_url_id", job.monitored_url_id);
+      continue;
+    }
+
     try {
       const page = await fetchPageHtml(item.url);
 
@@ -429,6 +502,16 @@ export async function POST(request: Request) {
           })
           .eq("id", item.id)
           .eq("user_id", userId);
+        await supabaseAdmin
+          .from("monitor_jobs")
+          .update({
+            status: "failed",
+            last_error: `HTTP_${page.status}`,
+            finished_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId)
+          .eq("monitored_url_id", item.id);
         continue;
       }
 
@@ -470,6 +553,16 @@ export async function POST(request: Request) {
 
       if (insertSnapshotError || !insertedSnapshot) {
         failed.push(item.url);
+        await supabaseAdmin
+          .from("monitor_jobs")
+          .update({
+            status: "failed",
+            last_error: "Snapshot insert error",
+            finished_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId)
+          .eq("monitored_url_id", item.id);
         continue;
       }
 
@@ -524,6 +617,16 @@ export async function POST(request: Request) {
         })
         .eq("id", item.id)
         .eq("user_id", userId);
+      await supabaseAdmin
+        .from("monitor_jobs")
+        .update({
+          status: "done",
+          last_error: null,
+          finished_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId)
+        .eq("monitored_url_id", item.id);
 
       checked += 1;
     } catch {
@@ -536,6 +639,16 @@ export async function POST(request: Request) {
         })
         .eq("id", item.id)
         .eq("user_id", userId);
+      await supabaseAdmin
+        .from("monitor_jobs")
+        .update({
+          status: "failed",
+          last_error: "Runtime error",
+          finished_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId)
+        .eq("monitored_url_id", item.id);
     }
   }
 
@@ -567,11 +680,19 @@ export async function POST(request: Request) {
     }
   }
 
+  const { count: queuedRemaining } = await supabaseAdmin
+    .from("monitor_jobs")
+    .select("monitored_url_id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "queued");
+
   return NextResponse.json({
     checked,
     changes,
     deduped,
     noiseFiltered,
     failed,
+    queuedRemaining: queuedRemaining || 0,
+    processedBatch: jobs.length,
   });
 }
