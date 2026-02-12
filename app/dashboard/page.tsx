@@ -147,11 +147,11 @@ export default function DashboardPage() {
 
     const ranked = ((eventsData || []) as ChangeEvent[])
       .sort((a, b) => {
+        const dateDelta = (b.detected_at || "").localeCompare(a.detected_at || "");
+        if (dateDelta !== 0) return dateDelta;
         const domainDelta = domainRank[a.domain] - domainRank[b.domain];
         if (domainDelta !== 0) return domainDelta;
-        const sevDelta = severityRank[a.severity] - severityRank[b.severity];
-        if (sevDelta !== 0) return sevDelta;
-        return (b.detected_at || "").localeCompare(a.detected_at || "");
+        return severityRank[a.severity] - severityRank[b.severity];
       })
       .slice(0, 8);
 
@@ -236,7 +236,7 @@ export default function DashboardPage() {
       .from("detected_changes")
       .update({ is_read: true })
       .eq("user_id", session.user.id)
-      .eq("is_read", false);
+      .or("is_read.eq.false,is_read.is.null");
 
     if (!error) {
       setEvents((prev) => prev.map((item) => ({ ...item, is_read: true })));
@@ -250,6 +250,14 @@ export default function DashboardPage() {
       loadAlertSettings();
     }
   }, [session]);
+
+  useEffect(() => {
+    if (!session?.user) return;
+    const interval = setInterval(() => {
+      loadData();
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [session?.user?.id]);
 
   const saveAlertSettings = async () => {
     if (!session?.user) return;
