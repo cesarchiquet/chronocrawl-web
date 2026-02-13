@@ -8,7 +8,14 @@ type ChangeEvent = {
   id: string;
   domain: "seo" | "pricing" | "cta" | "content";
   severity: "low" | "medium" | "high";
-  metadata: { summary?: string; url?: string } | null;
+  metadata: {
+    summary?: string;
+    url?: string;
+    before_short?: string;
+    after_short?: string;
+    priority_score?: number;
+    priority_reason?: string;
+  } | null;
   detected_at: string | null;
   is_read: boolean | null;
 };
@@ -24,6 +31,7 @@ export default function AlertsHistoryPage() {
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all"
   );
+  const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -80,6 +88,26 @@ export default function AlertsHistoryPage() {
       return true;
     });
   }, [events, severityFilter, urlFilter, readFilter]);
+
+  const getPriorityScore = (event: ChangeEvent) => {
+    const raw = event.metadata?.priority_score;
+    if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+    if (event.severity === "high") return 85;
+    if (event.severity === "medium") return 60;
+    return 30;
+  };
+
+  const getPriorityLabel = (score: number) => {
+    if (score >= 75) return "Haute";
+    if (score >= 45) return "Moyenne";
+    return "Basse";
+  };
+
+  const getPriorityClass = (score: number) => {
+    if (score >= 75) return "bg-red-500/15 text-red-200";
+    if (score >= 45) return "bg-amber-500/15 text-amber-200";
+    return "bg-emerald-500/15 text-emerald-200";
+  };
 
   const exportCsv = () => {
     const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`;
@@ -231,17 +259,28 @@ export default function AlertsHistoryPage() {
             {filtered.length === 0 && (
               <p className="text-gray-400 text-sm">Aucune alerte pour ces filtres.</p>
             )}
-            {filtered.map((event) => (
-              <div
-                key={event.id}
-                className="rounded-lg border border-white/10 p-4 bg-white/[0.02]"
-              >
+            {filtered.map((event) => {
+              const score = getPriorityScore(event);
+              const priorityLabel = getPriorityLabel(score);
+              const priorityClass = getPriorityClass(score);
+              const isExpanded = expandedAlertId === event.id;
+
+              return (
+                <div
+                  key={event.id}
+                  className="rounded-lg border border-white/10 p-4 bg-white/[0.02]"
+                >
                 <div className="flex flex-wrap items-center gap-2 mb-2">
                   <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
                     {event.domain}
                   </span>
                   <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
                     {event.severity}
+                  </span>
+                  <span
+                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
+                  >
+                    Impact {score} - {priorityLabel}
                   </span>
                   <span
                     className={`text-[10px] uppercase px-2 py-1 rounded-full ${
@@ -261,9 +300,40 @@ export default function AlertsHistoryPage() {
                     {event.metadata.url}
                   </p>
                 )}
-                <p className="text-xs text-gray-500 mt-2">{event.detected_at || "—"}</p>
+                <div className="mt-2 flex items-center justify-between gap-3">
+                  <p className="text-xs text-gray-500">{event.detected_at || "—"}</p>
+                  <button
+                    onClick={() => setExpandedAlertId(isExpanded ? null : event.id)}
+                    className="text-xs text-gray-300 hover:text-white"
+                  >
+                    {isExpanded ? "Masquer preuve" : "Voir la preuve"}
+                  </button>
+                </div>
+                {isExpanded && (
+                  <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-3">
+                    <p className="text-[11px] text-gray-400">
+                      {event.metadata?.priority_reason ||
+                        "Priorité calculée automatiquement."}
+                    </p>
+                    <div className="mt-2 grid grid-cols-1 gap-2 text-xs">
+                      <div>
+                        <p className="text-gray-400 mb-1">Avant</p>
+                        <p className="text-gray-200">
+                          {event.metadata?.before_short || "non disponible"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400 mb-1">Après</p>
+                        <p className="text-gray-200">
+                          {event.metadata?.after_short || "non disponible"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
