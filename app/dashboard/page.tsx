@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
@@ -59,6 +59,7 @@ export default function DashboardPage() {
   const [alertFilter, setAlertFilter] = useState<"all" | "unread" | "read">(
     "all"
   );
+  const [alertUrlFilter, setAlertUrlFilter] = useState("all");
   const [emailMode, setEmailMode] = useState<"instant" | "daily" | "off">(
     "instant"
   );
@@ -461,9 +462,24 @@ export default function DashboardPage() {
         )
       : null;
   const unreadCount = events.filter((item) => !item.is_read).length;
+  const alertUrls = useMemo(() => {
+    const values = new Set<string>();
+    for (const item of urls) {
+      if (item.url) values.add(item.url);
+    }
+    for (const event of events) {
+      const url = event.metadata?.url;
+      if (url) values.add(url);
+    }
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+  }, [urls, events]);
+
   const filteredEvents = events.filter((item) => {
     if (alertFilter === "unread") return !item.is_read;
     if (alertFilter === "read") return !!item.is_read;
+    if (alertUrlFilter !== "all" && item.metadata?.url !== alertUrlFilter) {
+      return false;
+    }
     return true;
   });
 
@@ -727,6 +743,24 @@ export default function DashboardPage() {
             >
               Lues
             </button>
+          </div>
+          <div className="flex items-center gap-2 mb-4">
+            <label className="text-xs text-gray-300">URL</label>
+            <select
+              value={alertUrlFilter}
+              onChange={(e) => setAlertUrlFilter(e.target.value)}
+              className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+            >
+              <option value="all">Toutes les URLs</option>
+              {alertUrls.map((url) => (
+                <option key={url} value={url}>
+                  {url}
+                </option>
+              ))}
+            </select>
+            <span className="text-[11px] text-gray-400">
+              {filteredEvents.length} alerte(s)
+            </span>
           </div>
           <p className="text-[11px] text-gray-400 mb-4">
             Priorité: Haute = action rapide, Moyenne = à planifier, Basse = information.
