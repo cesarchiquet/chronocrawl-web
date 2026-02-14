@@ -54,6 +54,14 @@ export default function FonctionnementPage() {
               <p className="text-gray-300 text-sm">{item.text}</p>
             </div>
           ))}
+          <div className="rounded-xl bg-white/5 border border-white/10 p-6">
+            <h2 className="text-xl font-semibold mb-2">Securite et donnees</h2>
+            <p className="text-gray-300 text-sm">
+              Chaque compte n&apos;accede qu&apos;a ses propres donnees (RLS),
+              les sessions API sont verifiees par token et la facturation est
+              geree via Stripe.
+            </p>
+          </div>
         </div>
 
         <div className="mt-12 flex flex-wrap items-center justify-center gap-3">

@@ -44,6 +44,15 @@ export default function PublicChrome({ children }: PublicChromeProps) {
             <Link href="/blog" className="hover:text-gray-200">
               Guides
             </Link>
+            <Link href="/mentions-legales" className="hover:text-gray-200">
+              Mentions legales
+            </Link>
+            <Link href="/confidentialite" className="hover:text-gray-200">
+              Confidentialite
+            </Link>
+            <Link href="/cgu" className="hover:text-gray-200">
+              CGU
+            </Link>
           </div>
         </div>
       </footer>
