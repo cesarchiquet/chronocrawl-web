@@ -53,6 +53,13 @@ type AlertSettings = {
   email_mode: "instant" | "daily" | "off";
   min_email_severity: "low" | "medium" | "high";
 };
+type MonitorRunStatus =
+  | "completed"
+  | "no_urls"
+  | "idle_queue"
+  | "inactive_subscription"
+  | "rate_limited"
+  | "failed_internal";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -570,6 +577,7 @@ async function fetchPageHtml(url: string) {
 }
 
 export async function POST(request: Request) {
+  const requestStartedAtMs = Date.now();
   let continueQueue = false;
   try {
     const body = (await request.json()) as { continueQueue?: boolean };
@@ -583,6 +591,29 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
   const userId = auth.user.id;
+  const runStartedAtIso = new Date(requestStartedAtMs).toISOString();
+  const writeRunLog = async (params: {
+    status: MonitorRunStatus;
+    checked?: number;
+    changes?: number;
+    failedCount?: number;
+    queuedRemaining?: number;
+  }) => {
+    try {
+      await supabaseAdmin.from("monitor_run_logs").insert({
+        user_id: userId,
+        status: params.status,
+        checked: params.checked ?? 0,
+        changes: params.changes ?? 0,
+        failed_count: params.failedCount ?? 0,
+        queued_remaining: params.queuedRemaining ?? 0,
+        duration_ms: Date.now() - requestStartedAtMs,
+        started_at: runStartedAtIso,
+      });
+    } catch {
+      // Non-blocking: logging should never break monitor execution.
+    }
+  };
 
   const { data: userData, error: userError } =
     await supabaseAdmin.auth.admin.getUserById(userId);
@@ -623,6 +654,9 @@ export async function POST(request: Request) {
   }
 
   if (!["active", "trialing"].includes(status)) {
+    await writeRunLog({
+      status: "inactive_subscription",
+    });
     return NextResponse.json(
       { error: "Abonnement inactif. Analyse bloquee." },
       { status: 403 }
@@ -660,6 +694,9 @@ export async function POST(request: Request) {
 
   if (!continueQueue) {
     if (lastRunAt && now - lastRunAt < cooldownMs) {
+      await writeRunLog({
+        status: "rate_limited",
+      });
       return NextResponse.json(
         {
           error:
@@ -670,6 +707,9 @@ export async function POST(request: Request) {
     }
 
     if (runCount >= dailyLimit) {
+      await writeRunLog({
+        status: "rate_limited",
+      });
       return NextResponse.json(
         {
           error: `Limite journaliere atteinte (${dailyLimit} analyses). Reviens demain ou upgrade ton plan.`,
@@ -706,11 +746,17 @@ export async function POST(request: Request) {
     .limit(maxUrls);
 
   if (monitoredUrlsError) {
+    await writeRunLog({
+      status: "failed_internal",
+    });
     return NextResponse.json({ error: monitoredUrlsError.message }, { status: 500 });
   }
 
   const urls = (monitoredUrls || []) as MonitoredUrl[];
   if (urls.length === 0) {
+    await writeRunLog({
+      status: "no_urls",
+    });
     return NextResponse.json({
       checked: 0,
       changes: 0,
@@ -745,6 +791,9 @@ export async function POST(request: Request) {
 
   const jobs = (queuedJobs || []) as MonitorJob[];
   if (jobs.length === 0) {
+    await writeRunLog({
+      status: "idle_queue",
+    });
     return NextResponse.json({
       checked: 0,
       changes: 0,
@@ -993,7 +1042,7 @@ export async function POST(request: Request) {
     .eq("user_id", userId)
     .eq("status", "queued");
 
-  return NextResponse.json({
+  const responsePayload = {
     checked,
     changes,
     deduped,
@@ -1001,5 +1050,15 @@ export async function POST(request: Request) {
     failed,
     queuedRemaining: queuedRemaining || 0,
     processedBatch: jobs.length,
+  };
+
+  await writeRunLog({
+    status: "completed",
+    checked,
+    changes,
+    failedCount: failed.length,
+    queuedRemaining: queuedRemaining || 0,
   });
+
+  return NextResponse.json(responsePayload);
 }

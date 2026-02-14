@@ -45,6 +45,15 @@ type SubscriptionState = {
   status: string;
   trial_end: string | null;
 };
+type MonitorRunLog = {
+  status: string;
+  checked: number;
+  changes: number;
+  failed_count: number;
+  queued_remaining: number;
+  duration_ms: number;
+  started_at: string;
+};
 
 const EVENTS_PAGE_SIZE = 1000;
 
@@ -79,6 +88,8 @@ export default function DashboardPage() {
   const [high7d, setHigh7d] = useState(0);
   const [dailyRunCount, setDailyRunCount] = useState(0);
   const [dailyRunStartedAt, setDailyRunStartedAt] = useState<string | null>(null);
+  const [latestRunLog, setLatestRunLog] = useState<MonitorRunLog | null>(null);
+  const [recentRunFailureRate, setRecentRunFailureRate] = useState(0);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -207,10 +218,27 @@ export default function DashboardPage() {
       .eq("user_id", userId)
       .maybeSingle<{ run_count: number; window_started_at: string }>();
 
+    const { data: runLogsData } = await supabase
+      .from("monitor_run_logs")
+      .select(
+        "status,checked,changes,failed_count,queued_remaining,duration_ms,started_at"
+      )
+      .eq("user_id", userId)
+      .order("started_at", { ascending: false })
+      .limit(20);
+
     setChanges24h(changeCount24h || 0);
     setHigh7d(highCount7d || 0);
     setDailyRunCount(usage?.run_count || 0);
     setDailyRunStartedAt(usage?.window_started_at || null);
+    const runLogs = (runLogsData || []) as MonitorRunLog[];
+    setLatestRunLog(runLogs[0] || null);
+    if (runLogs.length === 0) {
+      setRecentRunFailureRate(0);
+    } else {
+      const failedRuns = runLogs.filter((row) => row.failed_count > 0).length;
+      setRecentRunFailureRate(Math.round((failedRuns / runLogs.length) * 100));
+    }
   }, [loadAllEvents]);
 
   const loadSubscriptionState = useCallback(async (userId: string) => {
@@ -660,7 +688,7 @@ export default function DashboardPage() {
             </span>
           )}
         </div>
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
           <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
             Changements 24h: <span className="font-semibold">{changes24h}</span>
           </div>
@@ -671,6 +699,18 @@ export default function DashboardPage() {
             Analyses 24h: <span className="font-semibold">{dailyRunCount}</span>
             {dailyRunStartedAt ? (
               <span className="text-gray-400"> (depuis {new Date(dailyRunStartedAt).toLocaleString("fr-FR")})</span>
+            ) : null}
+          </div>
+          <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
+            Sante monitoring:{" "}
+            <span className="font-semibold">
+              {latestRunLog ? latestRunLog.status : "aucune execution"}
+            </span>
+            {latestRunLog ? (
+              <span className="text-gray-400">
+                {" "}
+                ({latestRunLog.duration_ms} ms, {recentRunFailureRate}% runs en echec)
+              </span>
             ) : null}
           </div>
         </div>
