@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
+import PublicChrome from "@/components/PublicChrome";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -13,12 +15,12 @@ const fadeUp = {
 
 export default function GuideSurveillerSiteConcurrent() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+    <PublicChrome>
       <motion.article
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="max-w-3xl mx-auto px-6 pt-28 pb-24"
+        className="max-w-3xl mx-auto px-6 pt-16 pb-24"
       >
         <p className="text-sm text-indigo-300 font-medium">Guide</p>
         <h1 className="text-4xl md:text-5xl font-bold mt-2">
@@ -91,14 +93,14 @@ export default function GuideSurveillerSiteConcurrent() {
           <p className="text-gray-300 mb-4">
             Envie de mettre ça en place facilement ?
           </p>
-          <a
-            href="mailto:hello@chronocrawl.com?subject=Contact%20ChronoCrawl"
+          <Link
+            href="/signup"
             className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
           >
-            Contacter ChronoCrawl
-          </a>
+            Créer un compte ChronoCrawl
+          </Link>
         </div>
       </motion.article>
-    </main>
+    </PublicChrome>
   );
 }

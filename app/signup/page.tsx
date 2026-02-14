@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
+import PublicChrome from "@/components/PublicChrome";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -25,6 +27,13 @@ export default function SignupPage() {
     "idle"
   );
   const [message, setMessage] = useState("");
+  const passwordsMatch =
+    confirmPassword.length === 0 || password === confirmPassword;
+  const canSubmit =
+    email.trim().length > 4 &&
+    password.length >= 6 &&
+    confirmPassword.length >= 6 &&
+    passwordsMatch;
 
   const handleSignUp = async () => {
     if (!email || !password) {
@@ -65,12 +74,12 @@ export default function SignupPage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+    <PublicChrome>
       <motion.section
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="max-w-md mx-auto px-6 pt-28 pb-24 text-center"
+        className="max-w-md mx-auto px-6 pt-16 pb-24 text-center"
       >
         <h1 className="text-3xl md:text-4xl font-bold">Créer un compte</h1>
         <p className="mt-4 text-gray-300">
@@ -82,46 +91,74 @@ export default function SignupPage() {
             type="email"
             placeholder="ton@email.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setMessage("");
+              setStatus("idle");
+            }}
             className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
           />
           <input
             type="password"
             placeholder="Mot de passe"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => {
+              setPassword(e.target.value);
+              setMessage("");
+              setStatus("idle");
+            }}
             className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
           />
           <input
             type="password"
             placeholder="Confirmer le mot de passe"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+            onChange={(e) => {
+              setConfirmPassword(e.target.value);
+              setMessage("");
+              setStatus("idle");
+            }}
+            className={`w-full px-4 py-3 rounded-lg bg-white/5 border focus:outline-none focus:border-indigo-400 ${
+              passwordsMatch ? "border-white/10" : "border-red-400/60"
+            }`}
           />
           <input
             type="text"
             placeholder="Type de site (SaaS, e‑commerce, agence...)"
             value={siteType}
-            onChange={(e) => setSiteType(e.target.value)}
+            onChange={(e) => {
+              setSiteType(e.target.value);
+              setMessage("");
+              setStatus("idle");
+            }}
             className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
           />
           <input
             type="url"
             placeholder="URL concurrente à surveiller"
             value={targetUrl}
-            onChange={(e) => setTargetUrl(e.target.value)}
+            onChange={(e) => {
+              setTargetUrl(e.target.value);
+              setMessage("");
+              setStatus("idle");
+            }}
             className="w-full px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
           />
 
           <button
             onClick={handleSignUp}
             className="w-full px-4 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
-            disabled={status === "loading"}
+            disabled={status === "loading" || !canSubmit}
           >
-            Créer un compte
+            {status === "loading" ? "Création..." : "Créer un compte"}
           </button>
         </div>
+
+        {!passwordsMatch && (
+          <p className="mt-3 text-xs text-red-300">
+            Les mots de passe doivent être identiques.
+          </p>
+        )}
 
         {message && (
           <p
@@ -134,11 +171,11 @@ export default function SignupPage() {
         )}
 
         <div className="mt-6 text-sm text-gray-300">
-          <a href="/login" className="underline underline-offset-4">
+          <Link href="/login" className="underline underline-offset-4">
             Déjà un compte ? Se connecter
-          </a>
+          </Link>
         </div>
       </motion.section>
-    </main>
+    </PublicChrome>
   );
 }

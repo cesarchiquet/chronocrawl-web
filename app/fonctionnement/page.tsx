@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
+import PublicChrome from "@/components/PublicChrome";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 20 },
@@ -13,12 +15,12 @@ const fadeUp = {
 
 export default function FonctionnementPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+    <PublicChrome>
       <motion.section
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="max-w-4xl mx-auto px-6 pt-28 pb-24"
+        className="max-w-4xl mx-auto px-6 pt-16 pb-24"
       >
         <h1 className="text-4xl md:text-5xl font-bold text-center">
           Comment fonctionne ChronoCrawl
@@ -54,15 +56,21 @@ export default function FonctionnementPage() {
           ))}
         </div>
 
-        <div className="mt-12 text-center">
-          <a
-            href="mailto:hello@chronocrawl.com?subject=Contact%20ChronoCrawl"
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
+          <Link
+            href="/signup"
             className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
           >
-            Contacter l’équipe
-          </a>
+            Commencer gratuitement
+          </Link>
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition font-medium"
+          >
+            Ouvrir le dashboard
+          </Link>
         </div>
       </motion.section>
-    </main>
+    </PublicChrome>
   );
 }
