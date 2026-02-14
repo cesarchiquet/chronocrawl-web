@@ -1,0 +1,68 @@
+# Release Checklist
+
+Use this checklist before each production push.
+
+## 1) Environment and DB
+
+- [ ] Supabase migrations executed (including latest `db/00x_*.sql` files).
+- [ ] Required env vars set in deployment target:
+  - [ ] `NEXT_PUBLIC_SUPABASE_URL`
+  - [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+  - [ ] `SUPABASE_SERVICE_ROLE_KEY`
+  - [ ] `STRIPE_SECRET_KEY`
+  - [ ] `STRIPE_WEBHOOK_SECRET`
+  - [ ] `RESEND_API_KEY`
+  - [ ] `ALERT_DIGEST_SECRET` (if digest endpoint used by scheduler)
+
+## 2) Smoke Flow (Manual)
+
+- [ ] Sign up with a fresh test account (`/signup`).
+- [ ] Log in (`/login`) and open dashboard.
+- [ ] Add at least 1 URL and run analysis.
+- [ ] Confirm:
+  - [ ] URL status updates in "URLs surveillees"
+  - [ ] Alerts appear in "Centre d'alertes"
+  - [ ] "Voir la preuve" before/after values display
+- [ ] Open full history (`/dashboard/alerts`) and verify:
+  - [ ] filters (severity, url, read, date, search)
+  - [ ] bulk read/unread actions
+  - [ ] pagination ("Charger plus")
+- [ ] Export CSV and confirm enriched columns:
+  - [ ] `field_key`
+  - [ ] `priority_score`
+  - [ ] `priority_reason`
+  - [ ] `before_short`
+  - [ ] `after_short`
+
+## 3) Billing Flow (Manual)
+
+- [ ] Start checkout from landing.
+- [ ] Complete Stripe test payment.
+- [ ] Confirm user sees active/trialing state in dashboard.
+- [ ] Open billing portal and return successfully.
+
+## 4) API and Monitoring Sanity
+
+- [ ] Trigger `/api/monitor/run` from dashboard and verify:
+  - [ ] queue processes by batches
+  - [ ] retries happen on transient failures
+  - [ ] failure statuses are actionable (`TIMEOUT`, `DNS_ERROR`, `SSL_ERROR`, `HTTP_xxx`)
+- [ ] Confirm dashboard "Sante monitoring" block updates.
+
+## 5) Build and Lint
+
+- [ ] `npm run lint` passes.
+- [ ] `npm run build` passes.
+
+## 6) Public Site
+
+- [ ] Main pages load without layout break:
+  - [ ] `/`
+  - [ ] `/fonctionnement`
+  - [ ] `/blog`
+  - [ ] `/contact`
+  - [ ] `/mentions-legales`
+  - [ ] `/confidentialite`
+  - [ ] `/cgu`
+- [ ] Footer legal links work.
+- [ ] `public/sitemap.xml` includes current pages.
