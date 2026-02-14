@@ -57,6 +57,96 @@ type MonitorRunLog = {
 
 const EVENTS_PAGE_SIZE = 1000;
 
+function getUrlStatusInfo(statusRaw: string | null) {
+  const status = (statusRaw || "OK").toUpperCase();
+
+  if (status === "OK") {
+    return {
+      label: "OK",
+      badgeClass: "bg-emerald-500/20 text-emerald-300",
+      detail: "Surveillance active.",
+      hint: "",
+    };
+  }
+
+  if (status === "TIMEOUT") {
+    return {
+      label: "TIMEOUT",
+      badgeClass: "bg-amber-500/20 text-amber-300",
+      detail: "Le site a depasse le delai de reponse.",
+      hint: "Relance plus tard ou verifie la latence du site cible.",
+    };
+  }
+
+  if (status === "DNS_ERROR") {
+    return {
+      label: "DNS_ERROR",
+      badgeClass: "bg-rose-500/20 text-rose-300",
+      detail: "Le domaine est introuvable via DNS.",
+      hint: "Verifie l'URL et le nom de domaine.",
+    };
+  }
+
+  if (status === "SSL_ERROR") {
+    return {
+      label: "SSL_ERROR",
+      badgeClass: "bg-rose-500/20 text-rose-300",
+      detail: "Erreur TLS/SSL sur le site cible.",
+      hint: "Verifie le certificat HTTPS du site.",
+    };
+  }
+
+  if (status === "NETWORK_ERROR" || status === "ERROR") {
+    return {
+      label: status,
+      badgeClass: "bg-amber-500/20 text-amber-300",
+      detail: "Erreur reseau temporaire.",
+      hint: "Relance l'analyse; si recurrent, verifier l'accessibilite.",
+    };
+  }
+
+  if (status.startsWith("HTTP_")) {
+    const code = Number(status.replace("HTTP_", ""));
+    if (code === 403) {
+      return {
+        label: status,
+        badgeClass: "bg-rose-500/20 text-rose-300",
+        detail: "Acces refuse par le site cible.",
+        hint: "Le site bloque probablement les bots ou necessite auth.",
+      };
+    }
+    if (code === 404) {
+      return {
+        label: status,
+        badgeClass: "bg-amber-500/20 text-amber-300",
+        detail: "Page introuvable.",
+        hint: "Met a jour ou supprime cette URL.",
+      };
+    }
+    if (code >= 500) {
+      return {
+        label: status,
+        badgeClass: "bg-amber-500/20 text-amber-300",
+        detail: "Erreur serveur du site cible.",
+        hint: "Reessaye plus tard.",
+      };
+    }
+    return {
+      label: status,
+      badgeClass: "bg-amber-500/20 text-amber-300",
+      detail: "Requete HTTP en echec.",
+      hint: "Verifier la page et ses restrictions d'acces.",
+    };
+  }
+
+  return {
+    label: status,
+    badgeClass: "bg-amber-500/20 text-amber-300",
+    detail: "Statut de surveillance non standard.",
+    hint: "Relance une analyse pour rafraichir l'etat.",
+  };
+}
+
 export default function DashboardPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -452,6 +542,7 @@ export default function DashboardPage() {
       let totalDeduped = 0;
       let totalNoise = 0;
       let totalFailed = 0;
+      const failedSamples: string[] = [];
       let queuedRemaining = 0;
       let rounds = 0;
       const maxRounds = 30;
@@ -475,7 +566,13 @@ export default function DashboardPage() {
         totalChanges += Number(data?.changes || 0);
         totalDeduped += Number(data?.deduped || 0);
         totalNoise += Number(data?.noiseFiltered || 0);
-        totalFailed += Array.isArray(data?.failed) ? data.failed.length : 0;
+        if (Array.isArray(data?.failed)) {
+          totalFailed += data.failed.length;
+          for (const item of data.failed as string[]) {
+            if (failedSamples.length >= 3) break;
+            failedSamples.push(item);
+          }
+        }
         queuedRemaining = Number(data?.queuedRemaining || 0);
         rounds += 1;
 
@@ -490,7 +587,7 @@ export default function DashboardPage() {
           : "";
 
       setAnalysisMessage(
-        `Analyse terminee: ${totalChecked} URL verifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalFailed} echec(s).${overflowNote}`
+        `Analyse terminee: ${totalChecked} URL verifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
       );
       await loadData(session.user.id);
     } catch (error: unknown) {
@@ -793,31 +890,43 @@ export default function DashboardPage() {
                 Aucune URL pour le moment.
               </p>
             )}
-            {urls.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 rounded-lg border border-white/10 p-4"
-              >
-                <div>
+            {urls.map((item) => {
+              const statusInfo = getUrlStatusInfo(item.status);
+              return (
+              <div key={item.id} className="rounded-lg border border-white/10 p-4">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                  <div>
                   <p className="text-sm text-gray-300">{item.url}</p>
                   <p className="text-xs text-gray-500 mt-1">
                     Dernière vérification :
                     {item.last_checked_at ? " " + item.last_checked_at : " —"}
                   </p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span
+                      className={`text-xs font-medium px-3 py-1 rounded-full ${statusInfo.badgeClass}`}
+                    >
+                      {statusInfo.label}
+                    </span>
+                    <button
+                      onClick={() => removeUrl(item.id)}
+                      className="text-xs text-gray-400 hover:text-white"
+                    >
+                      Supprimer
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-medium px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300">
-                    {item.status || "OK"}
-                  </span>
-                  <button
-                    onClick={() => removeUrl(item.id)}
-                    className="text-xs text-gray-400 hover:text-white"
-                  >
-                    Supprimer
-                  </button>
-                </div>
+                {item.status && item.status !== "OK" && (
+                  <p className="text-xs text-amber-200 mt-2">
+                    {statusInfo.detail}{" "}
+                    <span className="text-amber-100/80">
+                      {statusInfo.hint}
+                    </span>
+                  </p>
+                )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

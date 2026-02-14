@@ -847,9 +847,9 @@ export async function POST(request: Request) {
       const page = await fetchPageHtml(item.url);
 
       if (!page.ok) {
-        failed.push(item.url);
         const statusLabel = page.status ? `HTTP_${page.status}` : page.failureCode;
         const lastError = `${statusLabel} after ${page.attempts} attempt(s)`;
+        failed.push(`${item.url} (${statusLabel})`);
         await supabaseAdmin
           .from("monitored_urls")
           .update({
@@ -986,7 +986,7 @@ export async function POST(request: Request) {
 
       checked += 1;
     } catch {
-      failed.push(item.url);
+      failed.push(`${item.url} (RUNTIME_ERROR)`);
       await supabaseAdmin
         .from("monitored_urls")
         .update({
