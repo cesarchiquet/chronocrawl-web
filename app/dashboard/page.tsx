@@ -71,6 +71,11 @@ export default function DashboardPage() {
     "all"
   );
   const [alertUrlFilter, setAlertUrlFilter] = useState("all");
+  const [alertSearchQuery, setAlertSearchQuery] = useState("");
+  const [alertDateFilter, setAlertDateFilter] = useState<
+    "all" | "24h" | "7d" | "30d"
+  >("all");
+  const [alertBulkMessage, setAlertBulkMessage] = useState("");
   const [emailMode, setEmailMode] = useState<"instant" | "daily" | "off">(
     "instant"
   );
@@ -300,6 +305,41 @@ export default function DashboardPage() {
     }
   };
 
+  const markFilteredAlertsAsRead = async (isRead: boolean) => {
+    if (!session?.user?.id) return;
+    const targetIds = filteredEvents.map((item) => item.id);
+    if (targetIds.length === 0) {
+      setAlertBulkMessage("Aucune alerte a mettre a jour avec ces filtres.");
+      return;
+    }
+
+    setAlertBulkMessage("");
+    const chunkSize = 250;
+    for (let index = 0; index < targetIds.length; index += chunkSize) {
+      const chunk = targetIds.slice(index, index + chunkSize);
+      const { error } = await supabase
+        .from("detected_changes")
+        .update({ is_read: isRead })
+        .eq("user_id", session.user.id)
+        .in("id", chunk);
+
+      if (error) {
+        setAlertBulkMessage("Mise a jour impossible. Reessaie.");
+        return;
+      }
+    }
+
+    const ids = new Set(targetIds);
+    setEvents((prev) =>
+      prev.map((item) =>
+        ids.has(item.id) ? { ...item, is_read: isRead } : item
+      )
+    );
+    setAlertBulkMessage(
+      `${targetIds.length} alerte(s) marquee(s) ${isRead ? "lue(s)" : "non lue(s)"}.`
+    );
+  };
+
   useEffect(() => {
     if (!session?.user?.id) return;
     const userId = session.user.id;
@@ -525,14 +565,42 @@ export default function DashboardPage() {
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [urls, events]);
 
-  const filteredEvents = events.filter((item) => {
-    if (alertFilter === "unread" && item.is_read) return false;
-    if (alertFilter === "read" && !item.is_read) return false;
-    if (alertUrlFilter !== "all" && item.metadata?.url !== alertUrlFilter) {
-      return false;
-    }
-    return true;
-  });
+  const filteredEvents = useMemo(() => {
+    const now = Date.now();
+    const fromMs =
+      alertDateFilter === "24h"
+        ? now - 24 * 60 * 60 * 1000
+        : alertDateFilter === "7d"
+          ? now - 7 * 24 * 60 * 60 * 1000
+          : alertDateFilter === "30d"
+            ? now - 30 * 24 * 60 * 60 * 1000
+            : null;
+    const query = alertSearchQuery.trim().toLowerCase();
+
+    return events.filter((item) => {
+      if (alertFilter === "unread" && item.is_read) return false;
+      if (alertFilter === "read" && !item.is_read) return false;
+      if (alertUrlFilter !== "all" && item.metadata?.url !== alertUrlFilter) {
+        return false;
+      }
+      if (fromMs !== null) {
+        const detectedMs = item.detected_at ? Date.parse(item.detected_at) : NaN;
+        if (!Number.isFinite(detectedMs) || detectedMs < fromMs) return false;
+      }
+      if (query) {
+        const haystack = [
+          item.metadata?.summary || "",
+          item.metadata?.url || "",
+          item.field_key || "",
+          item.domain || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+      return true;
+    });
+  }, [alertDateFilter, alertFilter, alertSearchQuery, alertUrlFilter, events]);
 
   const getPriorityScore = (item: ChangeEvent) => {
     const raw = item.metadata?.priority_score;
@@ -825,6 +893,43 @@ export default function DashboardPage() {
               {filteredEvents.length} alerte(s)
             </span>
           </div>
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <label className="text-xs text-gray-300">Periode</label>
+            <select
+              value={alertDateFilter}
+              onChange={(e) =>
+                setAlertDateFilter(e.target.value as "all" | "24h" | "7d" | "30d")
+              }
+              className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+            >
+              <option value="all">Tout</option>
+              <option value="24h">24h</option>
+              <option value="7d">7j</option>
+              <option value="30d">30j</option>
+            </select>
+            <input
+              type="text"
+              value={alertSearchQuery}
+              onChange={(e) => setAlertSearchQuery(e.target.value)}
+              placeholder="Rechercher (URL, resume, champ)"
+              className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400 min-w-[230px]"
+            />
+            <button
+              onClick={() => markFilteredAlertsAsRead(true)}
+              className="text-xs px-2 py-1 rounded border border-emerald-300/30 text-emerald-200 hover:bg-emerald-500/10 transition"
+            >
+              Marquer filtrees lues
+            </button>
+            <button
+              onClick={() => markFilteredAlertsAsRead(false)}
+              className="text-xs px-2 py-1 rounded border border-amber-300/30 text-amber-200 hover:bg-amber-500/10 transition"
+            >
+              Marquer filtrees non lues
+            </button>
+          </div>
+          {alertBulkMessage && (
+            <p className="text-[11px] text-indigo-200 mb-4">{alertBulkMessage}</p>
+          )}
           <p className="text-[11px] text-gray-400 mb-4">
             Priorité: Haute = action rapide, Moyenne = à planifier, Basse = information.
           </p>

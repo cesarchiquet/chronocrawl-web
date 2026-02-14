@@ -28,14 +28,23 @@ export default function AlertsHistoryPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [cursor, setCursor] = useState(0);
+  const [nowReferenceMs, setNowReferenceMs] = useState(0);
   const [events, setEvents] = useState<ChangeEvent[]>([]);
   const [severityFilter, setSeverityFilter] = useState<
     "all" | "low" | "medium" | "high"
   >("all");
   const [urlFilter, setUrlFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState<
+    "all" | "24h" | "7d" | "30d" | "custom"
+  >("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all"
   );
+  const [bulkMessage, setBulkMessage] = useState("");
+  const [bulkLoading, setBulkLoading] = useState(false);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
 
   const loadEventsPage = useCallback(
@@ -51,6 +60,7 @@ export default function AlertsHistoryPage() {
       const pageRows = (data || []) as ChangeEvent[];
       setHasMore(pageRows.length === HISTORY_PAGE_SIZE);
       setCursor(from + pageRows.length);
+      setNowReferenceMs(new Date().getTime());
 
       if (reset) {
         setEvents(pageRows);
@@ -108,6 +118,23 @@ export default function AlertsHistoryPage() {
   }, [events]);
 
   const filtered = useMemo(() => {
+    const now = nowReferenceMs;
+    const fromMsPreset =
+      dateFilter === "24h"
+        ? now - 24 * 60 * 60 * 1000
+        : dateFilter === "7d"
+          ? now - 7 * 24 * 60 * 60 * 1000
+          : dateFilter === "30d"
+            ? now - 30 * 24 * 60 * 60 * 1000
+        : null;
+    const fromMsCustom = dateFrom
+      ? new Date(`${dateFrom}T00:00:00`).getTime()
+      : null;
+    const toMsCustom = dateTo
+      ? new Date(`${dateTo}T23:59:59.999`).getTime()
+      : null;
+    const query = searchQuery.trim().toLowerCase();
+
     return events.filter((event) => {
       if (severityFilter !== "all" && event.severity !== severityFilter) {
         return false;
@@ -117,9 +144,40 @@ export default function AlertsHistoryPage() {
       }
       if (readFilter === "unread" && event.is_read) return false;
       if (readFilter === "read" && !event.is_read) return false;
+      if (dateFilter !== "all") {
+        const detectedMs = event.detected_at ? Date.parse(event.detected_at) : NaN;
+        if (!Number.isFinite(detectedMs)) return false;
+        if (dateFilter === "custom") {
+          if (fromMsCustom !== null && detectedMs < fromMsCustom) return false;
+          if (toMsCustom !== null && detectedMs > toMsCustom) return false;
+        } else if (fromMsPreset !== null && detectedMs < fromMsPreset) {
+          return false;
+        }
+      }
+      if (query) {
+        const haystack = [
+          event.metadata?.summary || "",
+          event.metadata?.url || "",
+          event.domain || "",
+          event.severity || "",
+        ]
+          .join(" ")
+          .toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
       return true;
     });
-  }, [events, severityFilter, urlFilter, readFilter]);
+  }, [
+    dateFilter,
+    dateFrom,
+    dateTo,
+    events,
+    nowReferenceMs,
+    readFilter,
+    searchQuery,
+    severityFilter,
+    urlFilter,
+  ]);
 
   const getPriorityScore = (event: ChangeEvent) => {
     const raw = event.metadata?.priority_score;
@@ -190,6 +248,44 @@ export default function AlertsHistoryPage() {
     setLoadingMore(false);
   };
 
+  const markFilteredAsRead = async (isRead: boolean) => {
+    if (!session?.user?.id || filtered.length === 0) {
+      setBulkMessage("Aucune alerte a mettre a jour avec ces filtres.");
+      return;
+    }
+
+    setBulkLoading(true);
+    setBulkMessage("");
+    const ids = filtered.map((event) => event.id);
+    const chunkSize = 250;
+
+    for (let index = 0; index < ids.length; index += chunkSize) {
+      const chunk = ids.slice(index, index + chunkSize);
+      const { error } = await supabase
+        .from("detected_changes")
+        .update({ is_read: isRead })
+        .eq("user_id", session.user.id)
+        .in("id", chunk);
+
+      if (error) {
+        setBulkLoading(false);
+        setBulkMessage("Mise a jour impossible. Reessaie.");
+        return;
+      }
+    }
+
+    const idSet = new Set(ids);
+    setEvents((prev) =>
+      prev.map((event) =>
+        idSet.has(event.id) ? { ...event, is_read: isRead } : event
+      )
+    );
+    setBulkLoading(false);
+    setBulkMessage(
+      `${ids.length} alerte(s) marquee(s) ${isRead ? "lue(s)" : "non lue(s)"}.`
+    );
+  };
+
   if (loading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816]" />
@@ -242,7 +338,7 @@ export default function AlertsHistoryPage() {
 
       <section className="max-w-6xl mx-auto px-6 pb-24">
         <div className="rounded-xl bg-white/5 border border-white/10 p-6">
-          <div className="grid md:grid-cols-4 gap-3 mb-5">
+          <div className="grid md:grid-cols-3 gap-3 mb-3">
             <label className="text-sm text-gray-300 flex flex-col gap-2">
               Sévérité
               <select
@@ -289,10 +385,81 @@ export default function AlertsHistoryPage() {
                 <option value="read">Lus</option>
               </select>
             </label>
+          </div>
+          <div className="grid md:grid-cols-4 gap-3 mb-5">
+            <label className="text-sm text-gray-300 flex flex-col gap-2">
+              Periode
+              <select
+                value={dateFilter}
+                onChange={(e) =>
+                  setDateFilter(
+                    e.target.value as "all" | "24h" | "7d" | "30d" | "custom"
+                  )
+                }
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              >
+                <option value="all">Tout</option>
+                <option value="24h">24h</option>
+                <option value="7d">7 jours</option>
+                <option value="30d">30 jours</option>
+                <option value="custom">Personnalisee</option>
+              </select>
+            </label>
+            <label className="text-sm text-gray-300 flex flex-col gap-2">
+              Recherche
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="URL, resume, domaine..."
+                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              />
+            </label>
             <div className="text-sm text-gray-300 flex items-end">
               {filtered.length} alerte(s)
             </div>
+            <div className="flex items-end gap-2">
+              <button
+                onClick={() => markFilteredAsRead(true)}
+                disabled={bulkLoading}
+                className="px-3 py-2 rounded-lg border border-emerald-300/30 text-emerald-200 hover:bg-emerald-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Marquer filtrees lues
+              </button>
+              <button
+                onClick={() => markFilteredAsRead(false)}
+                disabled={bulkLoading}
+                className="px-3 py-2 rounded-lg border border-amber-300/30 text-amber-200 hover:bg-amber-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Marquer non lues
+              </button>
+            </div>
           </div>
+          {dateFilter === "custom" && (
+            <div className="grid md:grid-cols-2 gap-3 mb-5">
+              <label className="text-sm text-gray-300 flex flex-col gap-2">
+                Date debut
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(e) => setDateFrom(e.target.value)}
+                  className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                />
+              </label>
+              <label className="text-sm text-gray-300 flex flex-col gap-2">
+                Date fin
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(e) => setDateTo(e.target.value)}
+                  className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                />
+              </label>
+            </div>
+          )}
+          {bulkMessage && (
+            <p className="text-sm text-indigo-200 mb-4">{bulkMessage}</p>
+          )}
 
           <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
             {filtered.length === 0 && (
