@@ -6,6 +6,7 @@ import type { Session } from "@supabase/supabase-js";
 
 type ChangeEvent = {
   id: string;
+  field_key?: string;
   domain: "seo" | "pricing" | "cta" | "content";
   severity: "low" | "medium" | "high";
   metadata: {
@@ -52,7 +53,7 @@ export default function AlertsHistoryPage() {
       const to = from + HISTORY_PAGE_SIZE - 1;
       const { data } = await supabase
         .from("detected_changes")
-        .select("id,domain,severity,metadata,detected_at,is_read")
+        .select("id,field_key,domain,severity,metadata,detected_at,is_read")
         .eq("user_id", userId)
         .order("detected_at", { ascending: false })
         .range(from, to);
@@ -203,18 +204,31 @@ export default function AlertsHistoryPage() {
     const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`;
     const rows = filtered.map((event) => {
       const detectedAt = event.detected_at || "";
+      const fieldKey = event.field_key || "";
       const domain = event.domain || "";
       const severity = event.severity || "";
       const readState = event.is_read ? "read" : "unread";
       const url = event.metadata?.url || "";
       const summary = event.metadata?.summary || "Alerte détectée";
+      const priorityScore =
+        typeof event.metadata?.priority_score === "number"
+          ? String(event.metadata.priority_score)
+          : "";
+      const priorityReason = event.metadata?.priority_reason || "";
+      const beforeShort = event.metadata?.before_short || "";
+      const afterShort = event.metadata?.after_short || "";
       return [
         detectedAt,
+        fieldKey,
         domain,
         severity,
         readState,
         url,
         summary,
+        priorityScore,
+        priorityReason,
+        beforeShort,
+        afterShort,
       ]
         .map((item) => escapeCsv(String(item)))
         .join(",");
@@ -222,11 +236,16 @@ export default function AlertsHistoryPage() {
 
     const header = [
       "detected_at",
+      "field_key",
       "domain",
       "severity",
       "read_state",
       "url",
       "summary",
+      "priority_score",
+      "priority_reason",
+      "before_short",
+      "after_short",
     ]
       .map((item) => `"${item}"`)
       .join(",");
