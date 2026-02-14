@@ -21,6 +21,22 @@ type ChangeRow = {
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
+const UUID_V4_LOOSE_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function errorResponse(
+  message: string,
+  status: number,
+  code: string
+) {
+  return NextResponse.json(
+    {
+      error: message,
+      code,
+    },
+    { status }
+  );
+}
 
 function severitiesFromThreshold(threshold: "low" | "medium" | "high") {
   if (threshold === "high") return ["high"];
@@ -30,10 +46,7 @@ function severitiesFromThreshold(threshold: "low" | "medium" | "high") {
 
 export async function POST(request: Request) {
   if (!resend) {
-    return NextResponse.json(
-      { error: "RESEND_API_KEY manquante." },
-      { status: 500 }
-    );
+    return errorResponse("RESEND_API_KEY manquante.", 500, "RESEND_NOT_CONFIGURED");
   }
 
   const digestSecret = process.env.ALERT_DIGEST_SECRET;
@@ -41,6 +54,9 @@ export async function POST(request: Request) {
     userId?: string;
   };
   const userId = payload.userId?.trim();
+  if (userId && !UUID_V4_LOOSE_REGEX.test(userId)) {
+    return errorResponse("Format userId invalide.", 400, "INVALID_USER_ID");
+  }
   const hasBearer = request.headers.get("authorization")?.startsWith("Bearer ");
 
   if (hasBearer) {
@@ -49,18 +65,19 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
     if (userId && userId !== auth.user.id) {
-      return NextResponse.json({ error: "Utilisateur invalide." }, { status: 403 });
+      return errorResponse("Utilisateur invalide.", 403, "USER_FORBIDDEN");
     }
   } else {
     if (!digestSecret) {
-      return NextResponse.json(
-        { error: "Mode cron non configure (ALERT_DIGEST_SECRET)." },
-        { status: 401 }
+      return errorResponse(
+        "Mode cron non configure (ALERT_DIGEST_SECRET).",
+        401,
+        "CRON_NOT_CONFIGURED"
       );
     }
     const provided = request.headers.get("x-digest-secret");
     if (!provided || provided !== digestSecret) {
-      return NextResponse.json({ error: "Non autorise." }, { status: 401 });
+      return errorResponse("Non autorise.", 401, "UNAUTHORIZED");
     }
   }
 
@@ -74,7 +91,7 @@ export async function POST(request: Request) {
     : await settingsQuery;
 
   if (settingsError) {
-    return NextResponse.json({ error: settingsError.message }, { status: 500 });
+    return errorResponse(settingsError.message, 500, "SETTINGS_QUERY_FAILED");
   }
 
   const settings = (settingsRows || []) as AlertSettingRow[];
@@ -147,5 +164,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ sent, processed });
+  return NextResponse.json({ sent, processed, code: "OK" });
 }

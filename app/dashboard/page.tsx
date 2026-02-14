@@ -147,6 +147,26 @@ function getUrlStatusInfo(statusRaw: string | null) {
   };
 }
 
+function normalizeMonitoredUrl(rawUrl: string) {
+  const trimmed = rawUrl.trim();
+  if (!trimmed) return null;
+
+  try {
+    const parsed = new URL(trimmed);
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+      return null;
+    }
+
+    parsed.hash = "";
+    if (parsed.pathname.endsWith("/") && parsed.pathname !== "/") {
+      parsed.pathname = parsed.pathname.slice(0, -1);
+    }
+    return parsed.toString();
+  } catch {
+    return null;
+  }
+}
+
 export default function DashboardPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -505,11 +525,16 @@ export default function DashboardPage() {
 
   const addUrl = async () => {
     if (!newUrl || !session?.user) return;
+    const normalizedUrl = normalizeMonitoredUrl(newUrl);
+    if (!normalizedUrl) {
+      setMessage("URL invalide. Utilise un format http(s)://...");
+      return;
+    }
     setMessage("");
 
     const { error } = await supabase.from("monitored_urls").insert([
       {
-        url: newUrl,
+        url: normalizedUrl,
         user_id: session.user.id,
         status: "OK",
       },

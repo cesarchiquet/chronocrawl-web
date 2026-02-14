@@ -85,6 +85,20 @@ type FetchResult =
       failureDetail: string;
     };
 
+function errorResponse(
+  message: string,
+  status: number,
+  code: string
+) {
+  return NextResponse.json(
+    {
+      error: message,
+      code,
+    },
+    { status }
+  );
+}
+
 function asText(input: unknown) {
   if (input === null || input === undefined) return "";
   return String(input);
@@ -579,16 +593,26 @@ async function fetchPageHtml(url: string) {
 export async function POST(request: Request) {
   const requestStartedAtMs = Date.now();
   let continueQueue = false;
-  try {
-    const body = (await request.json()) as { continueQueue?: boolean };
-    continueQueue = !!body?.continueQueue;
-  } catch {
-    continueQueue = false;
+  const rawBody = (await request.json().catch(() => ({}))) as {
+    continueQueue?: unknown;
+  };
+
+  if (
+    Object.prototype.hasOwnProperty.call(rawBody, "continueQueue") &&
+    typeof rawBody.continueQueue !== "boolean"
+  ) {
+    return errorResponse(
+      "Le champ continueQueue doit etre un booleen.",
+      400,
+      "INVALID_BODY"
+    );
   }
+
+  continueQueue = rawBody.continueQueue === true;
 
   const auth = await requireUserFromRequest(request);
   if ("error" in auth) {
-    return NextResponse.json({ error: auth.error }, { status: auth.status });
+    return errorResponse(auth.error, auth.status, "UNAUTHORIZED");
   }
   const userId = auth.user.id;
   const runStartedAtIso = new Date(requestStartedAtMs).toISOString();
@@ -618,7 +642,7 @@ export async function POST(request: Request) {
   const { data: userData, error: userError } =
     await supabaseAdmin.auth.admin.getUserById(userId);
   if (userError || !userData.user) {
-    return NextResponse.json({ error: "Utilisateur introuvable." }, { status: 400 });
+    return errorResponse("Utilisateur introuvable.", 400, "USER_NOT_FOUND");
   }
 
   const { data: subscriptionRow } = await supabaseAdmin
@@ -657,9 +681,10 @@ export async function POST(request: Request) {
     await writeRunLog({
       status: "inactive_subscription",
     });
-    return NextResponse.json(
-      { error: "Abonnement inactif. Analyse bloquee." },
-      { status: 403 }
+    return errorResponse(
+      "Abonnement inactif. Analyse bloquee.",
+      403,
+      "SUBSCRIPTION_INACTIVE"
     );
   }
 
@@ -697,12 +722,10 @@ export async function POST(request: Request) {
       await writeRunLog({
         status: "rate_limited",
       });
-      return NextResponse.json(
-        {
-          error:
-            "Analyse trop frequente. Attends 15 secondes avant de relancer.",
-        },
-        { status: 429 }
+      return errorResponse(
+        "Analyse trop frequente. Attends 15 secondes avant de relancer.",
+        429,
+        "RATE_LIMIT_COOLDOWN"
       );
     }
 
@@ -710,11 +733,10 @@ export async function POST(request: Request) {
       await writeRunLog({
         status: "rate_limited",
       });
-      return NextResponse.json(
-        {
-          error: `Limite journaliere atteinte (${dailyLimit} analyses). Reviens demain ou upgrade ton plan.`,
-        },
-        { status: 429 }
+      return errorResponse(
+        `Limite journaliere atteinte (${dailyLimit} analyses). Reviens demain ou upgrade ton plan.`,
+        429,
+        "RATE_LIMIT_DAILY"
       );
     }
 
@@ -749,7 +771,11 @@ export async function POST(request: Request) {
     await writeRunLog({
       status: "failed_internal",
     });
-    return NextResponse.json({ error: monitoredUrlsError.message }, { status: 500 });
+    return errorResponse(
+      monitoredUrlsError.message,
+      500,
+      "MONITORED_URLS_QUERY_FAILED"
+    );
   }
 
   const urls = (monitoredUrls || []) as MonitoredUrl[];

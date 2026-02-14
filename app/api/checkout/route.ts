@@ -13,12 +13,48 @@ const stripe = stripeSecretKey
   : null;
 
 type Plan = "starter" | "pro" | "agency";
+const VALID_PLANS: Plan[] = ["starter", "pro", "agency"];
+
+function errorResponse(
+  message: string,
+  status: number,
+  code: string
+) {
+  return NextResponse.json(
+    {
+      error: message,
+      code,
+    },
+    { status }
+  );
+}
+
+function resolveBaseUrl(request: Request) {
+  const candidates = [
+    process.env.NEXT_PUBLIC_SITE_URL,
+    request.headers.get("origin"),
+    "https://www.chronocrawl.com",
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const url = new URL(candidate);
+      return `${url.protocol}//${url.host}`;
+    } catch {
+      // Continue with next candidate.
+    }
+  }
+
+  return "https://www.chronocrawl.com";
+}
 
 export async function POST(request: Request) {
   if (!stripe || !stripeSecretKey) {
-    return NextResponse.json(
-      { error: "Stripe non configuré (clé secrète manquante)." },
-      { status: 500 }
+    return errorResponse(
+      "Stripe non configure (cle secrete manquante).",
+      500,
+      "STRIPE_NOT_CONFIGURED"
     );
   }
 
@@ -27,9 +63,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
 
-  const { plan } = (await request.json()) as {
-    plan?: Plan;
+  const payload = (await request.json().catch(() => ({}))) as {
+    plan?: string;
   };
+  const plan = payload.plan?.trim() as Plan | undefined;
+
+  if (!plan || !VALID_PLANS.includes(plan)) {
+    return errorResponse("Plan invalide.", 400, "INVALID_PLAN");
+  }
+
   const userId = auth.user.id;
   const email = auth.user.email;
   const priceId =
@@ -41,23 +83,24 @@ export async function POST(request: Request) {
           ? priceAgency
           : null;
 
-  if (!plan || !priceId || !userId || !email) {
-    return NextResponse.json(
-      { error: "Plan, utilisateur ou prix Stripe invalide." },
-      { status: 400 }
+  if (!priceId || !userId || !email) {
+    return errorResponse(
+      "Plan, utilisateur ou prix Stripe invalide.",
+      400,
+      "INVALID_CHECKOUT_INPUT"
     );
   }
 
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL || request.headers.get("origin") || "";
+  const origin = resolveBaseUrl(request);
 
   const { data: userData, error: userError } =
     await supabaseAdmin.auth.admin.getUserById(userId);
 
   if (userError || !userData.user) {
-    return NextResponse.json(
-      { error: "Utilisateur introuvable pour le checkout." },
-      { status: 400 }
+    return errorResponse(
+      "Utilisateur introuvable pour le checkout.",
+      400,
+      "USER_NOT_FOUND"
     );
   }
 
@@ -128,5 +171,13 @@ export async function POST(request: Request) {
     { onConflict: "user_id" }
   );
 
-  return NextResponse.json({ url: session.url });
+  if (!session.url) {
+    return errorResponse(
+      "Checkout Stripe indisponible.",
+      500,
+      "CHECKOUT_URL_MISSING"
+    );
+  }
+
+  return NextResponse.json({ url: session.url, code: "OK" });
 }

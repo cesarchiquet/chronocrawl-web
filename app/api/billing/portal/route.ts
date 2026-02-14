@@ -6,11 +6,46 @@ import { requireUserFromRequest } from "@/lib/routeAuth";
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
+function errorResponse(
+  message: string,
+  status: number,
+  code: string
+) {
+  return NextResponse.json(
+    {
+      error: message,
+      code,
+    },
+    { status }
+  );
+}
+
+function resolveBaseUrl(request: Request) {
+  const candidates = [
+    process.env.NEXT_PUBLIC_SITE_URL,
+    request.headers.get("origin"),
+    "https://www.chronocrawl.com",
+  ];
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    try {
+      const url = new URL(candidate);
+      return `${url.protocol}//${url.host}`;
+    } catch {
+      // Ignore invalid candidate.
+    }
+  }
+
+  return "https://www.chronocrawl.com";
+}
+
 export async function POST(request: Request) {
   if (!stripe) {
-    return NextResponse.json(
-      { error: "Stripe non configure (cle secrete manquante)." },
-      { status: 500 }
+    return errorResponse(
+      "Stripe non configure (cle secrete manquante).",
+      500,
+      "STRIPE_NOT_CONFIGURED"
     );
   }
 
@@ -24,10 +59,7 @@ export async function POST(request: Request) {
     await supabaseAdmin.auth.admin.getUserById(userId);
 
   if (userError || !userData.user) {
-    return NextResponse.json(
-      { error: "Utilisateur introuvable." },
-      { status: 400 }
-    );
+    return errorResponse("Utilisateur introuvable.", 400, "USER_NOT_FOUND");
   }
 
   const customerId = userData.user.user_metadata?.stripe_customer_id as
@@ -44,19 +76,27 @@ export async function POST(request: Request) {
     subscriptionRow?.stripe_customer_id || customerId;
 
   if (!resolvedCustomerId) {
-    return NextResponse.json(
-      { error: "Compte client Stripe introuvable pour cet utilisateur." },
-      { status: 400 }
+    return errorResponse(
+      "Compte client Stripe introuvable pour cet utilisateur.",
+      400,
+      "MISSING_STRIPE_CUSTOMER"
     );
   }
 
-  const origin =
-    process.env.NEXT_PUBLIC_SITE_URL || request.headers.get("origin") || "";
+  const origin = resolveBaseUrl(request);
 
   const session = await stripe.billingPortal.sessions.create({
     customer: resolvedCustomerId,
     return_url: `${origin}/dashboard`,
   });
 
-  return NextResponse.json({ url: session.url });
+  if (!session.url) {
+    return errorResponse(
+      "Portail billing indisponible.",
+      500,
+      "PORTAL_URL_MISSING"
+    );
+  }
+
+  return NextResponse.json({ url: session.url, code: "OK" });
 }
