@@ -493,7 +493,7 @@ async function dedupeConsecutiveRows(params: {
   });
 }
 
-async function fetchPageHtml(url: string) {
+async function fetchPageHtml(url: string): Promise<FetchResult> {
   const shouldRetryStatus = (status: number) =>
     [408, 425, 429, 500, 502, 503, 504, 522, 524].includes(status);
 
@@ -612,7 +612,11 @@ export async function POST(request: Request) {
 
   const auth = await requireUserFromRequest(request);
   if ("error" in auth) {
-    return errorResponse(auth.error, auth.status, "UNAUTHORIZED");
+    return errorResponse(
+      auth.error || "Session invalide.",
+      auth.status || 401,
+      "UNAUTHORIZED"
+    );
   }
   const userId = auth.user.id;
   const runStartedAtIso = new Date(requestStartedAtMs).toISOString();
