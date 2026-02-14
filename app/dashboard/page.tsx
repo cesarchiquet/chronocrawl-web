@@ -139,8 +139,7 @@ export default function DashboardPage() {
       .select(
         "id,monitored_url_id,domain,severity,field_key,metadata,detected_at,is_read"
       )
-      .order("detected_at", { ascending: false })
-      .limit(80);
+      .order("detected_at", { ascending: false });
 
     const domainRank: Record<ChangeEvent["domain"], number> = {
       seo: 0,
@@ -161,8 +160,7 @@ export default function DashboardPage() {
         const domainDelta = domainRank[a.domain] - domainRank[b.domain];
         if (domainDelta !== 0) return domainDelta;
         return severityRank[a.severity] - severityRank[b.severity];
-      })
-      .slice(0, 8);
+      });
 
     setEvents(ranked);
 
