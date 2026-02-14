@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Session } from "@supabase/supabase-js";
 
@@ -20,9 +20,14 @@ type ChangeEvent = {
   is_read: boolean | null;
 };
 
+const HISTORY_PAGE_SIZE = 250;
+
 export default function AlertsHistoryPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [cursor, setCursor] = useState(0);
   const [events, setEvents] = useState<ChangeEvent[]>([]);
   const [severityFilter, setSeverityFilter] = useState<
     "all" | "low" | "medium" | "high"
@@ -33,38 +38,65 @@ export default function AlertsHistoryPage() {
   );
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
 
+  const loadEventsPage = useCallback(
+    async (userId: string, from: number, reset = false) => {
+      const to = from + HISTORY_PAGE_SIZE - 1;
+      const { data } = await supabase
+        .from("detected_changes")
+        .select("id,domain,severity,metadata,detected_at,is_read")
+        .eq("user_id", userId)
+        .order("detected_at", { ascending: false })
+        .range(from, to);
+
+      const pageRows = (data || []) as ChangeEvent[];
+      setHasMore(pageRows.length === HISTORY_PAGE_SIZE);
+      setCursor(from + pageRows.length);
+
+      if (reset) {
+        setEvents(pageRows);
+        return;
+      }
+
+      setEvents((prev) => [...prev, ...pageRows]);
+    },
+    []
+  );
+
   useEffect(() => {
     const hydrateSession = async () => {
       const { data: refreshed } = await supabase.auth.refreshSession();
       if (refreshed.session) {
         setSession(refreshed.session);
+        await loadEventsPage(refreshed.session.user.id, 0, true);
         setLoading(false);
         return;
       }
 
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
+      if (data.session?.user?.id) {
+        await loadEventsPage(data.session.user.id, 0, true);
+      }
       setLoading(false);
     };
 
     hydrateSession();
-  }, []);
 
-  useEffect(() => {
-    if (!session?.user) return;
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+      if (currentSession?.user?.id) {
+        void loadEventsPage(currentSession.user.id, 0, true);
+        return;
+      }
+      setEvents([]);
+      setCursor(0);
+      setHasMore(true);
+    });
 
-    const load = async () => {
-      const { data } = await supabase
-        .from("detected_changes")
-        .select("id,domain,severity,metadata,detected_at,is_read")
-        .order("detected_at", { ascending: false })
-        .limit(500);
-
-      setEvents((data || []) as ChangeEvent[]);
-    };
-
-    load();
-  }, [session?.user?.id]);
+    return () => subscription.unsubscribe();
+  }, [loadEventsPage]);
 
   const availableUrls = useMemo(() => {
     const values = new Set<string>();
@@ -149,6 +181,13 @@ export default function AlertsHistoryPage() {
     link.download = "chronocrawl-alerts.csv";
     link.click();
     URL.revokeObjectURL(objectUrl);
+  };
+
+  const loadMore = async () => {
+    if (!session?.user?.id || !hasMore || loadingMore) return;
+    setLoadingMore(true);
+    await loadEventsPage(session.user.id, cursor, false);
+    setLoadingMore(false);
   };
 
   if (loading) {
@@ -335,6 +374,17 @@ export default function AlertsHistoryPage() {
               );
             })}
           </div>
+          {hasMore && (
+            <div className="mt-5 flex justify-center">
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingMore ? "Chargement..." : "Charger plus"}
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </main>

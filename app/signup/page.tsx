@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
@@ -25,10 +25,6 @@ export default function SignupPage() {
     "idle"
   );
   const [message, setMessage] = useState("");
-
-  useEffect(() => {
-    setMessage("");
-  }, [email, password, confirmPassword, siteType, targetUrl]);
 
   const handleSignUp = async () => {
     if (!email || !password) {

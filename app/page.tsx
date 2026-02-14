@@ -81,7 +81,7 @@ export default function Home() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [session?.user?.id, session?.user?.user_metadata?.subscription_status]);
+  }, [session?.user, session?.user?.id, session?.user?.user_metadata?.subscription_status]);
 
   const startCheckout = async (plan: "starter" | "pro" | "agency") => {
     if (!session?.user?.id || !session?.access_token) {

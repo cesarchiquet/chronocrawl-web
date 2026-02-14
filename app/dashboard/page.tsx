@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
@@ -45,6 +45,8 @@ type SubscriptionState = {
   status: string;
   trial_end: string | null;
 };
+
+const EVENTS_PAGE_SIZE = 1000;
 
 export default function DashboardPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -123,23 +125,43 @@ export default function DashboardPage() {
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [session?.user?.id, session?.user?.user_metadata?.subscription_status]);
+  }, [session?.user, session?.user?.id, session?.user?.user_metadata?.subscription_status]);
 
-  const loadData = async () => {
-    if (!session?.user) return;
+  const loadAllEvents = useCallback(async (userId: string) => {
+    const rows: ChangeEvent[] = [];
+    let from = 0;
+
+    while (true) {
+      const to = from + EVENTS_PAGE_SIZE - 1;
+      const { data, error } = await supabase
+        .from("detected_changes")
+        .select(
+          "id,monitored_url_id,domain,severity,field_key,metadata,detected_at,is_read"
+        )
+        .eq("user_id", userId)
+        .order("detected_at", { ascending: false })
+        .range(from, to);
+
+      if (error || !data || data.length === 0) break;
+
+      rows.push(...(data as ChangeEvent[]));
+      if (data.length < EVENTS_PAGE_SIZE) break;
+      from += EVENTS_PAGE_SIZE;
+    }
+
+    return rows;
+  }, []);
+
+  const loadData = useCallback(async (userId: string) => {
     const { data: urlsData } = await supabase
       .from("monitored_urls")
       .select("id,url,status,last_checked_at,created_at")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
 
     setUrls(urlsData || []);
 
-    const { data: eventsData } = await supabase
-      .from("detected_changes")
-      .select(
-        "id,monitored_url_id,domain,severity,field_key,metadata,detected_at,is_read"
-      )
-      .order("detected_at", { ascending: false });
+    const eventsData = await loadAllEvents(userId);
 
     const domainRank: Record<ChangeEvent["domain"], number> = {
       seo: 0,
@@ -153,8 +175,7 @@ export default function DashboardPage() {
       low: 2,
     };
 
-    const ranked = ((eventsData || []) as ChangeEvent[])
-      .sort((a, b) => {
+    const ranked = eventsData.sort((a, b) => {
         const dateDelta = (b.detected_at || "").localeCompare(a.detected_at || "");
         if (dateDelta !== 0) return dateDelta;
         const domainDelta = domainRank[a.domain] - domainRank[b.domain];
@@ -170,41 +191,42 @@ export default function DashboardPage() {
     const { count: changeCount24h } = await supabase
       .from("detected_changes")
       .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
       .gt("detected_at", since24h);
 
     const { count: highCount7d } = await supabase
       .from("detected_changes")
       .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
       .eq("severity", "high")
       .gt("detected_at", since7d);
 
     const { data: usage } = await supabase
       .from("user_monitor_usage")
       .select("run_count,window_started_at")
+      .eq("user_id", userId)
       .maybeSingle<{ run_count: number; window_started_at: string }>();
 
     setChanges24h(changeCount24h || 0);
     setHigh7d(highCount7d || 0);
     setDailyRunCount(usage?.run_count || 0);
     setDailyRunStartedAt(usage?.window_started_at || null);
-  };
+  }, [loadAllEvents]);
 
-  const loadSubscriptionState = async () => {
-    if (!session?.user) return;
+  const loadSubscriptionState = useCallback(async (userId: string) => {
     const { data } = await supabase
       .from("user_subscriptions")
       .select("plan,status,trial_end")
-      .eq("user_id", session.user.id)
+      .eq("user_id", userId)
       .maybeSingle<SubscriptionState>();
     setSubscriptionState(data || null);
-  };
+  }, []);
 
-  const loadAlertSettings = async () => {
-    if (!session?.user) return;
+  const loadAlertSettings = useCallback(async (userId: string) => {
     const { data, error } = await supabase
       .from("user_alert_settings")
       .select("email_mode,min_email_severity,digest_hour")
-      .eq("user_id", session.user.id)
+      .eq("user_id", userId)
       .maybeSingle<{
         email_mode: "instant" | "daily" | "off";
         min_email_severity: "low" | "medium" | "high";
@@ -222,7 +244,7 @@ export default function DashboardPage() {
     setEmailMode(data.email_mode || "instant");
     setMinEmailSeverity(data.min_email_severity || "high");
     setDigestHour(Number.isFinite(data.digest_hour) ? data.digest_hour : 8);
-  };
+  }, []);
 
   const markAlertAsRead = async (id: string, isRead: boolean) => {
     const { error } = await supabase
@@ -251,20 +273,21 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (session?.user) {
-      loadSubscriptionState();
-      loadData();
-      loadAlertSettings();
-    }
-  }, [session]);
+    if (!session?.user?.id) return;
+    const userId = session.user.id;
+    void loadSubscriptionState(userId);
+    void loadData(userId);
+    void loadAlertSettings(userId);
+  }, [loadAlertSettings, loadData, loadSubscriptionState, session?.user?.id]);
 
   useEffect(() => {
-    if (!session?.user) return;
+    if (!session?.user?.id) return;
+    const userId = session.user.id;
     const interval = setInterval(() => {
-      loadData();
+      void loadData(userId);
     }, 10000);
     return () => clearInterval(interval);
-  }, [session?.user?.id]);
+  }, [loadData, session?.user?.id]);
 
   const saveAlertSettings = async () => {
     if (!session?.user) return;
@@ -340,12 +363,14 @@ export default function DashboardPage() {
     }
 
     setNewUrl("");
-    await loadData();
+    await loadData(session.user.id);
   };
 
   const removeUrl = async (id: string) => {
     await supabase.from("monitored_urls").delete().eq("id", id);
-    await loadData();
+    if (session?.user?.id) {
+      await loadData(session.user.id);
+    }
   };
 
   const runAnalysis = async () => {
@@ -399,7 +424,7 @@ export default function DashboardPage() {
       setAnalysisMessage(
         `Analyse terminee: ${totalChecked} URL verifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalFailed} echec(s).${overflowNote}`
       );
-      await loadData();
+      await loadData(session.user.id);
     } catch (error: unknown) {
       const details =
         error instanceof Error ? error.message : "Erreur pendant l'analyse.";
@@ -473,8 +498,8 @@ export default function DashboardPage() {
   }, [urls, events]);
 
   const filteredEvents = events.filter((item) => {
-    if (alertFilter === "unread") return !item.is_read;
-    if (alertFilter === "read") return !!item.is_read;
+    if (alertFilter === "unread" && item.is_read) return false;
+    if (alertFilter === "read" && !item.is_read) return false;
     if (alertUrlFilter !== "all" && item.metadata?.url !== alertUrlFilter) {
       return false;
     }
