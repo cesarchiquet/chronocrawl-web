@@ -185,6 +185,7 @@ export default function DashboardPage() {
   const [alertDateFilter, setAlertDateFilter] = useState<
     "all" | "24h" | "7d" | "30d"
   >("all");
+  const [groupAlertsByRun, setGroupAlertsByRun] = useState(true);
   const [alertBulkMessage, setAlertBulkMessage] = useState("");
   const [emailMode, setEmailMode] = useState<"instant" | "daily" | "off">(
     "instant"
@@ -206,6 +207,7 @@ export default function DashboardPage() {
   const [latestRunLog, setLatestRunLog] = useState<MonitorRunLog | null>(null);
   const [recentRunFailureRate, setRecentRunFailureRate] = useState(0);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -749,6 +751,60 @@ export default function DashboardPage() {
     if (score >= 45) return "bg-amber-500/15 text-amber-200";
     return "bg-emerald-500/15 text-emerald-200";
   };
+
+  const groupedAlertRuns = useMemo(() => {
+    const bucketMs = 5 * 60 * 1000;
+    const severityRank: Record<ChangeEvent["severity"], number> = {
+      low: 1,
+      medium: 2,
+      high: 3,
+    };
+
+    const groups = new Map<
+      string,
+      {
+        id: string;
+        url: string;
+        detectedAt: string | null;
+        count: number;
+        unreadCount: number;
+        maxSeverity: ChangeEvent["severity"];
+        items: ChangeEvent[];
+      }
+    >();
+
+    for (const item of filteredEvents) {
+      const url = item.metadata?.url || "(URL non renseignee)";
+      const detectedMs = item.detected_at ? Date.parse(item.detected_at) : 0;
+      const bucket = Math.floor(detectedMs / bucketMs) * bucketMs;
+      const key = `${url}::${bucket}`;
+
+      const existing = groups.get(key);
+      if (!existing) {
+        groups.set(key, {
+          id: key,
+          url,
+          detectedAt: item.detected_at,
+          count: 1,
+          unreadCount: item.is_read ? 0 : 1,
+          maxSeverity: item.severity,
+          items: [item],
+        });
+        continue;
+      }
+
+      existing.count += 1;
+      if (!item.is_read) existing.unreadCount += 1;
+      if (severityRank[item.severity] > severityRank[existing.maxSeverity]) {
+        existing.maxSeverity = item.severity;
+      }
+      existing.items.push(item);
+    }
+
+    return Array.from(groups.values()).sort((a, b) =>
+      (b.detectedAt || "").localeCompare(a.detectedAt || "")
+    );
+  }, [filteredEvents]);
   const openBillingPortal = async () => {
     setBillingMessage("");
     if (!session?.access_token) {
@@ -1066,6 +1122,16 @@ export default function DashboardPage() {
             >
               Marquer filtrees non lues
             </button>
+            <button
+              onClick={() => setGroupAlertsByRun((value) => !value)}
+              className={`text-xs px-2 py-1 rounded border transition ${
+                groupAlertsByRun
+                  ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
+                  : "border-white/15 text-gray-300 hover:bg-white/5"
+              }`}
+            >
+              {groupAlertsByRun ? "Groupement URL+run: ON" : "Groupement URL+run: OFF"}
+            </button>
           </div>
           {alertBulkMessage && (
             <p className="text-[11px] text-indigo-200 mb-4">{alertBulkMessage}</p>
@@ -1077,7 +1143,118 @@ export default function DashboardPage() {
             {filteredEvents.length === 0 && (
               <p className="text-gray-400 text-sm">Aucun changement détecté.</p>
             )}
-            {filteredEvents.map((item) => (
+            {groupAlertsByRun
+              ? groupedAlertRuns.map((group) => {
+                  const groupExpanded = expandedGroupId === group.id;
+                  const groupClass =
+                    group.maxSeverity === "high"
+                      ? "bg-red-500/15 text-red-200"
+                      : group.maxSeverity === "medium"
+                        ? "bg-amber-500/15 text-amber-200"
+                        : "bg-emerald-500/15 text-emerald-200";
+                  return (
+                    <div key={group.id} className="rounded-lg border border-white/10 p-4">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className={`text-[10px] uppercase px-2 py-1 rounded-full ${groupClass}`}>
+                          run {group.maxSeverity}
+                        </span>
+                        <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
+                          {group.count} alerte(s)
+                        </span>
+                        <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
+                          {group.unreadCount} non lue(s)
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-200 break-all">{group.url}</p>
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <p className="text-xs text-gray-500">{group.detectedAt || "—"}</p>
+                        <button
+                          onClick={() =>
+                            setExpandedGroupId(groupExpanded ? null : group.id)
+                          }
+                          className="text-xs text-gray-300 hover:text-white"
+                        >
+                          {groupExpanded ? "Masquer run" : "Voir run"}
+                        </button>
+                      </div>
+                      {groupExpanded && (
+                        <div className="mt-3 space-y-3">
+                          {group.items.map((item) => (
+                            <div key={item.id} className="rounded-md border border-white/10 p-3 bg-black/20">
+                              {(() => {
+                                const priorityScore = getPriorityScore(item);
+                                const priorityLabel = getPriorityLabel(priorityScore);
+                                const priorityClass = getPriorityClass(priorityScore);
+                                const isExpanded = expandedAlertId === item.id;
+                                return (
+                                  <>
+                                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                                      <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
+                                        {item.domain}
+                                      </span>
+                                      <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
+                                        {item.severity}
+                                      </span>
+                                      <span
+                                        className={`text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
+                                      >
+                                        Impact {priorityScore} - {priorityLabel}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-gray-200">
+                                      {item.metadata?.summary || item.field_key}
+                                    </p>
+                                    <div className="mt-2 flex items-center justify-between gap-3">
+                                      <p className="text-xs text-gray-500">{item.detected_at || "—"}</p>
+                                      <div className="flex items-center gap-3">
+                                        <button
+                                          onClick={() =>
+                                            setExpandedAlertId(isExpanded ? null : item.id)
+                                          }
+                                          className="text-xs text-gray-300 hover:text-white"
+                                        >
+                                          {isExpanded ? "Masquer preuve" : "Voir la preuve"}
+                                        </button>
+                                        <button
+                                          onClick={() => markAlertAsRead(item.id, !item.is_read)}
+                                          className="text-xs text-indigo-200 hover:text-indigo-100"
+                                        >
+                                          {item.is_read ? "Marquer non lu" : "Marquer lu"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                    {isExpanded && (
+                                      <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-3">
+                                        <p className="text-[11px] text-gray-400">
+                                          {item.metadata?.priority_reason || "Priorité calculée automatiquement."}
+                                        </p>
+                                        <div className="mt-2 grid grid-cols-1 gap-2 text-xs">
+                                          <div>
+                                            <p className="text-gray-400 mb-1">Avant</p>
+                                            <p className="text-gray-200">
+                                              {item.metadata?.before_short || "non disponible"}
+                                            </p>
+                                          </div>
+                                          <div>
+                                            <p className="text-gray-400 mb-1">Après</p>
+                                            <p className="text-gray-200">
+                                              {item.metadata?.after_short || "non disponible"}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </>
+                                );
+                              })()}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              : filteredEvents.map((item) => (
               <div key={item.id} className="rounded-lg border border-white/10 p-4">
                 {(() => {
                   const priorityScore = getPriorityScore(item);
