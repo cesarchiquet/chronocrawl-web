@@ -110,6 +110,11 @@ export async function POST(request: Request) {
     .select("stripe_customer_id,status")
     .eq("user_id", userId)
     .maybeSingle<{ stripe_customer_id: string | null; status: string | null }>();
+  const existingStatus = subscriptionRow?.status || null;
+  const nextStatus =
+    existingStatus === "active" || existingStatus === "trialing"
+      ? existingStatus
+      : "pending_checkout";
   const existingCustomerIdRaw =
     subscriptionRow?.stripe_customer_id ||
     (existingMetadata.stripe_customer_id as string | undefined);
@@ -181,8 +186,3 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ url: session.url, code: "OK" });
 }
-  const existingStatus = subscriptionRow?.status || null;
-  const nextStatus =
-    existingStatus === "active" || existingStatus === "trialing"
-      ? existingStatus
-      : "pending_checkout";
