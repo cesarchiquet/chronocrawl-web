@@ -21,6 +21,16 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://www.chronocrawl.com/tarifs</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.chronocrawl.com/faq</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://www.chronocrawl.com/blog/guide-surveiller-site-concurrent</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>

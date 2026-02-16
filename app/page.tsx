@@ -151,6 +151,10 @@ export default function Home() {
     subscriptionState?.status ||
     session?.user?.user_metadata?.subscription_status ||
     "inactive";
+  const effectiveSubscriptionStatus =
+    subscriptionStatus === "pending_checkout"
+      ? session?.user?.user_metadata?.subscription_status || "inactive"
+      : subscriptionStatus;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
@@ -162,10 +166,15 @@ export default function Home() {
         animate="visible"
         className="max-w-5xl mx-auto px-6 pt-28 pb-24 text-center"
       >
-        <div className="flex items-center justify-between text-sm mb-10">
+        <div className="relative flex items-center justify-between text-sm mb-10">
           {session?.user ? (
-            <div className="px-4 py-2 rounded-lg border border-indigo-400/30 bg-indigo-500/10 text-indigo-200">
-              Connecté : {session.user.email}
+            <div className="relative">
+              <div className="pointer-events-none absolute -top-5 left-1 text-indigo-200 font-semibold tracking-wide text-xs">
+                ChronoCrawl
+              </div>
+              <div className="px-4 py-2 rounded-lg border border-indigo-400/30 bg-indigo-500/10 text-indigo-200">
+                Connecté : {session.user.email}
+              </div>
             </div>
           ) : (
             <div />
@@ -248,7 +257,7 @@ export default function Home() {
         {session?.user && (
           <p className="mt-2 text-xs text-indigo-200">
             Plan actif: {String(plan).toUpperCase()} | Statut:{" "}
-            {String(subscriptionStatus).toUpperCase()}
+            {String(effectiveSubscriptionStatus).toUpperCase()}
           </p>
         )}
 
@@ -380,6 +389,13 @@ export default function Home() {
           Choisis le plan qui correspond à ta veille concurrentielle. Tu peux
           changer ou arrêter à tout moment.
         </p>
+        <p className="text-center text-xs text-gray-400 mb-8">
+          Resume des offres sur cette page.{" "}
+          <a href="/tarifs" className="text-indigo-300 hover:text-indigo-200 underline underline-offset-4">
+            En savoir plus sur les tarifs
+          </a>
+          .
+        </p>
 
         <div className="grid md:grid-cols-3 gap-6">
           {[
@@ -503,6 +519,13 @@ export default function Home() {
         >
           FAQ — Veille concurrentielle
         </motion.h2>
+        <p className="text-center text-xs text-gray-400 mb-8">
+          FAQ rapide ci-dessous.{" "}
+          <a href="/faq" className="text-indigo-300 hover:text-indigo-200 underline underline-offset-4">
+            En savoir plus (FAQ complete)
+          </a>
+          .
+        </p>
 
         <div className="grid md:grid-cols-2 gap-6">
           {[

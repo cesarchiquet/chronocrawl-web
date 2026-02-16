@@ -659,10 +659,15 @@ export async function POST(request: Request) {
     subscriptionRow?.plan ||
     (userData.user.user_metadata?.plan as string | undefined) ||
     "starter";
-  const status =
+  const rawStatus =
     subscriptionRow?.status ||
     (userData.user.user_metadata?.subscription_status as string | undefined) ||
     "inactive";
+  const metadataStatus = userData.user.user_metadata?.subscription_status as
+    | string
+    | undefined;
+  const status =
+    rawStatus === "pending_checkout" ? metadataStatus || "inactive" : rawStatus;
   let alertSettings: AlertSettings = {
     email_mode: "instant",
     min_email_severity: "high",

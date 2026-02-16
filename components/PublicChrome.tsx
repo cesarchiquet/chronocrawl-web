@@ -21,6 +21,12 @@ export default function PublicChrome({ children }: PublicChromeProps) {
             <Link href="/blog" className="rounded-md px-3 py-2 text-gray-300 hover:bg-white/5 hover:text-white">
               Blog
             </Link>
+            <Link href="/tarifs" className="rounded-md px-3 py-2 text-gray-300 hover:bg-white/5 hover:text-white">
+              Tarifs
+            </Link>
+            <Link href="/faq" className="rounded-md px-3 py-2 text-gray-300 hover:bg-white/5 hover:text-white">
+              FAQ
+            </Link>
             <Link href="/contact" className="rounded-md px-3 py-2 text-gray-300 hover:bg-white/5 hover:text-white">
               Contact
             </Link>

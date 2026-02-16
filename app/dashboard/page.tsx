@@ -655,13 +655,19 @@ export default function DashboardPage() {
   const subscriptionStatus =
     subscriptionState?.status ||
     (session?.user?.user_metadata?.subscription_status as string | undefined);
+  const effectiveSubscriptionStatus =
+    subscriptionStatus === "pending_checkout"
+      ? (session?.user?.user_metadata?.subscription_status as string | undefined) ||
+        "inactive"
+      : subscriptionStatus;
   const trialEndRaw =
     subscriptionState?.trial_end ||
     (session?.user?.user_metadata?.subscription_trial_end as
     | string
     | undefined);
   const hasActiveSubscription =
-    subscriptionStatus === "active" || subscriptionStatus === "trialing";
+    effectiveSubscriptionStatus === "active" ||
+    effectiveSubscriptionStatus === "trialing";
   const canAddUrl =
     (isBypass || hasActiveSubscription) && currentCount < limit;
   const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null;
@@ -842,7 +848,7 @@ export default function DashboardPage() {
         {billingMessage && (
           <p className="mt-3 text-sm text-amber-200">{billingMessage}</p>
         )}
-        {subscriptionStatus === "trialing" && (
+        {effectiveSubscriptionStatus === "trialing" && (
           <div className="mt-4 rounded-lg border border-indigo-400/30 bg-indigo-500/10 p-4 text-sm text-indigo-100">
             <p className="font-medium">Essai en cours</p>
             <p className="mt-1 text-indigo-200">
@@ -852,7 +858,7 @@ export default function DashboardPage() {
             </p>
           </div>
         )}
-        {subscriptionStatus === "inactive" && (
+        {effectiveSubscriptionStatus === "inactive" && (
           <div className="mt-4 rounded-lg border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
             <p className="font-medium">Abonnement inactif</p>
             <p className="mt-1 text-amber-200">
