@@ -13,7 +13,7 @@ type PublicNavigationProps = {
 
 const links = [
   { href: "/fonctionnement", label: "Produit" },
-  { href: "/demo", label: "Demo" },
+  { href: "/demo", label: "Parcours 90s" },
   { href: "/cas-d-usage", label: "Cas d'usage" },
   { href: "/tarifs", label: "Tarifs" },
   { href: "/faq", label: "FAQ" },
@@ -29,7 +29,10 @@ export default function PublicNavigation({
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isActive = (href: string) => pathname === href;
+  const isActive = (href: string) => {
+    const cleanHref = href.split("?")[0];
+    return pathname === cleanHref;
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-[#060a1bcc]/90 backdrop-blur">

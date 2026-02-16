@@ -32,6 +32,18 @@ export default function CasUsagePage() {
   return (
     <PublicChrome>
       <section className="max-w-6xl mx-auto px-6 pt-16 pb-24">
+        <div className="mb-8 rounded-xl border border-indigo-300/25 bg-indigo-500/10 p-4">
+          <p className="text-xs uppercase text-indigo-200">Parcours 90 sec - Etape 2/3</p>
+          <p className="mt-1 text-sm text-indigo-100">
+            Selectionne ton cas, puis passe au dashboard pour activer ta surveillance.
+          </p>
+          <Link
+            href="/dashboard"
+            className="mt-3 inline-flex rounded-md border border-indigo-300/40 px-3 py-2 text-xs text-indigo-100 hover:bg-indigo-500/20 transition"
+          >
+            Aller a l&apos;etape 3
+          </Link>
+        </div>
         <p className="text-sm text-indigo-300 font-medium">Cas d&apos;usage</p>
         <h1 className="mt-2 text-4xl md:text-5xl font-bold">
           Pour qui ChronoCrawl cree le plus de valeur
@@ -74,6 +86,26 @@ export default function CasUsagePage() {
           >
             Creer un compte
           </Link>
+        </div>
+        <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm font-medium text-gray-100">Etat vide classique: je ne sais pas par quoi commencer.</p>
+          <p className="mt-1 text-xs text-gray-300">
+            Regle simple: commence par 3 URLs critiques (pricing, homepage, page produit phare), puis lance une analyse.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href="/dashboard"
+              className="rounded-md bg-indigo-500 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-400 transition"
+            >
+              Ajouter mes 3 URLs
+            </Link>
+            <Link
+              href="/faq"
+              className="rounded-md border border-white/20 px-3 py-2 text-xs text-gray-200 hover:bg-white/5 transition"
+            >
+              Lire la FAQ
+            </Link>
+          </div>
         </div>
       </section>
     </PublicChrome>

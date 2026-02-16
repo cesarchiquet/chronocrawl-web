@@ -157,6 +157,7 @@ export default function Home() {
     subscriptionStatus === "pending_checkout"
       ? session?.user?.user_metadata?.subscription_status || "inactive"
       : subscriptionStatus;
+  const tourHref = session?.user ? "/dashboard" : "/signup";
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
@@ -245,6 +246,53 @@ export default function Home() {
           </a>
         </div>
       </motion.section>
+
+      <section className="max-w-6xl mx-auto px-6 pb-20">
+        <div className="rounded-2xl border border-indigo-300/30 bg-indigo-500/10 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-indigo-200">
+                Decouverte guidee
+              </p>
+              <h2 className="mt-1 text-2xl font-semibold">
+                Comprendre le produit en 90 secondes
+              </h2>
+            </div>
+            <a
+              href={tourHref}
+              className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 transition"
+            >
+              Lancer le parcours
+            </a>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <a
+              href="/demo?tour=1"
+              className="rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition"
+            >
+              <p className="text-xs text-indigo-200">Etape 1</p>
+              <p className="mt-1 text-sm font-medium">Voir une alerte type</p>
+              <p className="mt-1 text-xs text-gray-300">Format, preuve, priorite, action.</p>
+            </a>
+            <a
+              href="/cas-d-usage?tour=1"
+              className="rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition"
+            >
+              <p className="text-xs text-indigo-200">Etape 2</p>
+              <p className="mt-1 text-sm font-medium">Choisir son cas d&apos;usage</p>
+              <p className="mt-1 text-xs text-gray-300">SaaS, e-commerce, agence, SEO.</p>
+            </a>
+            <a
+              href={tourHref}
+              className="rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition"
+            >
+              <p className="text-xs text-indigo-200">Etape 3</p>
+              <p className="mt-1 text-sm font-medium">Passer a l&apos;action</p>
+              <p className="mt-1 text-xs text-gray-300">Ajouter des URLs et lancer la premiere analyse.</p>
+            </a>
+          </div>
+        </div>
+      </section>
 
       {/* FEATURES */}
       <section className="max-w-6xl mx-auto px-6 pb-24 grid md:grid-cols-3 gap-6">

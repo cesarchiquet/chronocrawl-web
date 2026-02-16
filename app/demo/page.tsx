@@ -5,6 +5,18 @@ export default function DemoPage() {
   return (
     <PublicChrome>
       <section className="max-w-6xl mx-auto px-6 pt-16 pb-24">
+        <div className="mb-8 rounded-xl border border-indigo-300/25 bg-indigo-500/10 p-4">
+          <p className="text-xs uppercase text-indigo-200">Parcours 90 sec - Etape 1/3</p>
+          <p className="mt-1 text-sm text-indigo-100">
+            Ici tu vois exactement le format d&apos;une alerte exploitable.
+          </p>
+          <Link
+            href="/cas-d-usage"
+            className="mt-3 inline-flex rounded-md border border-indigo-300/40 px-3 py-2 text-xs text-indigo-100 hover:bg-indigo-500/20 transition"
+          >
+            Continuer vers l&apos;etape 2
+          </Link>
+        </div>
         <p className="text-sm text-indigo-300 font-medium">Demo produit</p>
         <h1 className="mt-2 text-4xl md:text-5xl font-bold">
           A quoi ressemble une alerte utile
@@ -73,6 +85,26 @@ export default function DemoPage() {
           >
             Voir le dashboard
           </Link>
+        </div>
+        <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm font-medium text-gray-100">Tu ne sais pas quoi faire ensuite ?</p>
+          <p className="mt-1 text-xs text-gray-300">
+            Va sur les cas d&apos;usage pour choisir ton scenario, puis passe au dashboard pour lancer ton premier scan.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link
+              href="/cas-d-usage"
+              className="rounded-md border border-white/20 px-3 py-2 text-xs text-gray-200 hover:bg-white/5 transition"
+            >
+              Voir les cas d&apos;usage
+            </Link>
+            <Link
+              href="/dashboard"
+              className="rounded-md bg-indigo-500 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-400 transition"
+            >
+              Ouvrir le dashboard
+            </Link>
+          </div>
         </div>
       </section>
     </PublicChrome>

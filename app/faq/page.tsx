@@ -45,6 +45,26 @@ export default function FaqPage() {
             </article>
           ))}
         </div>
+        <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm font-medium text-gray-100">Tu n&apos;as pas trouve ta reponse ?</p>
+          <p className="mt-1 text-xs text-gray-300">
+            Fais la visite guidee puis ouvre le dashboard: c&apos;est le chemin le plus rapide pour comprendre le produit.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href="/demo?tour=1"
+              className="rounded-md border border-white/20 px-3 py-2 text-xs text-gray-200 hover:bg-white/5 transition"
+            >
+              Lancer la visite 90 sec
+            </a>
+            <a
+              href="/contact"
+              className="rounded-md bg-indigo-500 px-3 py-2 text-xs font-medium text-white hover:bg-indigo-400 transition"
+            >
+              Contacter l&apos;equipe
+            </a>
+          </div>
+        </div>
       </section>
     </PublicChrome>
   );
