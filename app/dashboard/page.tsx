@@ -652,6 +652,17 @@ export default function DashboardPage() {
     }, 280);
   };
 
+  const openPriorityEvent = (event: ChangeEvent) => {
+    setAlertFilter("all");
+    setAlertUrlFilter(event.metadata?.url || "all");
+    setGroupAlertsByRun(false);
+    setQuickTriageMode(false);
+    setExpandedAlertId(event.id);
+    setExpandedGroupId(null);
+    setAlertBulkMessage("");
+    setTimeout(() => scrollToSection("alerts-center"), 80);
+  };
+
   const plan =
     (subscriptionState?.plan as
       | "starter"
@@ -777,6 +788,35 @@ export default function DashboardPage() {
     if (item.severity === "medium") return 60;
     return 30;
   };
+
+  const priorityCockpitEvents = useMemo(
+    () =>
+      events
+        .filter((item) => !item.is_read)
+        .sort((a, b) => {
+          const aScore =
+            typeof a.metadata?.priority_score === "number" &&
+            Number.isFinite(a.metadata.priority_score)
+              ? a.metadata.priority_score
+              : a.severity === "high"
+                ? 85
+                : a.severity === "medium"
+                  ? 60
+                  : 30;
+          const bScore =
+            typeof b.metadata?.priority_score === "number" &&
+            Number.isFinite(b.metadata.priority_score)
+              ? b.metadata.priority_score
+              : b.severity === "high"
+                ? 85
+                : b.severity === "medium"
+                  ? 60
+                  : 30;
+          return bScore - aScore;
+        })
+        .slice(0, 3),
+    [events]
+  );
 
   const getPriorityLabel = (score: number) => {
     if (score >= 75) return "Haute";
@@ -1103,6 +1143,44 @@ export default function DashboardPage() {
               </span>
             ) : null}
           </div>
+        </div>
+        <div className="mt-4 rounded-xl border border-rose-300/25 bg-rose-500/10 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-rose-100 font-medium">
+              Cockpit priorites du jour
+            </p>
+            <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-rose-100">
+              {priorityCockpitEvents.length} action(s) rapide(s)
+            </span>
+          </div>
+          {priorityCockpitEvents.length === 0 ? (
+            <p className="mt-2 text-xs text-rose-100/80">
+              Aucune alerte non lue prioritaire pour le moment.
+            </p>
+          ) : (
+            <div className="mt-3 grid gap-2 md:grid-cols-3">
+              {priorityCockpitEvents.map((item) => {
+                const score = getPriorityScore(item);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => openPriorityEvent(item)}
+                    className="text-left rounded-md border border-white/10 bg-black/20 px-3 py-3 hover:bg-black/30 transition"
+                  >
+                    <p className="text-[11px] uppercase text-rose-200">
+                      Impact {score} - {item.domain}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-200">
+                      {item.metadata?.summary || item.field_key}
+                    </p>
+                    <p className="mt-2 text-[11px] text-gray-400 break-all">
+                      {item.metadata?.url || "URL non renseignee"}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
         <div className="mt-4 rounded-xl border border-indigo-300/25 bg-indigo-500/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
