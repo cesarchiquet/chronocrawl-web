@@ -633,6 +633,25 @@ export default function DashboardPage() {
     }
   };
 
+  const scrollToSection = (sectionId: string) => {
+    if (typeof window === "undefined") return;
+    document.getElementById(sectionId)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
+  const goToAddUrl = () => {
+    scrollToSection("add-url-section");
+    if (typeof window === "undefined") return;
+    window.setTimeout(() => {
+      const element = document.getElementById(
+        "dashboard-new-url-input"
+      ) as HTMLInputElement | null;
+      element?.focus();
+    }, 280);
+  };
+
   const plan =
     (subscriptionState?.plan as
       | "starter"
@@ -1111,11 +1130,35 @@ export default function DashboardPage() {
           <p className="mt-3 text-xs text-indigo-100/90">
             Objectif: afficher des alertes pertinentes des la premiere session, sans configuration technique.
           </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={goToAddUrl}
+              className="text-xs px-3 py-2 rounded-md border border-white/20 text-gray-100 hover:bg-white/5 transition"
+            >
+              Etape 1 - Ajouter URL
+            </button>
+            <button
+              onClick={runAnalysis}
+              disabled={(!hasActiveSubscription && !isBypass) || analysisRunning}
+              className="text-xs px-3 py-2 rounded-md border border-indigo-300/30 text-indigo-100 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Etape 2 - Lancer analyse
+            </button>
+            <button
+              onClick={() => scrollToSection("alerts-center")}
+              className="text-xs px-3 py-2 rounded-md border border-white/20 text-gray-100 hover:bg-white/5 transition"
+            >
+              Etape 3 - Ouvrir alertes
+            </button>
+          </div>
         </div>
       </motion.section>
 
       <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto">
+        <div
+          id="urls-list"
+          className="lg:col-span-2 rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto"
+        >
           <h2 className="text-xl font-semibold mb-4">URLs surveillées</h2>
           <div className="space-y-4">
             {urls.length === 0 && (
@@ -1163,7 +1206,10 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto">
+        <div
+          id="alerts-center"
+          className="rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto"
+        >
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 className="text-xl font-semibold">Centre d&apos;alertes</h2>
             <div className="flex items-center gap-2">
@@ -1326,6 +1372,9 @@ export default function DashboardPage() {
           {alertBulkMessage && (
             <p className="text-[11px] text-indigo-200 mb-4">{alertBulkMessage}</p>
           )}
+          <p className="text-[11px] text-indigo-100/90 mb-2">
+            Mode express: filtre URL, traite les non lues, puis marque les groupes en lot.
+          </p>
           <p className="text-[11px] text-gray-400 mb-4">
             Priorité: Haute = action rapide, Moyenne = à planifier, Basse = information.
           </p>
@@ -1647,7 +1696,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-xl bg-white/5 border border-white/10 p-6">
+        <div id="add-url-section" className="rounded-xl bg-white/5 border border-white/10 p-6">
           <h2 className="text-xl font-semibold mb-4">Ajouter une URL</h2>
           <p className="text-gray-300 text-sm mb-4">
             Ajoute une page concurrente à surveiller. La détection des
@@ -1667,6 +1716,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-col md:flex-row gap-3">
             <input
+              id="dashboard-new-url-input"
               type="url"
               placeholder="https://site-concurrent.com/pricing"
               className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
