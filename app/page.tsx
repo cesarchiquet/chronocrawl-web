@@ -4,6 +4,8 @@ import { motion, Variants } from "framer-motion";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Session } from "@supabase/supabase-js";
+import PublicNavigation from "@/components/PublicNavigation";
+import PublicFooter from "@/components/PublicFooter";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -158,6 +160,13 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+      <PublicNavigation
+        session={session}
+        onOpenBillingPortal={openBillingPortal}
+        onSignOut={() => {
+          void supabase.auth.signOut();
+        }}
+      />
 
       {/* HERO */}
       <motion.section
@@ -166,59 +175,11 @@ export default function Home() {
         animate="visible"
         className="max-w-5xl mx-auto px-6 pt-28 pb-24 text-center"
       >
-        <div className="relative flex items-center justify-between text-sm mb-10">
-          {session?.user ? (
-            <div className="relative">
-              <div className="pointer-events-none absolute -top-5 left-1 text-indigo-200 font-semibold tracking-wide text-xs">
-                ChronoCrawl
-              </div>
-              <div className="px-4 py-2 rounded-lg border border-indigo-400/30 bg-indigo-500/10 text-indigo-200">
-                Connecté : {session.user.email}
-              </div>
-            </div>
-          ) : (
-            <div />
-          )}
-          <div className="flex items-center gap-3">
-            {session?.user ? (
-              <>
-                <a
-                  href="/dashboard"
-                  className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
-                >
-                  Dashboard
-                </a>
-                <button
-                  onClick={openBillingPortal}
-                  className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition"
-                >
-                  Gérer l&apos;abonnement
-                </button>
-                <button
-                  onClick={() => supabase.auth.signOut()}
-                  className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/5 transition"
-                >
-                  Se déconnecter
-                </button>
-              </>
-            ) : (
-              <>
-                <a
-                  href="/login"
-                  className="px-4 py-2 rounded-lg border border-white/20 hover:bg-white/5 transition"
-                >
-                  Se connecter
-                </a>
-                <a
-                  href="/signup"
-                  className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
-                >
-                  Créer un compte
-                </a>
-              </>
-            )}
+        {session?.user && (
+          <div className="mb-10 inline-flex items-center rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
+            Connecte : {session.user.email}
           </div>
-        </div>
+        )}
         <h1 className="text-4xl md:text-6xl font-bold leading-tight">
           Surveiller un site concurrent{" "}
           <span className="text-indigo-400">automatiquement</span>
@@ -583,6 +544,7 @@ export default function Home() {
           hello@chronocrawl.com
         </a>
       </section>
+      <PublicFooter />
     </main>
   );
 }
