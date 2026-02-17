@@ -135,6 +135,19 @@ export async function POST(request: Request) {
       distance_km: number;
       source_url: string | null;
     }> = [];
+    const positionRowsToInsert: Array<{
+      run_id: string;
+      user_id: string;
+      city: string;
+      area_km: number;
+      keyword: string;
+      position: number;
+      place_name: string;
+      distance_km: number;
+      source_url: string | null;
+      captured_at: string;
+    }> = [];
+    const capturedAt = new Date().toISOString();
 
     for (const keyword of keywords.slice(0, 30)) {
       const query = `${keyword} ${city} france`;
@@ -151,6 +164,13 @@ export async function POST(request: Request) {
       if (!response.ok) continue;
 
       const nominatimRows = (await response.json()) as NominatimRow[];
+      const localRowsForKeyword: Array<{
+        place_name: string;
+        distance_km: number;
+        source_url: string | null;
+        latitude: number;
+        longitude: number;
+      }> = [];
       for (const result of nominatimRows) {
         const lat = Number.parseFloat(result.lat);
         const lon = Number.parseFloat(result.lon);
@@ -158,15 +178,40 @@ export async function POST(request: Request) {
         const distance = haversineKm(centerLat, centerLon, lat, lon);
         if (distance > areaKm) continue;
 
+        localRowsForKeyword.push({
+          place_name: result.display_name,
+          distance_km: Number(distance.toFixed(2)),
+          source_url: buildOsmUrl(result),
+          latitude: lat,
+          longitude: lon,
+        });
+      }
+
+      localRowsForKeyword.sort((a, b) => a.distance_km - b.distance_km);
+
+      for (const [index, result] of localRowsForKeyword.entries()) {
         rowsToInsert.push({
           run_id: runId,
           user_id: userId,
           keyword,
-          place_name: result.display_name,
-          latitude: lat,
-          longitude: lon,
-          distance_km: Number(distance.toFixed(2)),
-          source_url: buildOsmUrl(result),
+          place_name: result.place_name,
+          latitude: result.latitude,
+          longitude: result.longitude,
+          distance_km: result.distance_km,
+          source_url: result.source_url,
+        });
+
+        positionRowsToInsert.push({
+          run_id: runId,
+          user_id: userId,
+          city,
+          area_km: areaKm,
+          keyword,
+          position: index + 1,
+          place_name: result.place_name,
+          distance_km: result.distance_km,
+          source_url: result.source_url,
+          captured_at: capturedAt,
         });
       }
     }
@@ -186,6 +231,9 @@ export async function POST(request: Request) {
 
     if (rowsToInsert.length > 0) {
       await supabaseAdmin.from("seo_local_results").insert(rowsToInsert);
+      await supabaseAdmin
+        .from("seo_local_keyword_positions")
+        .insert(positionRowsToInsert);
     }
 
     return NextResponse.json({
@@ -194,6 +242,7 @@ export async function POST(request: Request) {
       areaKm,
       keywordsCount: keywords.length,
       resultsCount: rowsToInsert.length,
+      positionsCount: positionRowsToInsert.length,
     });
   } catch (error: unknown) {
     await supabaseAdmin.from("seo_local_runs").insert({
