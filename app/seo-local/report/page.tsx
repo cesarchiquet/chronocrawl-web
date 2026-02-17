@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 type SeoLocalProfile = {
   city: string | null;
   area: string | null;
+  website_url: string | null;
   keywords: string[] | null;
   updated_at: string;
 };
@@ -145,7 +146,7 @@ export default function SeoLocalReportPage() {
   const loadReportData = async (userId: string) => {
     const { data: profileData, error: profileError } = await supabase
       .from("seo_local_profiles")
-      .select("city,area,keywords,updated_at")
+      .select("city,area,website_url,keywords,updated_at")
       .eq("user_id", userId)
       .maybeSingle<SeoLocalProfile>();
 
@@ -490,6 +491,7 @@ export default function SeoLocalReportPage() {
                 <p className="text-xs text-indigo-200 uppercase">Vos reglages</p>
                 <p className="mt-2 text-sm text-gray-200">Ville: {profile.city || "—"}</p>
                 <p className="mt-1 text-sm text-gray-300">Zone surveillee: {profile.area || "10km"}</p>
+                <p className="mt-1 text-sm text-gray-300">Site principal: {profile.website_url || "non renseigne"}</p>
                 <p className="mt-1 text-sm text-gray-300">
                   Recherches suivies: {(profile.keywords || []).length}
                 </p>

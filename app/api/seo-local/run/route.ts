@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 type SeoLocalProfile = {
   city: string | null;
   area: string | null;
+  website_url: string | null;
   keywords: string[] | null;
   competitors: string[] | null;
   priority_pages: string[] | null;
@@ -317,7 +318,7 @@ export async function POST(request: Request) {
 
   const { data: profile, error: profileError } = await supabaseAdmin
     .from("seo_local_profiles")
-    .select("city,area,keywords,competitors,priority_pages")
+    .select("city,area,website_url,keywords,competitors,priority_pages")
     .eq("user_id", userId)
     .maybeSingle<SeoLocalProfile>();
 
@@ -332,6 +333,7 @@ export async function POST(request: Request) {
   }
 
   const city = (profile.city || "").trim();
+  const websiteUrl = (profile.website_url || "").trim();
   const keywords = (profile.keywords || []).map((value) => value.trim()).filter(Boolean);
   const areaKm = parseAreaKm(profile.area);
   const competitors = (profile.competitors || []).map((value) => value.trim()).filter(Boolean);
@@ -339,11 +341,11 @@ export async function POST(request: Request) {
     .map((value) => value.trim())
     .filter(Boolean);
 
-  if (!city || keywords.length === 0) {
+  if (!city || keywords.length === 0 || !websiteUrl) {
     return NextResponse.json(
       {
         error:
-          "Configuration incomplete: ville et mots-cles locaux sont obligatoires.",
+          "Configuration incomplete: ville, URL du site et recherches locales sont obligatoires.",
       },
       { status: 400 }
     );
@@ -460,7 +462,7 @@ export async function POST(request: Request) {
     }> = [];
 
     const currentTopByKeyword = new Map<string, KeywordTop>();
-    const targetMatchConfig = deriveMatchConfig(priorityPages);
+    const targetMatchConfig = deriveMatchConfig([websiteUrl, ...priorityPages]);
     const competitorMatchConfig = deriveMatchConfig(competitors);
 
     const capturedAt = new Date().toISOString();

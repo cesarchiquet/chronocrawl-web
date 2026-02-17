@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabaseClient";
 type SeoLocalProfile = {
   city: string | null;
   area: string | null;
+  website_url: string | null;
   keywords: string[] | null;
   competitors: string[] | null;
   priority_pages: string[] | null;
@@ -104,6 +105,7 @@ export default function SeoLocalSetupPage() {
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   const [city, setCity] = useState("");
+  const [websiteUrl, setWebsiteUrl] = useState("");
   const [diameterKm, setDiameterKm] = useState<
     (typeof LOCAL_DIAMETER_OPTIONS)[number]
   >(10);
@@ -201,12 +203,13 @@ export default function SeoLocalSetupPage() {
       if (!session?.user?.id) return;
       const { data } = await supabase
         .from("seo_local_profiles")
-        .select("city,area,keywords,competitors,priority_pages,updated_at")
+        .select("city,area,website_url,keywords,competitors,priority_pages,updated_at")
         .eq("user_id", session.user.id)
         .maybeSingle<SeoLocalProfile>();
 
       if (!data) return;
       setCity(data.city || "");
+      setWebsiteUrl(data.website_url || "");
       setDiameterKm(parseDiameterFromArea(data.area));
       setKeywords(data.keywords || []);
       setCompetitors(data.competitors || []);
@@ -231,10 +234,11 @@ export default function SeoLocalSetupPage() {
       });
       return;
     }
-    if (priorityPagesList.length === 0) {
+    const normalizedWebsiteUrl = normalizeHttpUrl(websiteUrl);
+    if (!normalizedWebsiteUrl) {
       setFeedback({
         type: "error",
-        text: "Ajoute au moins 1 page de ton site avant d'enregistrer.",
+        text: "Ajoute l'URL principale de ton site avant d'enregistrer.",
       });
       return;
     }
@@ -246,6 +250,7 @@ export default function SeoLocalSetupPage() {
       user_id: session.user.id,
       city: city.trim() || null,
       area: `${diameterKm}km`,
+      website_url: normalizedWebsiteUrl,
       keywords,
       competitors,
       priority_pages: priorityPages,
@@ -259,7 +264,7 @@ export default function SeoLocalSetupPage() {
     if (error) {
       setFeedback({
         type: "error",
-        text: "Enregistrement impossible pour le moment.",
+        text: "Enregistrement impossible pour le moment (verifie la migration 013).",
       });
       setSaving(false);
       return;
@@ -416,6 +421,21 @@ export default function SeoLocalSetupPage() {
             <span className="text-xs text-gray-500">
               On surveille autour de {city.trim() || "ta ville"} dans un rayon
               de {diameterKm} km.
+            </span>
+          </label>
+        </div>
+
+        <div className="mt-4">
+          <label className="text-sm text-gray-300 flex flex-col gap-2">
+            URL principale de ton site
+            <input
+              value={websiteUrl}
+              onChange={(event) => setWebsiteUrl(event.target.value)}
+              placeholder="https://tonsite.fr"
+              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+            />
+            <span className="text-xs text-gray-500">
+              Cette URL sert a verifier si ton entreprise est visible dans les resultats.
             </span>
           </label>
         </div>
@@ -578,7 +598,7 @@ export default function SeoLocalSetupPage() {
               )}
             </div>
             <span className="text-xs text-gray-500">
-              {priorityPagesList.length} page(s) de ton site
+              {priorityPagesList.length} page(s) de ton site (optionnel)
             </span>
           </label>
         </div>
@@ -587,6 +607,7 @@ export default function SeoLocalSetupPage() {
           <p className="text-indigo-200 font-medium">Resume rapide</p>
           <p className="mt-2">- Ville: {city.trim() || "non renseignee"}</p>
           <p>- Zone: rayon {diameterKm} km</p>
+          <p>- Site principal: {websiteUrl.trim() || "non renseigne"}</p>
           <p>- Recherches suivies: {keywordsList.length}</p>
           <p>- Concurrents: {competitorsList.length}</p>
           <p>- Pages de ton site: {priorityPagesList.length}</p>
