@@ -46,11 +46,20 @@ type LocalSearchResult = {
   business_url: string | null;
 };
 
+type MatchSource = "name" | "source_url" | "business_url";
+
+type MatchConfig = {
+  domains: string[];
+  labels: string[];
+};
+
 type KeywordTop = {
   keyword: string;
   position: number;
   place_name: string;
 };
+
+type RunStatus = "completed" | "partial" | "failed";
 
 function haversineKm(
   originLat: number,
@@ -108,11 +117,6 @@ function isLikelyMatch(placeName: string, labels: string[]) {
   return labels.some((label) => normalizedPlace.includes(label));
 }
 
-type MatchConfig = {
-  domains: string[];
-  labels: string[];
-};
-
 function deriveMatchConfig(urls: string[]): MatchConfig {
   const domains = urls
     .map((url) => normalizeDomain(url))
@@ -135,7 +139,7 @@ function domainMatches(candidateDomain: string, configuredDomains: string[]) {
   });
 }
 
-function detectMatchSource(result: LocalSearchResult, config: MatchConfig) {
+function detectMatchSource(result: LocalSearchResult, config: MatchConfig): MatchSource | null {
   if (config.labels.length > 0 && isLikelyMatch(result.place_name, config.labels)) {
     return "name";
   }
@@ -151,6 +155,30 @@ function detectMatchSource(result: LocalSearchResult, config: MatchConfig) {
   }
 
   return null;
+}
+
+function dedupeResults(results: LocalSearchResult[]) {
+  const unique = new Map<string, LocalSearchResult>();
+
+  for (const row of results) {
+    if (!row.place_name.trim()) continue;
+
+    const nameKey = normalizeLabel(row.place_name.split("(")[0] || row.place_name)
+      .replace(/\s+/g, " ")
+      .trim();
+    const domainKey =
+      normalizeDomain(row.business_url) || normalizeDomain(row.source_url) || "no-domain";
+    const latKey = row.latitude.toFixed(4);
+    const lonKey = row.longitude.toFixed(4);
+    const key = `${nameKey}|${domainKey}|${latKey}|${lonKey}`;
+
+    const existing = unique.get(key);
+    if (!existing || row.distance_km < existing.distance_km) {
+      unique.set(key, row);
+    }
+  }
+
+  return Array.from(unique.values()).sort((a, b) => a.distance_km - b.distance_km);
 }
 
 async function fetchNominatimResults(
@@ -195,8 +223,7 @@ async function fetchNominatimResults(
     });
   }
 
-  results.sort((a, b) => a.distance_km - b.distance_km);
-  return results;
+  return dedupeResults(results);
 }
 
 async function fetchGooglePlacesResults(
@@ -256,8 +283,7 @@ async function fetchGooglePlacesResults(
     });
   }
 
-  results.sort((a, b) => a.distance_km - b.distance_km);
-  return results;
+  return dedupeResults(results);
 }
 
 async function resolveLocalResultsForKeyword(params: {
@@ -268,7 +294,13 @@ async function resolveLocalResultsForKeyword(params: {
   areaKm: number;
   preferredProvider: "google_places" | "nominatim";
   googleApiKey: string | null;
-}): Promise<{ provider: "google_places" | "nominatim"; results: LocalSearchResult[] }> {
+}): Promise<{
+  requestedProvider: "google_places" | "nominatim";
+  usedProvider: "google_places" | "nominatim";
+  usedFallback: boolean;
+  results: LocalSearchResult[];
+  candidateCount: number;
+}> {
   const {
     keyword,
     city,
@@ -279,19 +311,43 @@ async function resolveLocalResultsForKeyword(params: {
     googleApiKey,
   } = params;
 
-  if (preferredProvider === "google_places" && googleApiKey) {
-    const googleResults = await fetchGooglePlacesResults(
+  if (preferredProvider === "google_places") {
+    if (googleApiKey) {
+      const googleResults = await fetchGooglePlacesResults(
+        keyword,
+        city,
+        centerLat,
+        centerLon,
+        areaKm,
+        googleApiKey
+      );
+
+      if (googleResults.length > 0) {
+        return {
+          requestedProvider: "google_places",
+          usedProvider: "google_places",
+          usedFallback: false,
+          results: googleResults,
+          candidateCount: googleResults.length,
+        };
+      }
+    }
+
+    const nominatimResults = await fetchNominatimResults(
       keyword,
       city,
       centerLat,
       centerLon,
-      areaKm,
-      googleApiKey
+      areaKm
     );
 
-    if (googleResults.length > 0) {
-      return { provider: "google_places", results: googleResults };
-    }
+    return {
+      requestedProvider: "google_places",
+      usedProvider: "nominatim",
+      usedFallback: true,
+      results: nominatimResults,
+      candidateCount: nominatimResults.length,
+    };
   }
 
   const nominatimResults = await fetchNominatimResults(
@@ -302,7 +358,13 @@ async function resolveLocalResultsForKeyword(params: {
     areaKm
   );
 
-  return { provider: "nominatim", results: nominatimResults };
+  return {
+    requestedProvider: "nominatim",
+    usedProvider: "nominatim",
+    usedFallback: false,
+    results: nominatimResults,
+    candidateCount: nominatimResults.length,
+  };
 }
 
 export async function POST(request: Request) {
@@ -334,7 +396,10 @@ export async function POST(request: Request) {
 
   const city = (profile.city || "").trim();
   const websiteUrl = (profile.website_url || "").trim();
-  const keywords = (profile.keywords || []).map((value) => value.trim()).filter(Boolean);
+  const keywords = (profile.keywords || [])
+    .map((value) => value.trim())
+    .filter(Boolean)
+    .slice(0, 30);
   const areaKm = parseAreaKm(profile.area);
   const competitors = (profile.competitors || []).map((value) => value.trim()).filter(Boolean);
   const priorityPages = (profile.priority_pages || [])
@@ -378,21 +443,65 @@ export async function POST(request: Request) {
   }
 
   const [centerLon, centerLat] = cityRow.centre.coordinates;
+
+  const startedAtDate = new Date();
+  const startedAt = startedAtDate.toISOString();
+
+  // Soft idempotence: avoid duplicate runs launched in burst.
+  const { data: previousRun } = await supabaseAdmin
+    .from("seo_local_runs")
+    .select("id,city,area_km,keywords_count,started_at,status")
+    .eq("user_id", userId)
+    .in("status", ["completed", "partial"])
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{
+      id: string;
+      city: string;
+      area_km: number;
+      keywords_count: number;
+      started_at: string;
+      status: RunStatus;
+    }>();
+
+  if (previousRun) {
+    const previousTs = new Date(previousRun.started_at).getTime();
+    const nowTs = startedAtDate.getTime();
+    const launchedRecently = Number.isFinite(previousTs) && nowTs - previousTs < 30_000;
+    const sameConfig =
+      previousRun.city === city &&
+      previousRun.area_km === areaKm &&
+      previousRun.keywords_count === keywords.length;
+
+    if (launchedRecently && sameConfig) {
+      return NextResponse.json({
+        runId: previousRun.id,
+        city,
+        areaKm,
+        reused: true,
+        message: "Une analyse identique vient d'etre lancee. Reutilisation du dernier resultat.",
+      });
+    }
+  }
+
   const runId = crypto.randomUUID();
-  const startedAt = new Date().toISOString();
 
   try {
     const providerEnv = process.env.SEO_LOCAL_PROVIDER?.trim().toLowerCase();
-    const preferredProvider =
-      providerEnv === "google_places" ? "google_places" : "nominatim";
     const googleApiKey = process.env.GOOGLE_MAPS_API_KEY || null;
+    const preferredProvider: "google_places" | "nominatim" =
+      providerEnv === "nominatim"
+        ? "nominatim"
+        : googleApiKey
+          ? "google_places"
+          : "nominatim";
 
     const previousTopByKeyword = new Map<string, KeywordTop>();
     const { data: latestCompletedRun } = await supabaseAdmin
       .from("seo_local_runs")
       .select("id")
       .eq("user_id", userId)
-      .eq("status", "completed")
+      .in("status", ["completed", "partial"])
       .order("started_at", { ascending: false })
       .limit(1)
       .maybeSingle<{ id: string }>();
@@ -443,7 +552,7 @@ export async function POST(request: Request) {
       keyword: string;
       target_position: number | null;
       target_detected: boolean;
-      target_match_source: "name" | "source_url" | "business_url" | null;
+      target_match_source: MatchSource | null;
       competitor_best_position: number | null;
       competitors_detected: number;
       top_position: number | null;
@@ -461,15 +570,33 @@ export async function POST(request: Request) {
       created_at: string;
     }> = [];
 
+    const keywordLogRows: Array<{
+      run_id: string;
+      user_id: string;
+      keyword: string;
+      requested_provider: "google_places" | "nominatim";
+      used_provider: "google_places" | "nominatim";
+      used_fallback: boolean;
+      candidates_found: number;
+      results_kept: number;
+      status: "ok" | "empty";
+      latency_ms: number;
+      created_at: string;
+    }> = [];
+
     const currentTopByKeyword = new Map<string, KeywordTop>();
     const targetMatchConfig = deriveMatchConfig([websiteUrl, ...priorityPages]);
     const competitorMatchConfig = deriveMatchConfig(competitors);
 
     const capturedAt = new Date().toISOString();
-    let runProvider: "google_places" | "nominatim" = "nominatim";
+    let runProvider: "google_places" | "nominatim" = preferredProvider;
+    let fallbackUsed = false;
+    let keywordsWithResults = 0;
+    let totalCandidates = 0;
 
-    for (const keyword of keywords.slice(0, 30)) {
-      const { provider, results } = await resolveLocalResultsForKeyword({
+    for (const keyword of keywords) {
+      const keywordStarted = Date.now();
+      const resolved = await resolveLocalResultsForKeyword({
         keyword,
         city,
         centerLat,
@@ -478,10 +605,31 @@ export async function POST(request: Request) {
         preferredProvider,
         googleApiKey,
       });
+      const keywordDuration = Date.now() - keywordStarted;
 
-      if (runProvider === "nominatim" && provider === "google_places") {
-        runProvider = "google_places";
+      if (resolved.usedProvider !== preferredProvider) {
+        fallbackUsed = true;
       }
+      if (resolved.usedProvider === "nominatim") {
+        runProvider = "nominatim";
+      }
+
+      const results = resolved.results;
+      totalCandidates += resolved.candidateCount;
+
+      keywordLogRows.push({
+        run_id: runId,
+        user_id: userId,
+        keyword,
+        requested_provider: resolved.requestedProvider,
+        used_provider: resolved.usedProvider,
+        used_fallback: resolved.usedFallback,
+        candidates_found: resolved.candidateCount,
+        results_kept: results.length,
+        status: results.length > 0 ? "ok" : "empty",
+        latency_ms: keywordDuration,
+        created_at: capturedAt,
+      });
 
       if (results.length === 0) {
         baselineRowsToInsert.push({
@@ -499,8 +647,10 @@ export async function POST(request: Request) {
         continue;
       }
 
+      keywordsWithResults += 1;
+
       let targetPosition: number | null = null;
-      let targetMatchSource: "name" | "source_url" | "business_url" | null = null;
+      let targetMatchSource: MatchSource | null = null;
       let competitorBestPosition: number | null = null;
       let competitorsDetected = 0;
 
@@ -586,25 +736,37 @@ export async function POST(request: Request) {
       });
     }
 
+    const finishedAt = new Date();
+    const executionMs = finishedAt.getTime() - startedAtDate.getTime();
+    const runStatus: RunStatus =
+      keywordsWithResults === 0
+        ? "failed"
+        : keywordsWithResults < keywords.length
+          ? "partial"
+          : "completed";
+
     await supabaseAdmin.from("seo_local_runs").insert({
       id: runId,
       user_id: userId,
       city,
       area_km: areaKm,
       provider: runProvider,
-      status: "completed",
+      provider_requested: preferredProvider,
+      provider_fallback_used: fallbackUsed,
+      status: runStatus,
       keywords_count: keywords.length,
+      keywords_with_results: keywordsWithResults,
+      candidates_count: totalCandidates,
       results_count: rowsToInsert.length,
       started_at: startedAt,
-      finished_at: new Date().toISOString(),
-      error_message: null,
+      finished_at: finishedAt.toISOString(),
+      execution_ms: executionMs,
+      error_message: runStatus === "failed" ? "no local results" : null,
     });
 
     if (rowsToInsert.length > 0) {
       await supabaseAdmin.from("seo_local_results").insert(rowsToInsert);
-      await supabaseAdmin
-        .from("seo_local_keyword_positions")
-        .insert(positionRowsToInsert);
+      await supabaseAdmin.from("seo_local_keyword_positions").insert(positionRowsToInsert);
     }
 
     if (baselineRowsToInsert.length > 0) {
@@ -612,7 +774,6 @@ export async function POST(request: Request) {
         .from("seo_local_keyword_baselines")
         .insert(baselineRowsToInsert);
       if (error) {
-        // Keep run execution healthy when migration is not deployed yet.
         console.error("seo_local_keyword_baselines insert failed", error.message);
       }
     }
@@ -622,8 +783,16 @@ export async function POST(request: Request) {
         .from("seo_local_position_alerts")
         .insert(alertRowsToInsert);
       if (error) {
-        // Keep run execution healthy when migration is not deployed yet.
         console.error("seo_local_position_alerts insert failed", error.message);
+      }
+    }
+
+    if (keywordLogRows.length > 0) {
+      const { error } = await supabaseAdmin
+        .from("seo_local_engine_logs")
+        .insert(keywordLogRows);
+      if (error) {
+        console.error("seo_local_engine_logs insert failed", error.message);
       }
     }
 
@@ -632,11 +801,17 @@ export async function POST(request: Request) {
       city,
       areaKm,
       provider: runProvider,
+      providerRequested: preferredProvider,
+      fallbackUsed,
+      status: runStatus,
       keywordsCount: keywords.length,
+      keywordsWithResults,
+      candidatesCount: totalCandidates,
       resultsCount: rowsToInsert.length,
       positionsCount: positionRowsToInsert.length,
       baselinesCount: baselineRowsToInsert.length,
       alertsCount: alertRowsToInsert.length,
+      executionMs,
     });
   } catch (error: unknown) {
     await supabaseAdmin.from("seo_local_runs").insert({
@@ -645,11 +820,16 @@ export async function POST(request: Request) {
       city,
       area_km: areaKm,
       provider: "nominatim",
+      provider_requested: "nominatim",
+      provider_fallback_used: false,
       status: "failed",
       keywords_count: keywords.length,
+      keywords_with_results: 0,
+      candidates_count: 0,
       results_count: 0,
       started_at: startedAt,
       finished_at: new Date().toISOString(),
+      execution_ms: Date.now() - startedAtDate.getTime(),
       error_message: error instanceof Error ? error.message : "run failed",
     });
 

@@ -19,9 +19,14 @@ type SeoLocalRun = {
   city: string;
   area_km: number;
   provider: string | null;
-  status: "completed" | "failed";
+  provider_requested: string | null;
+  provider_fallback_used: boolean | null;
+  status: "completed" | "partial" | "failed";
   keywords_count: number;
+  keywords_with_results: number | null;
+  candidates_count: number | null;
   results_count: number;
+  execution_ms: number | null;
   started_at: string;
   finished_at: string | null;
   error_message: string | null;
@@ -66,6 +71,18 @@ type TrendStat = {
   delta30d: number | null;
 };
 
+type EngineLog = {
+  id: number;
+  keyword: string;
+  requested_provider: "google_places" | "nominatim";
+  used_provider: "google_places" | "nominatim";
+  used_fallback: boolean;
+  candidates_found: number;
+  results_kept: number;
+  status: "ok" | "empty";
+  latency_ms: number;
+};
+
 function formatDateTimeFr(value: string | null) {
   if (!value) return "—";
   const date = new Date(value);
@@ -94,6 +111,7 @@ function formatProvider(value: string | null) {
 
 function formatStatus(value: SeoLocalRun["status"] | undefined) {
   if (value === "completed") return "terminee";
+  if (value === "partial") return "partielle";
   if (value === "failed") return "en erreur";
   return "indisponible";
 }
@@ -118,6 +136,7 @@ export default function SeoLocalReportPage() {
   const [recentPositions, setRecentPositions] = useState<KeywordPosition[]>([]);
   const [latestBaselines, setLatestBaselines] = useState<KeywordBaseline[]>([]);
   const [recentAlerts, setRecentAlerts] = useState<PositionAlert[]>([]);
+  const [latestEngineLogs, setLatestEngineLogs] = useState<EngineLog[]>([]);
 
   useEffect(() => {
     const hydrate = async () => {
@@ -159,10 +178,10 @@ export default function SeoLocalReportPage() {
     const { data: runsData, error: runsError } = await supabase
       .from("seo_local_runs")
       .select(
-        "id,city,area_km,provider,status,keywords_count,results_count,started_at,finished_at,error_message"
+        "id,city,area_km,provider,provider_requested,provider_fallback_used,status,keywords_count,keywords_with_results,candidates_count,results_count,execution_ms,started_at,finished_at,error_message"
       )
       .eq("user_id", userId)
-      .eq("status", "completed")
+      .in("status", ["completed", "partial"])
       .order("started_at", { ascending: false })
       .limit(40);
 
@@ -184,6 +203,7 @@ export default function SeoLocalReportPage() {
       setRecentPositions([]);
       setLatestBaselines([]);
       setRecentAlerts([]);
+      setLatestEngineLogs([]);
       return;
     }
 
@@ -202,6 +222,7 @@ export default function SeoLocalReportPage() {
       setRecentPositions([]);
       setLatestBaselines([]);
       setRecentAlerts([]);
+      setLatestEngineLogs([]);
       return;
     }
 
@@ -259,6 +280,17 @@ export default function SeoLocalReportPage() {
       .limit(20);
 
     setRecentAlerts((alertRows || []) as PositionAlert[]);
+
+    const { data: engineRows } = await supabase
+      .from("seo_local_engine_logs")
+      .select(
+        "id,keyword,requested_provider,used_provider,used_fallback,candidates_found,results_kept,status,latency_ms"
+      )
+      .eq("run_id", latest.id)
+      .order("keyword", { ascending: true })
+      .limit(1000);
+
+    setLatestEngineLogs((engineRows || []) as EngineLog[]);
   };
 
   useEffect(() => {
@@ -286,7 +318,7 @@ export default function SeoLocalReportPage() {
       }
 
       setMessage(
-        `Analyse terminee: ${data.positionsCount ?? 0} resultat(s), source ${formatProvider(data.provider || "nominatim")}, ${data.alertsCount ?? 0} baisse(s) detectee(s).`
+        `Analyse ${data.status === "partial" ? "partielle" : "terminee"}: ${data.positionsCount ?? 0} resultat(s), source ${formatProvider(data.provider || "nominatim")}, ${data.alertsCount ?? 0} baisse(s) detectee(s).`
       );
 
       await loadReportData(session.user.id);
@@ -397,6 +429,7 @@ export default function SeoLocalReportPage() {
     const targetDetected = latestBaselines.filter((row) => row.target_detected).length;
     const targetCoverage =
       latestBaselines.length > 0 ? targetDetected / latestBaselines.length : 0;
+    const visibilityShare = Math.round(targetCoverage * 100);
 
     const rawScore = top3Rate * 55 + top10Rate * 45 - highAlerts * 12 - mediumAlerts * 4;
     const score = clampScore(rawScore);
@@ -428,9 +461,38 @@ export default function SeoLocalReportPage() {
       configuredKeywords,
       highAlerts,
       mediumAlerts,
+      visibilityShare,
       actions,
     };
   }, [currentTopByKeyword, latestBaselines, profile?.keywords?.length, recentAlerts]);
+
+  const atRiskKeywords = useMemo(() => {
+    const fromAlerts = recentAlerts.slice(0, 20).map((alert) => ({
+      keyword: alert.keyword,
+      reason:
+        alert.severity === "high"
+          ? `Baisse forte (+${alert.delta})`
+          : `Baisse moderee (+${alert.delta})`,
+    }));
+
+    const fromRank = currentTopByKeyword
+      .filter((row) => row.position > 10)
+      .slice(0, 10)
+      .map((row) => ({
+        keyword: row.keyword,
+        reason: `Rang faible (position ${row.position})`,
+      }));
+
+    const merged = [...fromAlerts, ...fromRank];
+    const seen = new Set<string>();
+    return merged
+      .filter((item) => {
+        if (seen.has(item.keyword)) return false;
+        seen.add(item.keyword);
+        return true;
+      })
+      .slice(0, 8);
+  }, [currentTopByKeyword, recentAlerts]);
 
   if (loading) {
     return (
@@ -500,7 +562,11 @@ export default function SeoLocalReportPage() {
                 <p className="text-xs text-indigo-200 uppercase">Derniere analyse</p>
                 <p className="mt-2 text-sm text-gray-200">Statut: {formatStatus(latestRun?.status)}</p>
                 <p className="mt-1 text-sm text-gray-300">Source de donnees: {formatProvider(latestRun?.provider || "nominatim")}</p>
+                <p className="mt-1 text-sm text-gray-300">Source demandee: {formatProvider(latestRun?.provider_requested || latestRun?.provider || "nominatim")}</p>
                 <p className="mt-1 text-sm text-gray-300">Resultats trouves: {currentPositions.length}</p>
+                <p className="mt-1 text-sm text-gray-300">
+                  Recherches avec resultat: {latestRun?.keywords_with_results ?? 0}/{latestRun?.keywords_count ?? 0}
+                </p>
                 <p className="mt-1 text-sm text-gray-300">
                   Date: {formatDateTimeFr(latestRun?.finished_at || null)}
                 </p>
@@ -508,6 +574,7 @@ export default function SeoLocalReportPage() {
               <article className="rounded-xl bg-white/5 border border-white/10 p-6">
                 <p className="text-xs text-indigo-200 uppercase">Sante locale</p>
                 <p className="mt-2 text-3xl font-semibold text-indigo-100">{scoreAndActions.score}/100</p>
+                <p className="mt-1 text-sm text-gray-300">Part de visibilite locale: {scoreAndActions.visibilityShare}%</p>
                 <p className="mt-1 text-sm text-gray-300">
                   En top 3: {scoreAndActions.top3Count}/{scoreAndActions.configuredKeywords}
                 </p>
@@ -613,6 +680,55 @@ export default function SeoLocalReportPage() {
                         }
                       >
                         +{alert.delta} ({alert.severity === "high" ? "forte" : "moderee"}) - {formatDateTimeFr(alert.created_at)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
+              <h2 className="text-xl font-semibold">Mots-cles a risque</h2>
+              {atRiskKeywords.length > 0 ? (
+                <div className="mt-4 space-y-2">
+                  {atRiskKeywords.map((item) => (
+                    <div
+                      key={item.keyword}
+                      className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-200 flex items-center justify-between gap-2"
+                    >
+                      <p className="text-indigo-200 font-medium">{item.keyword}</p>
+                      <p className="text-gray-300">{item.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-3 text-sm text-gray-300">
+                  Aucun mot-cle a risque detecte pour l&apos;instant.
+                </p>
+              )}
+            </div>
+
+            {latestEngineLogs.length > 0 && (
+              <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
+                <h2 className="text-xl font-semibold">Qualite de collecte</h2>
+                <p className="mt-2 text-xs text-gray-300">
+                  Fallback actif: {latestRun?.provider_fallback_used ? "oui" : "non"} | Resultats bruts: {latestRun?.candidates_count ?? 0} | Duree:{" "}
+                  {latestRun?.execution_ms ?? 0} ms
+                </p>
+                <div className="mt-4 space-y-2">
+                  {latestEngineLogs.slice(0, 8).map((row) => (
+                    <div
+                      key={row.id}
+                      className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-200 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+                    >
+                      <p>
+                        <span className="text-indigo-200 font-medium">{row.keyword}</span>
+                        {" - "}
+                        {formatProvider(row.used_provider)}
+                        {row.used_fallback ? " (fallback)" : ""}
+                      </p>
+                      <p className="text-gray-300">
+                        {row.results_kept} retenu(s) sur {row.candidates_found} | {row.latency_ms} ms
                       </p>
                     </div>
                   ))}
