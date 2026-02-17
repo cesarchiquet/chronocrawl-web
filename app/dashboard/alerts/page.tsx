@@ -9,6 +9,7 @@ import {
   getAlertImpactLabel,
   getAlertRecommendedAction,
 } from "@/lib/alertPresentation";
+import { formatAlertDateShort } from "@/lib/dateFormat";
 
 type ChangeEvent = {
   id: string;
@@ -50,8 +51,6 @@ export default function AlertsHistoryPage() {
   const [readFilter, setReadFilter] = useState<"all" | "unread" | "read">(
     "all"
   );
-  const [bulkMessage, setBulkMessage] = useState("");
-  const [bulkLoading, setBulkLoading] = useState(false);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
 
   const loadEventsPage = useCallback(
@@ -115,6 +114,17 @@ export default function AlertsHistoryPage() {
     return () => subscription.unsubscribe();
   }, [loadEventsPage]);
 
+  useEffect(() => {
+    if (!expandedAlertId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setExpandedAlertId(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expandedAlertId]);
+
   const availableUrls = useMemo(() => {
     const values = new Set<string>();
     for (const event of events) {
@@ -123,6 +133,11 @@ export default function AlertsHistoryPage() {
     }
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [events]);
+
+  const expandedAlert = useMemo(
+    () => events.find((event) => event.id === expandedAlertId) || null,
+    [events, expandedAlertId]
+  );
 
   const filtered = useMemo(() => {
     const now = nowReferenceMs;
@@ -273,44 +288,6 @@ export default function AlertsHistoryPage() {
     setLoadingMore(false);
   };
 
-  const markFilteredAsRead = async (isRead: boolean) => {
-    if (!session?.user?.id || filtered.length === 0) {
-      setBulkMessage("Aucune alerte a mettre a jour avec ces filtres.");
-      return;
-    }
-
-    setBulkLoading(true);
-    setBulkMessage("");
-    const ids = filtered.map((event) => event.id);
-    const chunkSize = 250;
-
-    for (let index = 0; index < ids.length; index += chunkSize) {
-      const chunk = ids.slice(index, index + chunkSize);
-      const { error } = await supabase
-        .from("detected_changes")
-        .update({ is_read: isRead })
-        .eq("user_id", session.user.id)
-        .in("id", chunk);
-
-      if (error) {
-        setBulkLoading(false);
-        setBulkMessage("Mise a jour impossible. Reessaie.");
-        return;
-      }
-    }
-
-    const idSet = new Set(ids);
-    setEvents((prev) =>
-      prev.map((event) =>
-        idSet.has(event.id) ? { ...event, is_read: isRead } : event
-      )
-    );
-    setBulkLoading(false);
-    setBulkMessage(
-      `${ids.length} alerte(s) marquee(s) ${isRead ? "lue(s)" : "non lue(s)"}.`
-    );
-  };
-
   if (loading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
@@ -436,7 +413,7 @@ export default function AlertsHistoryPage() {
               </select>
             </label>
           </div>
-          <div className="grid md:grid-cols-4 gap-3 mb-5">
+          <div className="grid md:grid-cols-3 gap-3 mb-5">
             <label className="text-sm text-gray-300 flex flex-col gap-2">
               Periode
               <select
@@ -468,22 +445,6 @@ export default function AlertsHistoryPage() {
             <div className="text-sm text-gray-300 flex items-end">
               {filtered.length} alerte(s)
             </div>
-            <div className="flex items-end gap-2">
-              <button
-                onClick={() => markFilteredAsRead(true)}
-                disabled={bulkLoading}
-                className="px-3 py-2 rounded-lg border border-emerald-300/30 text-emerald-200 hover:bg-emerald-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Marquer filtrees lues
-              </button>
-              <button
-                onClick={() => markFilteredAsRead(false)}
-                disabled={bulkLoading}
-                className="px-3 py-2 rounded-lg border border-amber-300/30 text-amber-200 hover:bg-amber-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Marquer non lues
-              </button>
-            </div>
           </div>
           {dateFilter === "custom" && (
             <div className="grid md:grid-cols-2 gap-3 mb-5">
@@ -507,10 +468,6 @@ export default function AlertsHistoryPage() {
               </label>
             </div>
           )}
-          {bulkMessage && (
-            <p className="text-sm text-indigo-200 mb-4">{bulkMessage}</p>
-          )}
-
           <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
             {filtered.length === 0 && (
               <p className="text-gray-400 text-sm">Aucune alerte pour ces filtres.</p>
@@ -572,40 +529,76 @@ export default function AlertsHistoryPage() {
                   </p>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="text-xs text-gray-500">{event.detected_at || "—"}</p>
+                  <p className="text-xs text-gray-500">
+                    {formatAlertDateShort(event.detected_at)}
+                  </p>
                   <button
                     onClick={() => setExpandedAlertId(isExpanded ? null : event.id)}
                     className="text-xs text-gray-300 hover:text-white"
                   >
-                    {isExpanded ? "Masquer preuve" : "Voir la preuve"}
+                    {isExpanded ? "Masquer changement" : "Voir changement"}
                   </button>
                 </div>
-                {isExpanded && (
-                  <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-3">
-                    <p className="text-[11px] text-gray-400">
-                      {event.metadata?.priority_reason ||
-                        "Priorité calculée automatiquement."}
-                    </p>
-                    <div className="mt-2 grid grid-cols-1 gap-2 text-xs">
-                      <div>
-                        <p className="text-gray-400 mb-1">Avant</p>
-                        <p className="text-gray-200">
-                          {event.metadata?.before_short || "non disponible"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 mb-1">Après</p>
-                        <p className="text-gray-200">
-                          {event.metadata?.after_short || "non disponible"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
               );
             })}
           </div>
+          {expandedAlert && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <button
+                aria-label="Fermer"
+                className="absolute inset-0 bg-black/70"
+                onClick={() => setExpandedAlertId(null)}
+              />
+              <div className="relative w-full max-w-2xl rounded-xl border border-white/10 bg-[#0b1025] p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs text-indigo-200 uppercase">
+                      {expandedAlert.domain} - {expandedAlert.severity}
+                    </p>
+                    <p className="mt-1 text-sm text-gray-100">
+                      {getAlertChangeSummary(expandedAlert)}
+                    </p>
+                    <p className="mt-1 text-xs text-gray-400">
+                      {formatAlertDateShort(expandedAlert.detected_at)}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setExpandedAlertId(null)}
+                    className="text-xs px-2 py-1 rounded border border-white/20 text-gray-200 hover:bg-white/5"
+                  >
+                    Fermer
+                  </button>
+                </div>
+                <p className="mt-3 text-xs text-gray-300">
+                  <span className="text-gray-400">Impact:</span>{" "}
+                  {getAlertImpactLabel(expandedAlert)}
+                </p>
+                <p className="mt-1 text-xs text-gray-300">
+                  <span className="text-gray-400">Action:</span>{" "}
+                  {getAlertRecommendedAction(expandedAlert)}
+                </p>
+                <div className="mt-4 grid grid-cols-1 gap-3 text-xs">
+                  <div className="rounded-md border border-white/10 bg-black/20 p-3">
+                    <p className="text-gray-400 mb-1">Avant</p>
+                    <p className="text-gray-200">
+                      {expandedAlert.metadata?.before_short || "non disponible"}
+                    </p>
+                  </div>
+                  <div className="rounded-md border border-white/10 bg-black/20 p-3">
+                    <p className="text-gray-400 mb-1">Apres</p>
+                    <p className="text-gray-200">
+                      {expandedAlert.metadata?.after_short || "non disponible"}
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-3 text-[11px] text-gray-400">
+                  {expandedAlert.metadata?.priority_reason ||
+                    "Priorite calculee automatiquement."}
+                </p>
+              </div>
+            </div>
+          )}
           {hasMore && (
             <div className="mt-5 flex justify-center">
               <button

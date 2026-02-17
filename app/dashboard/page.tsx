@@ -10,6 +10,7 @@ import {
   getAlertImpactLabel,
   getAlertRecommendedAction,
 } from "@/lib/alertPresentation";
+import { formatAlertDateShort } from "@/lib/dateFormat";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -62,6 +63,11 @@ type MonitorRunLog = {
 };
 
 const EVENTS_PAGE_SIZE = 1000;
+const ANALYSIS_SEVERITY_LEVELS: Array<ChangeEvent["severity"]> = [
+  "low",
+  "medium",
+  "high",
+];
 
 function getUrlStatusInfo(statusRaw: string | null) {
   const status = (statusRaw || "OK").toUpperCase();
@@ -232,6 +238,9 @@ export default function DashboardPage() {
   const [billingMessage, setBillingMessage] = useState("");
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [analysisRunning, setAnalysisRunning] = useState(false);
+  const [analysisSeverities, setAnalysisSeverities] = useState<
+    ChangeEvent["severity"][]
+  >(["low", "medium", "high"]);
   const [alertFilter, setAlertFilter] = useState<"all" | "unread" | "read">(
     "all"
   );
@@ -240,8 +249,10 @@ export default function DashboardPage() {
   const [alertDateFilter, setAlertDateFilter] = useState<
     "all" | "24h" | "7d" | "30d"
   >("all");
+  const [alertSeverityFilter, setAlertSeverityFilter] = useState<
+    "all" | "low" | "medium" | "high"
+  >("all");
   const [filterReferenceNow, setFilterReferenceNow] = useState(() => Date.now());
-  const [alertBulkMessage, setAlertBulkMessage] = useState("");
   const [emailMode, setEmailMode] = useState<"instant" | "daily" | "off">(
     "instant"
   );
@@ -471,41 +482,6 @@ export default function DashboardPage() {
     }
   };
 
-  const markFilteredAlertsAsRead = async (isRead: boolean) => {
-    if (!session?.user?.id) return;
-    const targetIds = filteredEvents.map((item) => item.id);
-    if (targetIds.length === 0) {
-      setAlertBulkMessage("Aucune alerte a mettre a jour avec ces filtres.");
-      return;
-    }
-
-    setAlertBulkMessage("");
-    const chunkSize = 250;
-    for (let index = 0; index < targetIds.length; index += chunkSize) {
-      const chunk = targetIds.slice(index, index + chunkSize);
-      const { error } = await supabase
-        .from("detected_changes")
-        .update({ is_read: isRead })
-        .eq("user_id", session.user.id)
-        .in("id", chunk);
-
-      if (error) {
-        setAlertBulkMessage("Mise a jour impossible. Reessaie.");
-        return;
-      }
-    }
-
-    const ids = new Set(targetIds);
-    setEvents((prev) =>
-      prev.map((item) =>
-        ids.has(item.id) ? { ...item, is_read: isRead } : item
-      )
-    );
-    setAlertBulkMessage(
-      `${targetIds.length} alerte(s) marquee(s) ${isRead ? "lue(s)" : "non lue(s)"}.`
-    );
-  };
-
   useEffect(() => {
     if (!session?.user?.id) return;
     const userId = session.user.id;
@@ -526,6 +502,17 @@ export default function DashboardPage() {
   useEffect(() => {
     setFilterReferenceNow(Date.now());
   }, [alertDateFilter, events.length]);
+
+  useEffect(() => {
+    if (!expandedAlertId) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setExpandedAlertId(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [expandedAlertId]);
 
   const saveAlertSettings = async () => {
     if (!session?.user) return;
@@ -616,6 +603,26 @@ export default function DashboardPage() {
     }
   };
 
+  const allAnalysisSeveritiesSelected =
+    analysisSeverities.length === ANALYSIS_SEVERITY_LEVELS.length;
+
+  const toggleAnalysisSeverity = (level: ChangeEvent["severity"]) => {
+    setAnalysisSeverities((prev) => {
+      if (prev.includes(level)) {
+        if (prev.length === 1) return prev;
+        return prev.filter((item) => item !== level);
+      }
+      return ANALYSIS_SEVERITY_LEVELS.filter(
+        (item) => item === level || prev.includes(item)
+      );
+    });
+  };
+
+  const toggleAllAnalysisSeverities = (checked: boolean) => {
+    if (!checked) return;
+    setAnalysisSeverities([...ANALYSIS_SEVERITY_LEVELS]);
+  };
+
   const runAnalysis = async () => {
     if (!session?.user?.id || !session?.access_token) return;
     setAnalysisMessage("");
@@ -639,7 +646,10 @@ export default function DashboardPage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${session.access_token}`,
           },
-          body: JSON.stringify({ continueQueue: rounds > 0 }),
+          body: JSON.stringify({
+            continueQueue: rounds > 0,
+            severities: analysisSeverities,
+          }),
         });
 
         const data = await response.json();
@@ -671,8 +681,11 @@ export default function DashboardPage() {
           ? ` File partiellement traitee (${queuedRemaining} URL(s) restantes). Relance l'analyse.`
           : "";
 
+      const thresholdLabel = allAnalysisSeveritiesSelected
+        ? "TOUS"
+        : analysisSeverities.map((level) => level.toUpperCase()).join(" + ");
       setAnalysisMessage(
-        `Analyse terminee: ${totalChecked} URL verifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
+        `Analyse terminee (seuil ${thresholdLabel}): ${totalChecked} URL verifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
       );
       await loadData(session.user.id);
     } catch (error: unknown) {
@@ -767,6 +780,9 @@ export default function DashboardPage() {
     return events.filter((item) => {
       if (alertFilter === "unread" && item.is_read) return false;
       if (alertFilter === "read" && !item.is_read) return false;
+      if (alertSeverityFilter !== "all" && item.severity !== alertSeverityFilter) {
+        return false;
+      }
       if (alertUrlFilter !== "all" && item.metadata?.url !== alertUrlFilter) {
         return false;
       }
@@ -791,6 +807,7 @@ export default function DashboardPage() {
     alertDateFilter,
     alertFilter,
     alertSearchQuery,
+    alertSeverityFilter,
     alertUrlFilter,
     events,
     filterReferenceNow,
@@ -815,6 +832,11 @@ export default function DashboardPage() {
     if (score >= 45) return "bg-amber-500/15 text-amber-200";
     return "bg-emerald-500/15 text-emerald-200";
   };
+
+  const expandedAlert = useMemo(
+    () => events.find((item) => item.id === expandedAlertId) || null,
+    [events, expandedAlertId]
+  );
 
   const openBillingPortal = async () => {
     setBillingMessage("");
@@ -1138,6 +1160,23 @@ export default function DashboardPage() {
               {filteredEvents.length} alerte(s)
             </span>
           </div>
+          <div className="flex items-center gap-2 mb-4">
+            <label className="text-xs text-gray-300">Seuil</label>
+            <select
+              value={alertSeverityFilter}
+              onChange={(e) =>
+                setAlertSeverityFilter(
+                  e.target.value as "all" | "low" | "medium" | "high"
+                )
+              }
+              className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+            >
+              <option value="all">Tous</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <label className="text-xs text-gray-300">Periode</label>
             <select
@@ -1159,22 +1198,7 @@ export default function DashboardPage() {
               placeholder="Rechercher (URL, resume, champ)"
               className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400 min-w-[230px]"
             />
-            <button
-              onClick={() => markFilteredAlertsAsRead(true)}
-              className="text-xs px-2 py-1 rounded border border-emerald-300/30 text-emerald-200 hover:bg-emerald-500/10 transition"
-            >
-              Marquer filtrees lues
-            </button>
-            <button
-              onClick={() => markFilteredAlertsAsRead(false)}
-              className="text-xs px-2 py-1 rounded border border-amber-300/30 text-amber-200 hover:bg-amber-500/10 transition"
-            >
-              Marquer filtrees non lues
-            </button>
           </div>
-          {alertBulkMessage && (
-            <p className="text-[11px] text-indigo-200 mb-4">{alertBulkMessage}</p>
-          )}
           <p className="text-[11px] text-gray-400 mb-4">
             Priorité: Haute = action rapide, Moyenne = à planifier, Basse = information.
           </p>
@@ -1240,7 +1264,9 @@ export default function DashboardPage() {
                   </p>
                 </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="text-xs text-gray-500">{item.detected_at || "—"}</p>
+                  <p className="text-xs text-gray-500">
+                    {formatAlertDateShort(item.detected_at)}
+                  </p>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() =>
@@ -1248,7 +1274,7 @@ export default function DashboardPage() {
                       }
                       className="text-xs text-gray-300 hover:text-white"
                     >
-                      {isExpanded ? "Masquer preuve" : "Voir la preuve"}
+                      {isExpanded ? "Masquer changement" : "Voir changement"}
                     </button>
                     <button
                       onClick={() => markAlertAsRead(item.id, !item.is_read)}
@@ -1258,27 +1284,6 @@ export default function DashboardPage() {
                     </button>
                   </div>
                 </div>
-                {isExpanded && (
-                  <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-3">
-                    <p className="text-[11px] text-gray-400">
-                      {item.metadata?.priority_reason || "Priorité calculée automatiquement."}
-                    </p>
-                    <div className="mt-2 grid grid-cols-1 gap-2 text-xs">
-                      <div>
-                        <p className="text-gray-400 mb-1">Avant</p>
-                        <p className="text-gray-200">
-                          {item.metadata?.before_short || "non disponible"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-gray-400 mb-1">Après</p>
-                        <p className="text-gray-200">
-                          {item.metadata?.after_short || "non disponible"}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
                     </>
                   );
                 })()}
@@ -1287,6 +1292,62 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+      {expandedAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <button
+            aria-label="Fermer"
+            className="absolute inset-0 bg-black/70"
+            onClick={() => setExpandedAlertId(null)}
+          />
+          <div className="relative w-full max-w-2xl rounded-xl border border-white/10 bg-[#0b1025] p-5">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs text-indigo-200 uppercase">
+                  {expandedAlert.domain} - {expandedAlert.severity}
+                </p>
+                <p className="mt-1 text-sm text-gray-100">
+                  {getAlertChangeSummary(expandedAlert)}
+                </p>
+                <p className="mt-1 text-xs text-gray-400">
+                  {formatAlertDateShort(expandedAlert.detected_at)}
+                </p>
+              </div>
+              <button
+                onClick={() => setExpandedAlertId(null)}
+                className="text-xs px-2 py-1 rounded border border-white/20 text-gray-200 hover:bg-white/5"
+              >
+                Fermer
+              </button>
+            </div>
+            <p className="mt-3 text-xs text-gray-300">
+              <span className="text-gray-400">Impact:</span>{" "}
+              {getAlertImpactLabel(expandedAlert)}
+            </p>
+            <p className="mt-1 text-xs text-gray-300">
+              <span className="text-gray-400">Action:</span>{" "}
+              {getAlertRecommendedAction(expandedAlert)}
+            </p>
+            <div className="mt-4 grid grid-cols-1 gap-3 text-xs">
+              <div className="rounded-md border border-white/10 bg-black/20 p-3">
+                <p className="text-gray-400 mb-1">Avant</p>
+                <p className="text-gray-200">
+                  {expandedAlert.metadata?.before_short || "non disponible"}
+                </p>
+              </div>
+              <div className="rounded-md border border-white/10 bg-black/20 p-3">
+                <p className="text-gray-400 mb-1">Apres</p>
+                <p className="text-gray-200">
+                  {expandedAlert.metadata?.after_short || "non disponible"}
+                </p>
+              </div>
+            </div>
+            <p className="mt-3 text-[11px] text-gray-400">
+              {expandedAlert.metadata?.priority_reason ||
+                "Priorite calculee automatiquement."}
+            </p>
+          </div>
+        </div>
+      )}
 
       <section className="max-w-6xl mx-auto px-6 pb-24">
         <div className="rounded-xl bg-white/5 border border-white/10 p-6 mb-6">
@@ -1363,6 +1424,38 @@ export default function DashboardPage() {
             changements sera activée automatiquement.
           </p>
           <div className="mb-4">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-300">Seuil alertes:</span>
+              <label className="text-xs px-2 py-1 rounded border border-white/15 text-gray-200 flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={allAnalysisSeveritiesSelected}
+                  onChange={(event) =>
+                    toggleAllAnalysisSeverities(event.target.checked)
+                  }
+                  disabled={analysisRunning}
+                />
+                Tous
+              </label>
+              {ANALYSIS_SEVERITY_LEVELS.map((level) => (
+                <label
+                  key={level}
+                  className={`text-xs px-2 py-1 rounded border transition flex items-center gap-2 ${
+                    analysisSeverities.includes(level)
+                      ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
+                      : "border-white/15 text-gray-300"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={analysisSeverities.includes(level)}
+                    onChange={() => toggleAnalysisSeverity(level)}
+                    disabled={analysisRunning}
+                  />
+                  {level.toUpperCase()}
+                </label>
+              ))}
+            </div>
             <button
               onClick={runAnalysis}
               className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"

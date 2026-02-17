@@ -593,8 +593,11 @@ async function fetchPageHtml(url: string): Promise<FetchResult> {
 export async function POST(request: Request) {
   const requestStartedAtMs = Date.now();
   let continueQueue = false;
+  let selectedSeverities: ChangeRow["severity"][] = ["low", "medium", "high"];
   const rawBody = (await request.json().catch(() => ({}))) as {
     continueQueue?: unknown;
+    severities?: unknown;
+    minSeverity?: unknown;
   };
 
   if (
@@ -609,6 +612,60 @@ export async function POST(request: Request) {
   }
 
   continueQueue = rawBody.continueQueue === true;
+
+  if (Object.prototype.hasOwnProperty.call(rawBody, "severities")) {
+    if (
+      !Array.isArray(rawBody.severities) ||
+      rawBody.severities.some(
+        (value) => !["low", "medium", "high"].includes(String(value))
+      )
+    ) {
+      return errorResponse(
+        "Le champ severities doit etre une liste parmi low, medium, high.",
+        400,
+        "INVALID_BODY"
+      );
+    }
+
+    const deduped = Array.from(
+      new Set(rawBody.severities.map((value) => String(value)))
+    ) as ChangeRow["severity"][];
+
+    if (deduped.length === 0) {
+      return errorResponse(
+        "Le champ severities doit contenir au moins une valeur.",
+        400,
+        "INVALID_BODY"
+      );
+    }
+
+    selectedSeverities = ["low", "medium", "high"].filter((severity) =>
+      deduped.includes(severity as ChangeRow["severity"])
+    ) as ChangeRow["severity"][];
+  }
+
+  if (Object.prototype.hasOwnProperty.call(rawBody, "minSeverity")) {
+    const validSeverities = ["all", "low", "medium", "high"];
+    if (
+      typeof rawBody.minSeverity !== "string" ||
+      !validSeverities.includes(rawBody.minSeverity)
+    ) {
+      return errorResponse(
+        "Le champ minSeverity doit valoir all, low, medium ou high.",
+        400,
+        "INVALID_BODY"
+      );
+    }
+    const minSeverity = rawBody.minSeverity as "all" | "low" | "medium" | "high";
+    selectedSeverities =
+      minSeverity === "all"
+        ? ["low", "medium", "high"]
+        : minSeverity === "low"
+          ? ["low", "medium", "high"]
+          : minSeverity === "medium"
+            ? ["medium", "high"]
+            : ["high"];
+  }
 
   const auth = await requireUserFromRequest(request);
   if ("error" in auth) {
@@ -981,14 +1038,18 @@ export async function POST(request: Request) {
       });
       deduped += noiseFilter.kept.length - dedupedRows.length;
 
-      if (dedupedRows.length > 0) {
+      const rowsToStore = dedupedRows.filter((row) =>
+        selectedSeverities.includes(row.severity)
+      );
+
+      if (rowsToStore.length > 0) {
         const { error: insertChangesError } = await supabaseAdmin
           .from("detected_changes")
-          .insert(dedupedRows);
+          .insert(rowsToStore);
 
         if (!insertChangesError) {
-          changes += dedupedRows.length;
-          for (const row of dedupedRows) {
+          changes += rowsToStore.length;
+          for (const row of rowsToStore) {
             if (
               row.severity &&
               severityAtLeast(row.severity, alertSettings.min_email_severity)
