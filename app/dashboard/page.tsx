@@ -173,6 +173,55 @@ function normalizeMonitoredUrl(rawUrl: string) {
   }
 }
 
+function formatDateTimeFr(value: string | null) {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString("fr-FR");
+}
+
+function getRunHealthInfo(
+  runLog: MonitorRunLog | null,
+  failureRate: number
+): { label: string; badgeClass: string; detail: string } {
+  if (!runLog) {
+    return {
+      label: "AUCUNE EXECUTION",
+      badgeClass: "bg-white/10 text-gray-200",
+      detail: "Lance une premiere analyse pour initialiser le suivi.",
+    };
+  }
+
+  const status = (runLog.status || "unknown").toUpperCase();
+  if (status === "SUCCESS" && failureRate <= 20) {
+    return {
+      label: "STABLE",
+      badgeClass: "bg-emerald-500/20 text-emerald-200",
+      detail: `Derniere execution en ${runLog.duration_ms} ms.`,
+    };
+  }
+  if (status === "PARTIAL_SUCCESS" || status === "PARTIAL") {
+    return {
+      label: "PARTIEL",
+      badgeClass: "bg-amber-500/20 text-amber-200",
+      detail:
+        "Certaines URLs n'ont pas ete traitees. Relance une analyse pour completer.",
+    };
+  }
+  if (status === "FAILED" || failureRate > 20) {
+    return {
+      label: "A SURVEILLER",
+      badgeClass: "bg-rose-500/20 text-rose-200",
+      detail: "Taux d'echec eleve. Verifie les URLs en erreur et relance.",
+    };
+  }
+  return {
+    label: status,
+    badgeClass: "bg-amber-500/20 text-amber-200",
+    detail: `Execution recente: ${runLog.duration_ms} ms, ${failureRate}% d'echec.`,
+  };
+}
+
 export default function DashboardPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -690,6 +739,7 @@ export default function DashboardPage() {
           )
         )
       : null;
+  const runHealthInfo = getRunHealthInfo(latestRunLog, recentRunFailureRate);
   const unreadCount = events.filter((item) => !item.is_read).length;
   const alertUrls = useMemo(() => {
     const values = new Set<string>();
@@ -911,13 +961,13 @@ export default function DashboardPage() {
           <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
             Analyses 24h: <span className="font-semibold">{dailyRunCount}</span>
             {dailyRunStartedAt ? (
-              <span className="text-gray-400"> (depuis {new Date(dailyRunStartedAt).toLocaleString("fr-FR")})</span>
+              <span className="text-gray-400"> (depuis {formatDateTimeFr(dailyRunStartedAt)})</span>
             ) : null}
           </div>
           <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
             Sante monitoring:{" "}
-            <span className="font-semibold">
-              {latestRunLog ? latestRunLog.status : "aucune execution"}
+            <span className={`font-semibold px-2 py-0.5 rounded-full text-[11px] ${runHealthInfo.badgeClass}`}>
+              {runHealthInfo.label}
             </span>
             {latestRunLog ? (
               <span className="text-gray-400">
@@ -925,6 +975,7 @@ export default function DashboardPage() {
                 ({latestRunLog.duration_ms} ms, {recentRunFailureRate}% analyses en echec)
               </span>
             ) : null}
+            <p className="text-[11px] text-gray-400 mt-1">{runHealthInfo.detail}</p>
           </div>
         </div>
       </motion.section>
@@ -947,7 +998,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-gray-300">{item.url}</p>
                   <p className="text-xs text-gray-500 mt-1">
                     Dernière vérification :
-                    {item.last_checked_at ? " " + item.last_checked_at : " —"}
+                    {" " + formatDateTimeFr(item.last_checked_at)}
                   </p>
                   </div>
                   <div className="flex items-center gap-3">
