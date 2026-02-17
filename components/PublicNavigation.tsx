@@ -13,6 +13,7 @@ type PublicNavigationProps = {
 
 const links = [
   { href: "/fonctionnement", label: "Produit" },
+  { href: "/seo-local", label: "SEO local" },
   { href: "/demo", label: "Premier pas" },
   { href: "/cas-d-usage", label: "Cas d'usage" },
   { href: "/tarifs", label: "Tarifs" },
