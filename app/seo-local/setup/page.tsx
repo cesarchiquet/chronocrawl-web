@@ -212,7 +212,7 @@ export default function SeoLocalSetupPage() {
       setCompetitors(data.competitors || []);
       setPriorityPages(data.priority_pages || []);
       setLastSavedAt(data.updated_at || null);
-      setFeedback({ type: "info", text: "Configuration chargee." });
+      setFeedback({ type: "info", text: "Reglages charges." });
     };
     void loadProfile();
   }, [session?.user?.id]);
@@ -221,20 +221,20 @@ export default function SeoLocalSetupPage() {
     if (!session?.user?.id) return;
 
     if (!city.trim()) {
-      setFeedback({ type: "error", text: "Ajoute une ville avant de sauvegarder." });
+      setFeedback({ type: "error", text: "Choisis une ville avant d'enregistrer." });
       return;
     }
     if (keywordsList.length === 0) {
       setFeedback({
         type: "error",
-        text: "Ajoute au moins 1 mot-cle local avant de sauvegarder.",
+        text: "Ajoute au moins 1 recherche client avant d'enregistrer.",
       });
       return;
     }
     if (priorityPagesList.length === 0) {
       setFeedback({
         type: "error",
-        text: "Ajoute au moins 1 page prioritaire avant de sauvegarder.",
+        text: "Ajoute au moins 1 page de ton site avant d'enregistrer.",
       });
       return;
     }
@@ -259,7 +259,7 @@ export default function SeoLocalSetupPage() {
     if (error) {
       setFeedback({
         type: "error",
-        text: "Sauvegarde impossible. Lance d'abord la migration 008 dans Supabase.",
+        text: "Enregistrement impossible pour le moment.",
       });
       setSaving(false);
       return;
@@ -269,7 +269,7 @@ export default function SeoLocalSetupPage() {
     setSaving(false);
     setFeedback({
       type: "success",
-      text: "Configuration SEO local enregistree. Tu peux ouvrir le rapport maintenant.",
+      text: "Reglages enregistres. Tu peux lancer une analyse maintenant.",
     });
   };
 
@@ -286,7 +286,7 @@ export default function SeoLocalSetupPage() {
     if (!parsed) {
       setFeedback({
         type: "error",
-        text: "URL concurrent invalide. Utilise http(s)://...",
+        text: "Lien concurrent invalide. Utilise un lien complet http(s)://...",
       });
       return;
     }
@@ -301,7 +301,7 @@ export default function SeoLocalSetupPage() {
     if (!parsed) {
       setFeedback({
         type: "error",
-        text: "URL prioritaire invalide. Utilise http(s)://...",
+        text: "Lien de ton site invalide. Utilise un lien complet http(s)://...",
       });
       return;
     }
@@ -326,10 +326,9 @@ export default function SeoLocalSetupPage() {
     return (
       <PublicChrome>
         <section className="max-w-4xl mx-auto px-6 pt-20 pb-24 text-center">
-          <h1 className="text-3xl font-bold">Setup SEO local</h1>
+          <h1 className="text-3xl font-bold">Reglages SEO local</h1>
           <p className="mt-4 text-gray-300">
-            Connecte-toi pour configurer la ville, les mots-cles et les URLs
-            prioritaires.
+            Connecte-toi pour configurer ta ville, tes recherches et ton site.
           </p>
           <Link
             href="/login"
@@ -345,20 +344,20 @@ export default function SeoLocalSetupPage() {
   return (
     <PublicChrome>
       <section className="max-w-5xl mx-auto px-6 pt-16 pb-24">
-        <p className="text-sm text-indigo-300 font-medium">SEO local - Setup</p>
+        <p className="text-sm text-indigo-300 font-medium">SEO local - Reglages</p>
         <h1 className="mt-2 text-4xl md:text-5xl font-bold">
-          Configuration fonctionnelle
+          Reglages simples pour ton business
         </h1>
         <p className="mt-5 text-gray-300 max-w-3xl">
-          Definis ton contexte local puis sauvegarde. Le rapport SEO local
-          utilisera directement cette configuration.
+          Choisis ta zone, tes recherches et ton site. Ensuite lance une analyse
+          pour voir ta visibilite locale.
         </p>
 
         <div className="mt-6 rounded-lg border border-white/10 bg-white/5 p-4 text-sm text-gray-200">
           <p className="font-medium text-indigo-200">Comment ca marche</p>
-          <p className="mt-1">1) Remplis la ville + mots-cles + pages prioritaires.</p>
-          <p className="mt-1">2) Clique sur sauvegarder la configuration.</p>
-          <p className="mt-1">3) Ouvre le rapport SEO local pour voir le recap.</p>
+          <p className="mt-1">1) Choisis ta ville et ton rayon.</p>
+          <p className="mt-1">2) Ajoute les recherches de tes clients.</p>
+          <p className="mt-1">3) Ajoute ton site et tes concurrents, puis enregistre.</p>
         </div>
 
         <div className="mt-8 grid md:grid-cols-2 gap-4">
@@ -377,7 +376,7 @@ export default function SeoLocalSetupPage() {
             {cityFocused && citySuggestions.length > 0 && (
               <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-lg border border-white/10 bg-[#0b1025] shadow-lg max-h-52 overflow-y-auto">
                 <div className="px-3 py-2 text-[11px] text-gray-400 border-b border-white/10">
-                  Villes de France &gt;= 5000 habitants
+                  Villes proposees
                   {cityLoading ? " (chargement...)" : ""}
                 </div>
                 {citySuggestions.map((suggestion) => (
@@ -397,7 +396,7 @@ export default function SeoLocalSetupPage() {
             )}
           </label>
           <label className="text-sm text-gray-300 flex flex-col gap-2">
-            Etendue locale (diametre)
+            Rayon de surveillance
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {LOCAL_DIAMETER_OPTIONS.map((option) => (
                 <button
@@ -415,15 +414,15 @@ export default function SeoLocalSetupPage() {
               ))}
             </div>
             <span className="text-xs text-gray-500">
-              Recherche autour de {city.trim() || "la ville choisie"} sur un
-              diametre de {diameterKm} km.
+              On surveille autour de {city.trim() || "ta ville"} dans un rayon
+              de {diameterKm} km.
             </span>
           </label>
         </div>
 
         <div className="mt-4 grid md:grid-cols-3 gap-4">
           <label className="text-sm text-gray-300 flex flex-col gap-2">
-            Mots-cles locaux
+            Recherches clients a suivre
             <div className="flex gap-2">
               <input
                 value={keywordDraft}
@@ -447,7 +446,7 @@ export default function SeoLocalSetupPage() {
             </div>
             <div className="rounded-lg border border-white/10 bg-white/5 p-2 min-h-[112px] max-h-36 overflow-y-auto">
               {keywords.length === 0 ? (
-                <p className="text-xs text-gray-500">Aucun mot-cle ajoute.</p>
+                <p className="text-xs text-gray-500">Aucune recherche ajoutee.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {keywords.map((item) => (
@@ -471,11 +470,11 @@ export default function SeoLocalSetupPage() {
               )}
             </div>
             <span className="text-xs text-gray-500">
-              {keywordsList.length} mot(s)-cle enregistre(s)
+              {keywordsList.length} recherche(s) enregistree(s)
             </span>
           </label>
           <label className="text-sm text-gray-300 flex flex-col gap-2">
-            Concurrents locaux
+            Sites concurrents a comparer
             <div className="flex gap-2">
               <input
                 value={competitorDraft}
@@ -529,7 +528,7 @@ export default function SeoLocalSetupPage() {
             </span>
           </label>
           <label className="text-sm text-gray-300 flex flex-col gap-2">
-            Pages prioritaires
+            Ton site (pages a faire remonter)
             <div className="flex gap-2">
               <input
                 value={priorityPageDraft}
@@ -540,7 +539,7 @@ export default function SeoLocalSetupPage() {
                     addPriorityPage();
                   }
                 }}
-                placeholder="https://monsite.fr/page-locale"
+                placeholder="https://tonsite.fr/page-locale"
                 className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
               />
               <button
@@ -553,7 +552,7 @@ export default function SeoLocalSetupPage() {
             </div>
             <div className="rounded-lg border border-white/10 bg-white/5 p-2 min-h-[112px] max-h-36 overflow-y-auto">
               {priorityPages.length === 0 ? (
-                <p className="text-xs text-gray-500">Aucune page prioritaire ajoutee.</p>
+                <p className="text-xs text-gray-500">Aucune page de ton site ajoutee.</p>
               ) : (
                 <div className="space-y-1">
                   {priorityPages.map((item) => (
@@ -579,21 +578,21 @@ export default function SeoLocalSetupPage() {
               )}
             </div>
             <span className="text-xs text-gray-500">
-              {priorityPagesList.length} page(s) prioritaire(s)
+              {priorityPagesList.length} page(s) de ton site
             </span>
           </label>
         </div>
 
         <div className="mt-6 rounded-lg border border-white/10 bg-white/5 p-4 text-xs text-gray-300">
-          <p className="text-indigo-200 font-medium">Apercu configuration</p>
+          <p className="text-indigo-200 font-medium">Resume rapide</p>
           <p className="mt-2">- Ville: {city.trim() || "non renseignee"}</p>
-          <p>- Zone: diametre {diameterKm} km</p>
-          <p>- Mots-cles: {keywordsList.length}</p>
+          <p>- Zone: rayon {diameterKm} km</p>
+          <p>- Recherches suivies: {keywordsList.length}</p>
           <p>- Concurrents: {competitorsList.length}</p>
-          <p>- Pages prioritaires: {priorityPagesList.length}</p>
+          <p>- Pages de ton site: {priorityPagesList.length}</p>
           {lastSavedAt && (
             <p className="mt-2 text-gray-400">
-              Derniere sauvegarde: {new Date(lastSavedAt).toLocaleString("fr-FR")}
+              Dernier enregistrement: {new Date(lastSavedAt).toLocaleString("fr-FR")}
             </p>
           )}
         </div>
@@ -604,13 +603,13 @@ export default function SeoLocalSetupPage() {
             disabled={saving}
             className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium disabled:opacity-50"
           >
-            {saving ? "Sauvegarde..." : "Sauvegarder la configuration"}
+            {saving ? "Enregistrement..." : "Enregistrer mes reglages"}
           </button>
           <Link
             href="/seo-local/report"
             className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition font-medium"
           >
-            Ouvrir le rapport SEO local
+            Voir mon rapport
           </Link>
         </div>
 

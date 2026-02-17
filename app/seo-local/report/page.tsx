@@ -74,8 +74,8 @@ function formatDateTimeFr(value: string | null) {
 
 function formatDelta(value: number | null) {
   if (value === null) return "n/a";
-  if (value > 0) return `+${value} (mieux)`;
-  if (value < 0) return `${value} (baisse)`;
+  if (value > 0) return `+${value} (en hausse)`;
+  if (value < 0) return `${value} (en baisse)`;
   return "stable";
 }
 
@@ -83,6 +83,25 @@ function clampScore(value: number) {
   if (value < 0) return 0;
   if (value > 100) return 100;
   return Math.round(value);
+}
+
+function formatProvider(value: string | null) {
+  if (value === "google_places") return "Google";
+  if (value === "nominatim") return "OpenStreetMap";
+  return "Source standard";
+}
+
+function formatStatus(value: SeoLocalRun["status"] | undefined) {
+  if (value === "completed") return "terminee";
+  if (value === "failed") return "en erreur";
+  return "indisponible";
+}
+
+function formatMatchSource(value: KeywordBaseline["target_match_source"]) {
+  if (value === "name") return "nom d'entreprise";
+  if (value === "source_url") return "lien source";
+  if (value === "business_url") return "site web";
+  return null;
 }
 
 export default function SeoLocalReportPage() {
@@ -131,7 +150,7 @@ export default function SeoLocalReportPage() {
       .maybeSingle<SeoLocalProfile>();
 
     if (profileError) {
-      setMessage("Configuration SEO locale indisponible. Lance la migration 008.");
+      setMessage("Configuration indisponible pour le moment.");
       return;
     }
     setProfile(profileData || null);
@@ -147,7 +166,7 @@ export default function SeoLocalReportPage() {
       .limit(40);
 
     if (runsError) {
-      setMessage("Historique SEO local indisponible. Lance la migration 009.");
+      setMessage("Historique indisponible pour le moment.");
       return;
     }
 
@@ -176,7 +195,7 @@ export default function SeoLocalReportPage() {
       .limit(1000);
 
     if (currentError) {
-      setMessage("Positions locales indisponibles. Lance la migration 010.");
+      setMessage("Resultats indisponibles pour le moment.");
       setCurrentPositions([]);
       setPreviousPositions([]);
       setRecentPositions([]);
@@ -262,16 +281,16 @@ export default function SeoLocalReportPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data?.error || "Execution SEO locale impossible.");
+        throw new Error(data?.error || "Analyse impossible pour le moment.");
       }
 
       setMessage(
-        `Analyse terminee: ${data.positionsCount ?? 0} position(s), provider ${data.provider || "nominatim"}, ${data.alertsCount ?? 0} alerte(s) de baisse.`
+        `Analyse terminee: ${data.positionsCount ?? 0} resultat(s), source ${formatProvider(data.provider || "nominatim")}, ${data.alertsCount ?? 0} baisse(s) detectee(s).`
       );
 
       await loadReportData(session.user.id);
     } catch (error: unknown) {
-      setMessage(error instanceof Error ? error.message : "Execution impossible.");
+      setMessage(error instanceof Error ? error.message : "Analyse impossible.");
     } finally {
       setRunning(false);
     }
@@ -384,21 +403,21 @@ export default function SeoLocalReportPage() {
     const actions: string[] = [];
     if (targetCoverage < 0.6) {
       actions.push(
-        "Renforcer les pages locales cibles: la marque est peu detectee dans les resultats." 
+        "Votre entreprise est encore peu visible: renforcez vos pages locales prioritaires."
       );
     }
     if (top10Rate < 0.65) {
       actions.push(
-        "Prioriser les mots-cles hors top 10 avec contenu local + schema + liens internes dedies."
+        "Travaillez d'abord les recherches hors top 10 avec du contenu local clair."
       );
     }
     if (highAlerts > 0) {
       actions.push(
-        `Traiter en urgence ${highAlerts} mot-cle(s) en chute forte cette semaine.`
+        `Traitez en priorite ${highAlerts} recherche(s) en forte baisse cette semaine.`
       );
     }
     if (actions.length === 0) {
-      actions.push("Maintenir le cap: couverture stable, continuer l'optimisation progressive.");
+      actions.push("Bonne dynamique: conservez ce rythme et continuez l'optimisation locale.");
     }
 
     return {
@@ -428,7 +447,7 @@ export default function SeoLocalReportPage() {
       <PublicChrome>
         <section className="max-w-4xl mx-auto px-6 pt-20 pb-24 text-center">
           <h1 className="text-3xl font-bold">Rapport SEO local</h1>
-          <p className="mt-4 text-gray-300">Connecte-toi pour consulter ton rapport local.</p>
+          <p className="mt-4 text-gray-300">Connecte-toi pour consulter ton suivi local.</p>
           <Link
             href="/login"
             className="inline-flex mt-8 px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
@@ -443,55 +462,55 @@ export default function SeoLocalReportPage() {
   return (
     <PublicChrome>
       <section className="max-w-6xl mx-auto px-6 pt-16 pb-24">
-        <p className="text-sm text-indigo-300 font-medium">SEO local - Rapport</p>
+        <p className="text-sm text-indigo-300 font-medium">SEO local - Tableau de bord</p>
         <h1 className="mt-2 text-4xl md:text-5xl font-bold">
-          Positions locales et evolutions
+          Suivi de votre visibilite locale
         </h1>
         <p className="mt-5 text-gray-300 max-w-3xl">
-          Le moteur calcule des positions par mot-cle selon ta ville et ton perimetre.
-          Tu vois ensuite l&apos;evolution entre le dernier run et le precedent.
+          Suivez simplement vos rangs dans votre ville, voyez ce qui monte ou baisse,
+          puis appliquez les actions recommandees.
         </p>
 
         {message && <p className="mt-4 text-sm text-indigo-200">{message}</p>}
 
         {!profile ? (
           <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
-            <p className="text-gray-200">Aucune configuration SEO locale enregistree.</p>
+            <p className="text-gray-200">Aucun reglage trouve. Commencez par configurer votre suivi.</p>
             <Link
               href="/seo-local/setup"
               className="inline-flex mt-4 px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition text-sm font-medium"
             >
-              Configurer SEO local
+              Configurer le suivi local
             </Link>
           </div>
         ) : (
           <>
             <div className="mt-8 grid md:grid-cols-3 gap-6">
               <article className="rounded-xl bg-white/5 border border-white/10 p-6">
-                <p className="text-xs text-indigo-200 uppercase">Configuration active</p>
+                <p className="text-xs text-indigo-200 uppercase">Vos reglages</p>
                 <p className="mt-2 text-sm text-gray-200">Ville: {profile.city || "—"}</p>
-                <p className="mt-1 text-sm text-gray-300">Perimetre: {profile.area || "10km"}</p>
+                <p className="mt-1 text-sm text-gray-300">Zone surveillee: {profile.area || "10km"}</p>
                 <p className="mt-1 text-sm text-gray-300">
-                  Mots-cles: {(profile.keywords || []).length}
+                  Recherches suivies: {(profile.keywords || []).length}
                 </p>
               </article>
               <article className="rounded-xl bg-white/5 border border-white/10 p-6">
-                <p className="text-xs text-indigo-200 uppercase">Dernier run</p>
-                <p className="mt-2 text-sm text-gray-200">Statut: {latestRun?.status || "aucun"}</p>
-                <p className="mt-1 text-sm text-gray-300">Provider: {latestRun?.provider || "nominatim"}</p>
-                <p className="mt-1 text-sm text-gray-300">Positions: {currentPositions.length}</p>
+                <p className="text-xs text-indigo-200 uppercase">Derniere analyse</p>
+                <p className="mt-2 text-sm text-gray-200">Statut: {formatStatus(latestRun?.status)}</p>
+                <p className="mt-1 text-sm text-gray-300">Source de donnees: {formatProvider(latestRun?.provider || "nominatim")}</p>
+                <p className="mt-1 text-sm text-gray-300">Resultats trouves: {currentPositions.length}</p>
                 <p className="mt-1 text-sm text-gray-300">
-                  Fini a: {formatDateTimeFr(latestRun?.finished_at || null)}
+                  Date: {formatDateTimeFr(latestRun?.finished_at || null)}
                 </p>
               </article>
               <article className="rounded-xl bg-white/5 border border-white/10 p-6">
-                <p className="text-xs text-indigo-200 uppercase">Score actionnable</p>
+                <p className="text-xs text-indigo-200 uppercase">Sante locale</p>
                 <p className="mt-2 text-3xl font-semibold text-indigo-100">{scoreAndActions.score}/100</p>
                 <p className="mt-1 text-sm text-gray-300">
-                  Top 3: {scoreAndActions.top3Count}/{scoreAndActions.configuredKeywords}
+                  En top 3: {scoreAndActions.top3Count}/{scoreAndActions.configuredKeywords}
                 </p>
                 <p className="mt-1 text-sm text-gray-300">
-                  Top 10: {scoreAndActions.top10Count}/{scoreAndActions.configuredKeywords}
+                  En top 10: {scoreAndActions.top10Count}/{scoreAndActions.configuredKeywords}
                 </p>
               </article>
             </div>
@@ -502,19 +521,19 @@ export default function SeoLocalReportPage() {
                 disabled={running}
                 className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium disabled:opacity-50"
               >
-                {running ? "Analyse locale..." : "Lancer analyse locale"}
+                {running ? "Analyse en cours..." : "Lancer une analyse"}
               </button>
               <Link
                 href="/seo-local/setup"
                 className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition font-medium"
               >
-                Modifier la configuration
+                Modifier mes reglages
               </Link>
             </div>
 
             {currentTopByKeyword.length > 0 && (
               <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
-                <h2 className="text-xl font-semibold">Top positions par mot-cle</h2>
+                <h2 className="text-xl font-semibold">Vos meilleurs rangs</h2>
                 <div className="mt-4 space-y-2">
                   {currentTopByKeyword.map((row) => {
                     const previous = previousTopByKeyword.get(row.keyword);
@@ -527,17 +546,17 @@ export default function SeoLocalReportPage() {
                       >
                         <p>
                           <span className="text-indigo-200 font-medium">{row.keyword}</span>
-                          {" "}- position {row.position}
+                          {" "}- rang {row.position}
                         </p>
                         <p className="text-xs text-gray-300">
                           {delta === null
-                            ? "Nouveau mot-cle"
+                            ? "Nouveau suivi"
                             : delta > 0
-                              ? `+${delta} (mieux)`
+                              ? `+${delta} (ameliore)`
                               : delta < 0
-                                ? `${delta} (baisse)`
+                                ? `${delta} (recule)`
                                 : "stable"}
-                          {trend ? ` | 7j ${formatDelta(trend.delta7d)} | 30j ${formatDelta(trend.delta30d)}` : ""}
+                          {trend ? ` | 7 jours ${formatDelta(trend.delta7d)} | 30 jours ${formatDelta(trend.delta30d)}` : ""}
                         </p>
                       </div>
                     );
@@ -548,7 +567,7 @@ export default function SeoLocalReportPage() {
 
             {latestBaselines.length > 0 && (
               <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
-                <h2 className="text-xl font-semibold">Baseline marque vs concurrents</h2>
+                <h2 className="text-xl font-semibold">Votre visibilite face aux concurrents</h2>
                 <div className="mt-4 space-y-2">
                   {latestBaselines.slice(0, 12).map((row) => (
                     <div
@@ -557,12 +576,14 @@ export default function SeoLocalReportPage() {
                     >
                       <p>
                         <span className="text-indigo-200 font-medium">{row.keyword}</span>
-                        {" "}- cible {row.target_position ? `#${row.target_position}` : "non detectee"}
-                        {row.target_match_source ? ` (via ${row.target_match_source})` : ""}
+                        {" "}- votre entreprise {row.target_position ? `au rang #${row.target_position}` : "non visible pour l'instant"}
+                        {formatMatchSource(row.target_match_source)
+                          ? ` (detectee via ${formatMatchSource(row.target_match_source)})`
+                          : ""}
                       </p>
                       <p className="text-gray-300">
-                        concurrent best {row.competitor_best_position ? `#${row.competitor_best_position}` : "n/a"}
-                        {" | detectes: "}
+                        meilleur concurrent {row.competitor_best_position ? `rang #${row.competitor_best_position}` : "non detecte"}
+                        {" | concurrents detectes: "}
                         {row.competitors_detected}
                       </p>
                     </div>
@@ -573,7 +594,7 @@ export default function SeoLocalReportPage() {
 
             {recentAlerts.length > 0 && (
               <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
-                <h2 className="text-xl font-semibold">Alertes de baisse de position</h2>
+                <h2 className="text-xl font-semibold">Baisses a surveiller</h2>
                 <div className="mt-4 space-y-2">
                   {recentAlerts.slice(0, 8).map((alert) => (
                     <div
@@ -582,14 +603,14 @@ export default function SeoLocalReportPage() {
                     >
                       <p>
                         <span className="text-indigo-200 font-medium">{alert.keyword}</span>
-                        {" "}- #{alert.previous_position} vers #{alert.current_position}
+                        {" "}- rang #{alert.previous_position} vers #{alert.current_position}
                       </p>
                       <p
                         className={
                           alert.severity === "high" ? "text-rose-200" : "text-amber-200"
                         }
                       >
-                        +{alert.delta} ({alert.severity}) - {formatDateTimeFr(alert.created_at)}
+                        +{alert.delta} ({alert.severity === "high" ? "forte" : "moderee"}) - {formatDateTimeFr(alert.created_at)}
                       </p>
                     </div>
                   ))}
@@ -598,20 +619,20 @@ export default function SeoLocalReportPage() {
             )}
 
             <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
-              <h2 className="text-xl font-semibold">Plan d&apos;action recommande</h2>
+              <h2 className="text-xl font-semibold">Prochaines actions prioritaires</h2>
               <div className="mt-4 space-y-2 text-sm text-gray-200">
                 {scoreAndActions.actions.map((action) => (
                   <p key={action}>- {action}</p>
                 ))}
                 <p className="text-xs text-gray-400">
-                  Alertes 7j: {scoreAndActions.highAlerts} high / {scoreAndActions.mediumAlerts} medium
+                  Baisses sur 7 jours: {scoreAndActions.highAlerts} fortes / {scoreAndActions.mediumAlerts} moderees
                 </p>
               </div>
             </div>
 
             {groupedCurrent.length > 0 && (
               <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-6">
-                <h2 className="text-xl font-semibold">Detail positions</h2>
+                <h2 className="text-xl font-semibold">Detail des resultats</h2>
                 <div className="mt-4 space-y-5">
                   {groupedCurrent.map(([keyword, rows]) => (
                     <div key={keyword} className="rounded-lg border border-white/10 bg-black/20 p-4">
@@ -622,7 +643,7 @@ export default function SeoLocalReportPage() {
                             key={row.id}
                             className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 text-xs text-gray-300"
                           >
-                            <p className="break-all">#{row.position} - {row.place_name}</p>
+                            <p className="break-all">Rang #{row.position} - {row.place_name}</p>
                             <div className="flex items-center gap-3">
                               <span>{row.distance_km.toFixed(2)} km</span>
                               {row.source_url && (
@@ -632,7 +653,7 @@ export default function SeoLocalReportPage() {
                                   rel="noreferrer"
                                   className="text-indigo-200 hover:text-indigo-100"
                                 >
-                                  Source
+                                  Voir source
                                 </a>
                               )}
                             </div>
@@ -652,7 +673,7 @@ export default function SeoLocalReportPage() {
             href="/seo-local/setup"
             className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition font-medium"
           >
-            Modifier la configuration
+            Modifier mes reglages
           </Link>
           <Link
             href="/dashboard"
