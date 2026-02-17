@@ -3,6 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Session } from "@supabase/supabase-js";
+import {
+  getAlertChangeSummary,
+  getAlertConfidence,
+  getAlertImpactLabel,
+  getAlertRecommendedAction,
+} from "@/lib/alertPresentation";
 
 type ChangeEvent = {
   id: string;
@@ -488,6 +494,10 @@ export default function AlertsHistoryPage() {
               const score = getPriorityScore(event);
               const priorityLabel = getPriorityLabel(score);
               const priorityClass = getPriorityClass(score);
+              const confidence = getAlertConfidence(event);
+              const changeSummary = getAlertChangeSummary(event);
+              const impactLabel = getAlertImpactLabel(event);
+              const recommendedAction = getAlertRecommendedAction(event);
               const isExpanded = expandedAlertId === event.id;
 
               return (
@@ -508,6 +518,11 @@ export default function AlertsHistoryPage() {
                     Impact {score} - {priorityLabel}
                   </span>
                   <span
+                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${confidence.className}`}
+                  >
+                    Confiance {confidence.label}
+                  </span>
+                  <span
                     className={`text-[10px] uppercase px-2 py-1 rounded-full ${
                       event.is_read
                         ? "bg-emerald-500/15 text-emerald-200"
@@ -517,14 +532,20 @@ export default function AlertsHistoryPage() {
                     {event.is_read ? "lu" : "non lu"}
                   </span>
                 </div>
-                <p className="text-sm text-gray-200">
-                  {event.metadata?.summary || "Alerte détectée"}
-                </p>
+                <p className="text-sm text-gray-200">{changeSummary}</p>
                 {event.metadata?.url && (
                   <p className="text-xs text-gray-400 mt-1 break-all">
                     {event.metadata.url}
                   </p>
                 )}
+                <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+                  <p className="text-gray-300">
+                    <span className="text-gray-400">Impact:</span> {impactLabel}
+                  </p>
+                  <p className="text-gray-300">
+                    <span className="text-gray-400">Action:</span> {recommendedAction}
+                  </p>
+                </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <p className="text-xs text-gray-500">{event.detected_at || "—"}</p>
                   <button

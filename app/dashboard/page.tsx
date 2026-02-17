@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, type Variants } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
+import {
+  getAlertChangeSummary,
+  getAlertConfidence,
+  getAlertImpactLabel,
+  getAlertRecommendedAction,
+} from "@/lib/alertPresentation";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -1099,6 +1105,10 @@ export default function DashboardPage() {
                   const priorityScore = getPriorityScore(item);
                   const priorityLabel = getPriorityLabel(priorityScore);
                   const priorityClass = getPriorityClass(priorityScore);
+                  const confidence = getAlertConfidence(item);
+                  const changeSummary = getAlertChangeSummary(item);
+                  const impactLabel = getAlertImpactLabel(item);
+                  const recommendedAction = getAlertRecommendedAction(item);
                   const isExpanded = expandedAlertId === item.id;
                   return (
                     <>
@@ -1115,6 +1125,11 @@ export default function DashboardPage() {
                     Impact {priorityScore} - {priorityLabel}
                   </span>
                   <span
+                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${confidence.className}`}
+                  >
+                    Confiance {confidence.label}
+                  </span>
+                  <span
                     className={`text-[10px] uppercase px-2 py-1 rounded-full ${
                       item.is_read
                         ? "bg-emerald-500/15 text-emerald-200"
@@ -1124,12 +1139,18 @@ export default function DashboardPage() {
                     {item.is_read ? "lu" : "non lu"}
                   </span>
                 </div>
-                <p className="text-sm text-gray-200">
-                  {item.metadata?.summary || item.field_key}
-                </p>
+                <p className="text-sm text-gray-200">{changeSummary}</p>
                 {item.metadata?.url && (
                   <p className="text-xs text-gray-400 mt-1">{item.metadata.url}</p>
                 )}
+                <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+                  <p className="text-gray-300">
+                    <span className="text-gray-400">Impact:</span> {impactLabel}
+                  </p>
+                  <p className="text-gray-300">
+                    <span className="text-gray-400">Action:</span> {recommendedAction}
+                  </p>
+                </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <p className="text-xs text-gray-500">{item.detected_at || "—"}</p>
                   <div className="flex items-center gap-3">
