@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion, Variants } from "framer-motion";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import type { Session } from "@supabase/supabase-js";
 import PublicNavigation from "@/components/PublicNavigation";
@@ -23,6 +24,7 @@ const proofSlides = [
     detail: "Aucun changement depuis 12 jours.",
     footer: "Risque faible",
     note: "- Aucune action immediate requise.",
+    image: "/proof-dashboard-before.svg",
   },
   {
     badge: "Apres",
@@ -30,6 +32,7 @@ const proofSlides = [
     detail: "Variation detectee sur prix, bloc offre et bouton principal.",
     footer: "Alerte priorite haute",
     note: "- Verifier l'impact sur votre positionnement offre.",
+    image: "/proof-dashboard-after.svg",
   },
   {
     badge: "Decision",
@@ -37,6 +40,7 @@ const proofSlides = [
     detail: "Comparer les offres, ajuster la page cible, notifier l'equipe sales.",
     footer: "Temps de reaction: < 1h",
     note: "- Plan d'action partage a l'equipe en 1 clic.",
+    image: "/proof-dashboard-decision.svg",
   },
 ];
 
@@ -320,6 +324,15 @@ export default function Home() {
                   transition={{ duration: 0.32, ease: "easeOut" }}
                   className="absolute inset-0 p-5 flex flex-col"
                 >
+                  <div className="rounded-lg border border-white/10 overflow-hidden">
+                    <Image
+                      src={proofSlides[heroSlideIndex]?.image || "/og-image.png"}
+                      alt={proofSlides[heroSlideIndex]?.title || "Apercu dashboard"}
+                      width={1200}
+                      height={760}
+                      className="w-full h-44 object-cover"
+                    />
+                  </div>
                   <div className="inline-flex w-fit rounded-full border border-indigo-300/30 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-200">
                     {proofSlides[heroSlideIndex]?.badge}
                   </div>
@@ -569,6 +582,7 @@ export default function Home() {
               name: "Starter",
               price: "12 €/mois",
               desc: "7 jours d’essai gratuit, idéal pour démarrer.",
+              fit: "Pour freelance ou petite equipe",
               features: [
                 "10 URLs surveillées",
                 "Fréquence toutes les 6h",
@@ -580,6 +594,7 @@ export default function Home() {
               name: "Pro",
               price: "29 €/mois",
               desc: "Le meilleur équilibre.",
+              fit: "Pour SaaS et e-commerce en croissance",
               features: [
                 "50 URLs surveillées",
                 "Fréquence toutes les 60 min",
@@ -592,6 +607,7 @@ export default function Home() {
               name: "Agency",
               price: "79 €/mois",
               desc: "Pour les équipes.",
+              fit: "Pour agences multi-clients",
               features: [
                 "200 URLs surveillées",
                 "Fréquence toutes les 15 min",
@@ -622,6 +638,7 @@ export default function Home() {
               </div>
               <div className="text-3xl font-bold">{plan.price}</div>
               <p className="text-gray-300 text-sm mt-2">{plan.desc}</p>
+              <p className="mt-2 text-xs text-indigo-200">{plan.fit}</p>
               <ul className="mt-4 space-y-2 text-sm text-gray-300">
                 {plan.features.map((feature) => (
                   <li key={feature}>• {feature}</li>

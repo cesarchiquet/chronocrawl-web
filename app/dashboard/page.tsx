@@ -697,6 +697,18 @@ export default function DashboardPage() {
     }
   };
 
+  const jumpToAddUrl = () => {
+    const target = document.getElementById("add-url-panel");
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const quickStartAddSample = () => {
+    if (!newUrl.trim()) {
+      setNewUrl("https://site-concurrent.com/pricing");
+    }
+    jumpToAddUrl();
+  };
+
   const plan =
     (subscriptionState?.plan as
       | "starter"
@@ -1051,6 +1063,38 @@ export default function DashboardPage() {
               </span>
             ) : null}
             <p className="text-[11px] text-gray-400 mt-1">{runHealthInfo.detail}</p>
+          </div>
+        </div>
+
+        <div className="mt-5 rounded-xl border border-indigo-300/30 bg-indigo-500/10 p-4">
+          <p className="text-xs uppercase tracking-wide text-indigo-200">
+            Demarrage rapide
+          </p>
+          <h2 className="mt-1 text-lg font-semibold">Lancer la veille en 2 etapes</h2>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            <button
+              onClick={quickStartAddSample}
+              className="rounded-lg border border-white/15 bg-white/5 p-3 text-left hover:bg-white/10 transition"
+            >
+              <p className="text-xs text-indigo-200">Etape 1</p>
+              <p className="mt-1 text-sm font-medium">Ajouter une URL concurrente</p>
+              <p className="mt-1 text-xs text-gray-300">
+                Prefill automatique d&apos;une URL exemple pour gagner du temps.
+              </p>
+            </button>
+            <button
+              onClick={() => {
+                jumpToAddUrl();
+                document.getElementById("analyze-now-btn")?.focus();
+              }}
+              className="rounded-lg border border-white/15 bg-white/5 p-3 text-left hover:bg-white/10 transition"
+            >
+              <p className="text-xs text-indigo-200">Etape 2</p>
+              <p className="mt-1 text-sm font-medium">Cliquer sur Analyser maintenant</p>
+              <p className="mt-1 text-xs text-gray-300">
+                Premiere analyse immediatement avec les seuils d&apos;alerte choisis.
+              </p>
+            </button>
           </div>
         </div>
       </motion.section>
@@ -1449,7 +1493,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div className="rounded-xl bg-white/5 border border-white/10 p-6">
+        <div id="add-url-panel" className="rounded-xl bg-white/5 border border-white/10 p-6">
           <h2 className="text-xl font-semibold mb-4">Ajouter une URL</h2>
           <p className="text-gray-300 text-sm mb-4">
             Ajoute une page concurrente à surveiller. La détection des
@@ -1503,6 +1547,7 @@ export default function DashboardPage() {
               ))}
             </div>
             <button
+              id="analyze-now-btn"
               onClick={runAnalysis}
               className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={(!hasActiveSubscription && !isBypass) || analysisRunning}
