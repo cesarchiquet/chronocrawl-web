@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, Variants } from "framer-motion";
+import { AnimatePresence, motion, Variants } from "framer-motion";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Session } from "@supabase/supabase-js";
@@ -22,18 +22,21 @@ const proofSlides = [
     title: "Page pricing concurrente stable",
     detail: "Aucun changement depuis 12 jours.",
     footer: "Risque faible",
+    note: "- Aucune action immediate requise.",
   },
   {
     badge: "Apres",
     title: "Nouveau plan + CTA modifie",
     detail: "Variation detectee sur prix, bloc offre et bouton principal.",
     footer: "Alerte priorite haute",
+    note: "- Verifier l'impact sur votre positionnement offre.",
   },
   {
     badge: "Decision",
     title: "Action recommandee",
     detail: "Comparer les offres, ajuster la page cible, notifier l'equipe sales.",
     footer: "Temps de reaction: < 1h",
+    note: "- Plan d'action partage a l'equipe en 1 clic.",
   },
 ];
 
@@ -265,24 +268,6 @@ export default function Home() {
               page évolue.
             </p>
 
-            <div className="mt-8 mx-auto lg:mx-0 w-fit rounded-full border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
-              Starter gratuit 7 jours
-              {session?.user ? (
-                <button
-                  onClick={() => startCheckout("starter")}
-                  className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
-                >
-                  Demarrer l&apos;essai
-                </button>
-              ) : (
-                <a
-                  href="#tarifs"
-                  className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
-                >
-                  Demarrer l&apos;essai
-                </a>
-              )}
-            </div>
             {checkoutError && (
               <p className="mt-3 text-xs text-red-300">{checkoutError}</p>
             )}
@@ -297,23 +282,26 @@ export default function Home() {
             )}
 
             <div className="mt-10 flex flex-wrap justify-center lg:justify-start items-start gap-2">
+              {session?.user ? (
+                <button
+                  onClick={() => startCheckout("starter")}
+                  className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+                >
+                  Demarrer l&apos;essai gratuit
+                </button>
+              ) : (
+                <a
+                  href="#tarifs"
+                  className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+                >
+                  Demarrer l&apos;essai gratuit
+                </a>
+              )}
               <a
-                href="/blog"
-                className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+                href={tourHref}
+                className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition font-medium"
               >
-                Voir le guide
-              </a>
-              <a
-                href="#contact"
-                className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
-              >
-                Nous contacter
-              </a>
-              <a
-                href={session?.user ? "/dashboard" : "/login"}
-                className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
-              >
-                Ouvrir le dashboard
+                Comprendre le produit
               </a>
             </div>
           </div>
@@ -322,19 +310,33 @@ export default function Home() {
             <p className="text-xs uppercase tracking-wide text-indigo-200">
               Apercu dashboard
             </p>
-            <div className="mt-4 rounded-xl border border-white/10 bg-[#0a1024] p-5 min-h-[300px] flex flex-col">
-              <div className="inline-flex rounded-full border border-indigo-300/30 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-200">
-                {proofSlides[heroSlideIndex]?.badge}
-              </div>
-              <h3 className="mt-3 text-base font-semibold">
-                {proofSlides[heroSlideIndex]?.title}
-              </h3>
-              <p className="mt-2 text-sm text-gray-300">
-                {proofSlides[heroSlideIndex]?.detail}
-              </p>
-              <div className="mt-auto rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-gray-300">
-                {proofSlides[heroSlideIndex]?.footer}
-              </div>
+            <div className="mt-4 rounded-xl border border-white/10 bg-[#0a1024] p-5 min-h-[300px] relative overflow-hidden">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={heroSlideIndex}
+                  initial={{ opacity: 0, x: 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -24 }}
+                  transition={{ duration: 0.32, ease: "easeOut" }}
+                  className="absolute inset-0 p-5 flex flex-col"
+                >
+                  <div className="inline-flex w-fit rounded-full border border-indigo-300/30 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-200">
+                    {proofSlides[heroSlideIndex]?.badge}
+                  </div>
+                  <h3 className="mt-3 text-base font-semibold">
+                    {proofSlides[heroSlideIndex]?.title}
+                  </h3>
+                  <p className="mt-2 text-sm text-gray-300">
+                    {proofSlides[heroSlideIndex]?.detail}
+                  </p>
+                  <div className="mt-auto rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-gray-300">
+                    {proofSlides[heroSlideIndex]?.footer}
+                  </div>
+                  <p className="mt-3 text-xs text-gray-400">
+                    {proofSlides[heroSlideIndex]?.note}
+                  </p>
+                </motion.div>
+              </AnimatePresence>
             </div>
             <div className="mt-4 flex items-center justify-between">
               <button
