@@ -1024,7 +1024,23 @@ export default function DashboardPage() {
             ) : null}
           </div>
           <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
-            Sante monitoring:{" "}
+            <span className="inline-flex items-center gap-1">
+              Sante monitoring:
+              <span className="relative inline-flex items-center group">
+                <button
+                  type="button"
+                  aria-label="Information sur la sante monitoring"
+                  className="h-4 w-4 rounded-full border border-white/20 text-[10px] leading-none text-gray-300 hover:text-white hover:border-white/40"
+                >
+                  i
+                </button>
+                <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-md border border-white/10 bg-[#0b1025] p-2 text-[11px] text-gray-200 shadow-lg group-hover:block group-focus-within:block">
+                  <span className="block">- STABLE: les derniers runs se passent bien.</span>
+                  <span className="block mt-1">- PARTIEL: certaines URLs n&apos;ont pas ete traitees.</span>
+                  <span className="block mt-1">- A SURVEILLER: taux d&apos;echec eleve, relance conseillée.</span>
+                </span>
+              </span>
+            </span>{" "}
             <span className={`font-semibold px-2 py-0.5 rounded-full text-[11px] ${runHealthInfo.badgeClass}`}>
               {runHealthInfo.label}
             </span>
@@ -1351,7 +1367,23 @@ export default function DashboardPage() {
 
       <section className="max-w-6xl mx-auto px-6 pb-24">
         <div className="rounded-xl bg-white/5 border border-white/10 p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Preferences d&apos;alertes</h2>
+          <div className="mb-4 flex items-center gap-2">
+            <h2 className="text-xl font-semibold">Preferences d&apos;alertes</h2>
+            <span className="relative inline-flex items-center group">
+              <button
+                type="button"
+                aria-label="Information sur les preferences d'alertes"
+                className="h-4 w-4 rounded-full border border-white/20 text-[10px] leading-none text-gray-300 hover:text-white hover:border-white/40"
+              >
+                i
+              </button>
+              <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-md border border-white/10 bg-[#0b1025] p-2 text-[11px] text-gray-200 shadow-lg group-hover:block group-focus-within:block">
+                <span className="block">- Mode email: instant envoie chaque alerte, daily envoie un digest, off coupe les emails.</span>
+                <span className="block mt-1">- Seuil email: niveau minimal envoye (HIGH uniquement, ou MEDIUM/HIGH, ou tout).</span>
+                <span className="block mt-1">- Heure digest: heure locale (0-23) a laquelle le recap quotidien est envoye.</span>
+              </span>
+            </span>
+          </div>
           <div className="grid md:grid-cols-4 gap-3">
             <label className="text-sm text-gray-300 flex flex-col gap-2">
               Mode email
@@ -1426,6 +1458,20 @@ export default function DashboardPage() {
           <div className="mb-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <span className="text-xs text-gray-300">Seuil alertes:</span>
+              <span className="relative inline-flex items-center group">
+                <button
+                  type="button"
+                  aria-label="Information sur le seuil d'alertes"
+                  className="h-4 w-4 rounded-full border border-white/20 text-[10px] leading-none text-gray-300 hover:text-white hover:border-white/40"
+                >
+                  i
+                </button>
+                <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-md border border-white/10 bg-[#0b1025] p-2 text-[11px] text-gray-200 shadow-lg group-hover:block group-focus-within:block">
+                  Choisis les niveaux d&apos;alertes a conserver pendant
+                  &quot;Analyser maintenant&quot;. Exemple: coche MEDIUM + HIGH
+                  pour ignorer LOW.
+                </span>
+              </span>
               <label className="text-xs px-2 py-1 rounded border border-white/15 text-gray-200 flex items-center gap-2">
                 <input
                   type="checkbox"
