@@ -33,7 +33,7 @@ export default function FaqPage() {
       <section className="max-w-5xl mx-auto px-6 pt-16 pb-24">
         <h1 className="text-4xl md:text-5xl font-bold text-center">FAQ complete</h1>
         <p className="mt-5 text-center text-gray-300 max-w-2xl mx-auto">
-          La landing contient une version courte. Cette page rassemble la FAQ complete
+          La page d&apos;accueil contient une version courte. Cette page rassemble la FAQ complete
           pour eviter les ambiguities avant inscription.
         </p>
 

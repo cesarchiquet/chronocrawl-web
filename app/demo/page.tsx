@@ -6,7 +6,7 @@ export default function DemoPage() {
     <PublicChrome>
       <section className="max-w-6xl mx-auto px-6 pt-16 pb-24">
         <div className="mb-8 rounded-xl border border-indigo-300/25 bg-indigo-500/10 p-4">
-          <p className="text-xs uppercase text-indigo-200">Parcours 90 sec - Etape 1/3</p>
+          <p className="text-xs uppercase text-indigo-200">Premier pas - Etape 1/3</p>
           <p className="mt-1 text-sm text-indigo-100">
             Ici tu vois exactement le format d&apos;une alerte exploitable.
           </p>

@@ -228,21 +228,21 @@ export default function Home() {
             href="/blog"
             className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
           >
-            Lire le guide
+            Voir le guide
           </a>
           <div className="flex flex-col items-center gap-3">
             <a
               href="#contact"
               className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
             >
-              Contact
+              Nous contacter
             </a>
           </div>
           <a
             href={session?.user ? "/dashboard" : "/login"}
             className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
           >
-            Accéder au dashboard
+            Ouvrir le dashboard
           </a>
         </div>
       </motion.section>
@@ -252,17 +252,17 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-wide text-indigo-200">
-                Decouverte guidee
+                Premier pas
               </p>
               <h2 className="mt-1 text-2xl font-semibold">
-                Comprendre le produit en 90 secondes
+                Comprendre le produit
               </h2>
             </div>
             <a
               href={tourHref}
               className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-400 transition"
             >
-              Lancer le parcours
+              Commencer
             </a>
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-3">

@@ -13,7 +13,7 @@ type PublicNavigationProps = {
 
 const links = [
   { href: "/fonctionnement", label: "Produit" },
-  { href: "/demo", label: "Parcours 90s" },
+  { href: "/demo", label: "Premier pas" },
   { href: "/cas-d-usage", label: "Cas d'usage" },
   { href: "/tarifs", label: "Tarifs" },
   { href: "/faq", label: "FAQ" },
@@ -91,7 +91,7 @@ export default function PublicNavigation({
                 href="/signup"
                 className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400"
               >
-                Commencer
+                Creer un compte
               </Link>
             </>
           )}
@@ -167,7 +167,7 @@ export default function PublicNavigation({
                     onClick={() => setMobileOpen(false)}
                     className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400 text-center"
                   >
-                    Commencer
+                    Creer un compte
                   </Link>
                 </>
               )}

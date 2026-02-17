@@ -185,9 +185,6 @@ export default function DashboardPage() {
   const [alertDateFilter, setAlertDateFilter] = useState<
     "all" | "24h" | "7d" | "30d"
   >("all");
-  const [groupAlertsByRun, setGroupAlertsByRun] = useState(true);
-  const [quickTriageMode, setQuickTriageMode] = useState(false);
-  const [triageCursorId, setTriageCursorId] = useState<string | null>(null);
   const [filterReferenceNow, setFilterReferenceNow] = useState(() => Date.now());
   const [alertBulkMessage, setAlertBulkMessage] = useState("");
   const [emailMode, setEmailMode] = useState<"instant" | "daily" | "off">(
@@ -210,7 +207,6 @@ export default function DashboardPage() {
   const [latestRunLog, setLatestRunLog] = useState<MonitorRunLog | null>(null);
   const [recentRunFailureRate, setRecentRunFailureRate] = useState(0);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
-  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -633,36 +629,6 @@ export default function DashboardPage() {
     }
   };
 
-  const scrollToSection = (sectionId: string) => {
-    if (typeof window === "undefined") return;
-    document.getElementById(sectionId)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  };
-
-  const goToAddUrl = () => {
-    scrollToSection("add-url-section");
-    if (typeof window === "undefined") return;
-    window.setTimeout(() => {
-      const element = document.getElementById(
-        "dashboard-new-url-input"
-      ) as HTMLInputElement | null;
-      element?.focus();
-    }, 280);
-  };
-
-  const openPriorityEvent = (event: ChangeEvent) => {
-    setAlertFilter("all");
-    setAlertUrlFilter(event.metadata?.url || "all");
-    setGroupAlertsByRun(false);
-    setQuickTriageMode(false);
-    setExpandedAlertId(event.id);
-    setExpandedGroupId(null);
-    setAlertBulkMessage("");
-    setTimeout(() => scrollToSection("alerts-center"), 80);
-  };
-
   const plan =
     (subscriptionState?.plan as
       | "starter"
@@ -683,13 +649,6 @@ export default function DashboardPage() {
 
   const limit = limits[plan] || limits.starter;
   const currentCount = urls.length;
-  const onboardingSteps = [
-    { label: "Compte connecte", done: !!session?.user?.id },
-    { label: "Au moins 1 URL surveillee", done: currentCount > 0 },
-    { label: "Premiere analyse executee", done: dailyRunCount > 0 || events.length > 0 },
-  ];
-  const onboardingDoneCount = onboardingSteps.filter((step) => step.done).length;
-
   const testMode = process.env.NEXT_PUBLIC_TEST_MODE === "true";
   const bypassEmails =
     process.env.NEXT_PUBLIC_TEST_BYPASS_EMAILS?.split(",")
@@ -789,35 +748,6 @@ export default function DashboardPage() {
     return 30;
   };
 
-  const priorityCockpitEvents = useMemo(
-    () =>
-      events
-        .filter((item) => !item.is_read)
-        .sort((a, b) => {
-          const aScore =
-            typeof a.metadata?.priority_score === "number" &&
-            Number.isFinite(a.metadata.priority_score)
-              ? a.metadata.priority_score
-              : a.severity === "high"
-                ? 85
-                : a.severity === "medium"
-                  ? 60
-                  : 30;
-          const bScore =
-            typeof b.metadata?.priority_score === "number" &&
-            Number.isFinite(b.metadata.priority_score)
-              ? b.metadata.priority_score
-              : b.severity === "high"
-                ? 85
-                : b.severity === "medium"
-                  ? 60
-                  : 30;
-          return bScore - aScore;
-        })
-        .slice(0, 3),
-    [events]
-  );
-
   const getPriorityLabel = (score: number) => {
     if (score >= 75) return "Haute";
     if (score >= 45) return "Moyenne";
@@ -828,159 +758,6 @@ export default function DashboardPage() {
     if (score >= 75) return "bg-red-500/15 text-red-200";
     if (score >= 45) return "bg-amber-500/15 text-amber-200";
     return "bg-emerald-500/15 text-emerald-200";
-  };
-
-  const groupedAlertRuns = useMemo(() => {
-    const bucketMs = 5 * 60 * 1000;
-    const severityRank: Record<ChangeEvent["severity"], number> = {
-      low: 1,
-      medium: 2,
-      high: 3,
-    };
-
-    const groups = new Map<
-      string,
-      {
-        id: string;
-        url: string;
-        detectedAt: string | null;
-        count: number;
-        unreadCount: number;
-        maxSeverity: ChangeEvent["severity"];
-        items: ChangeEvent[];
-      }
-    >();
-
-    for (const item of filteredEvents) {
-      const url = item.metadata?.url || "(URL non renseignee)";
-      const detectedMs = item.detected_at ? Date.parse(item.detected_at) : 0;
-      const bucket = Math.floor(detectedMs / bucketMs) * bucketMs;
-      const key = `${url}::${bucket}`;
-
-      const existing = groups.get(key);
-      if (!existing) {
-        groups.set(key, {
-          id: key,
-          url,
-          detectedAt: item.detected_at,
-          count: 1,
-          unreadCount: item.is_read ? 0 : 1,
-          maxSeverity: item.severity,
-          items: [item],
-        });
-        continue;
-      }
-
-      existing.count += 1;
-      if (!item.is_read) existing.unreadCount += 1;
-      if (severityRank[item.severity] > severityRank[existing.maxSeverity]) {
-        existing.maxSeverity = item.severity;
-      }
-      existing.items.push(item);
-    }
-
-    return Array.from(groups.values()).sort((a, b) =>
-      (b.detectedAt || "").localeCompare(a.detectedAt || "")
-    );
-  }, [filteredEvents]);
-
-  const triageUnreadIds = useMemo(
-    () => filteredEvents.filter((item) => !item.is_read).map((item) => item.id),
-    [filteredEvents]
-  );
-
-  const currentTriageId =
-    triageCursorId && triageUnreadIds.includes(triageCursorId)
-      ? triageCursorId
-      : triageUnreadIds[0] || null;
-
-  useEffect(() => {
-    if (!quickTriageMode) return;
-    if (!currentTriageId) {
-      setTriageCursorId(null);
-      return;
-    }
-    if (triageCursorId !== currentTriageId) {
-      setTriageCursorId(currentTriageId);
-    }
-  }, [currentTriageId, quickTriageMode, triageCursorId]);
-
-  const moveToNextUnread = () => {
-    if (triageUnreadIds.length === 0) {
-      setAlertBulkMessage("Aucune alerte non lue dans le filtre actuel.");
-      return;
-    }
-
-    if (!currentTriageId) {
-      setTriageCursorId(triageUnreadIds[0]);
-      setExpandedAlertId(triageUnreadIds[0]);
-      return;
-    }
-
-    const index = triageUnreadIds.indexOf(currentTriageId);
-    const nextId = triageUnreadIds[index + 1];
-    if (!nextId) {
-      setAlertBulkMessage("Derniere alerte non lue atteinte.");
-      return;
-    }
-
-    setAlertBulkMessage("");
-    setTriageCursorId(nextId);
-    setExpandedAlertId(nextId);
-  };
-
-  const markCurrentAndGoNext = async () => {
-    if (!currentTriageId) {
-      setAlertBulkMessage("Aucune alerte a traiter.");
-      return;
-    }
-
-    const index = triageUnreadIds.indexOf(currentTriageId);
-    const nextId = triageUnreadIds[index + 1] || null;
-    await markAlertAsRead(currentTriageId, true);
-    if (nextId) {
-      setTriageCursorId(nextId);
-      setExpandedAlertId(nextId);
-      setAlertBulkMessage("Alerte marquee lue, passage a la suivante.");
-      return;
-    }
-
-    setTriageCursorId(null);
-    setAlertBulkMessage("Alerte marquee lue. Triage termine pour ce filtre.");
-  };
-
-  const markGroupAlertsAsRead = async (groupId: string, isRead: boolean) => {
-    if (!session?.user?.id) return;
-    const group = groupedAlertRuns.find((item) => item.id === groupId);
-    if (!group) return;
-
-    const targetIds = group.items.map((item) => item.id);
-    if (targetIds.length === 0) return;
-
-    const chunkSize = 250;
-    for (let index = 0; index < targetIds.length; index += chunkSize) {
-      const chunk = targetIds.slice(index, index + chunkSize);
-      const { error } = await supabase
-        .from("detected_changes")
-        .update({ is_read: isRead })
-        .eq("user_id", session.user.id)
-        .in("id", chunk);
-
-      if (error) {
-        setAlertBulkMessage("Mise a jour du groupe impossible.");
-        return;
-      }
-    }
-
-    const ids = new Set(targetIds);
-    setEvents((prev) =>
-      prev.map((item) =>
-        ids.has(item.id) ? { ...item, is_read: isRead } : item
-      )
-    );
-    setAlertBulkMessage(
-      `${targetIds.length} alerte(s) du run marquee(s) ${isRead ? "lue(s)" : "non lue(s)"}.`
-    );
   };
 
   const openBillingPortal = async () => {
@@ -1088,7 +865,7 @@ export default function DashboardPage() {
             <p className="mt-1 text-indigo-200">
               {trialDaysLeft !== null
                 ? `Il te reste ${trialDaysLeft} jour${trialDaysLeft > 1 ? "s" : ""} d'essai.`
-                : "Ton essai est actif. Upgrade quand tu veux depuis \"Gérer l'abonnement\"."}
+                : "Ton essai est actif. Passe au plan superieur quand tu veux depuis \"Gerer l'abonnement\"."}
             </p>
           </div>
         )}
@@ -1139,104 +916,15 @@ export default function DashboardPage() {
             {latestRunLog ? (
               <span className="text-gray-400">
                 {" "}
-                ({latestRunLog.duration_ms} ms, {recentRunFailureRate}% runs en echec)
+                ({latestRunLog.duration_ms} ms, {recentRunFailureRate}% analyses en echec)
               </span>
             ) : null}
-          </div>
-        </div>
-        <div className="mt-4 rounded-xl border border-rose-300/25 bg-rose-500/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-rose-100 font-medium">
-              Cockpit priorites du jour
-            </p>
-            <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-rose-100">
-              {priorityCockpitEvents.length} action(s) rapide(s)
-            </span>
-          </div>
-          {priorityCockpitEvents.length === 0 ? (
-            <p className="mt-2 text-xs text-rose-100/80">
-              Aucune alerte non lue prioritaire pour le moment.
-            </p>
-          ) : (
-            <div className="mt-3 grid gap-2 md:grid-cols-3">
-              {priorityCockpitEvents.map((item) => {
-                const score = getPriorityScore(item);
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => openPriorityEvent(item)}
-                    className="text-left rounded-md border border-white/10 bg-black/20 px-3 py-3 hover:bg-black/30 transition"
-                  >
-                    <p className="text-[11px] uppercase text-rose-200">
-                      Impact {score} - {item.domain}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-200">
-                      {item.metadata?.summary || item.field_key}
-                    </p>
-                    <p className="mt-2 text-[11px] text-gray-400 break-all">
-                      {item.metadata?.url || "URL non renseignee"}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        <div className="mt-4 rounded-xl border border-indigo-300/25 bg-indigo-500/10 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm text-indigo-100 font-medium">
-              Premiers pas (2 minutes)
-            </p>
-            <span className="text-xs px-2 py-1 rounded-full bg-white/10 text-indigo-100">
-              {onboardingDoneCount}/3 complete
-            </span>
-          </div>
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-2">
-            {onboardingSteps.map((step) => (
-              <div
-                key={step.label}
-                className={`rounded-md border px-3 py-2 text-xs ${
-                  step.done
-                    ? "border-emerald-300/30 bg-emerald-500/10 text-emerald-100"
-                    : "border-white/10 bg-white/5 text-gray-200"
-                }`}
-              >
-                {step.done ? "OK" : "A faire"} - {step.label}
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-indigo-100/90">
-            Objectif: afficher des alertes pertinentes des la premiere session, sans configuration technique.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              onClick={goToAddUrl}
-              className="text-xs px-3 py-2 rounded-md border border-white/20 text-gray-100 hover:bg-white/5 transition"
-            >
-              Etape 1 - Ajouter URL
-            </button>
-            <button
-              onClick={runAnalysis}
-              disabled={(!hasActiveSubscription && !isBypass) || analysisRunning}
-              className="text-xs px-3 py-2 rounded-md border border-indigo-300/30 text-indigo-100 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Etape 2 - Lancer analyse
-            </button>
-            <button
-              onClick={() => scrollToSection("alerts-center")}
-              className="text-xs px-3 py-2 rounded-md border border-white/20 text-gray-100 hover:bg-white/5 transition"
-            >
-              Etape 3 - Ouvrir alertes
-            </button>
           </div>
         </div>
       </motion.section>
 
       <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6 items-start">
-        <div
-          id="urls-list"
-          className="lg:col-span-2 rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto"
-        >
+        <div className="lg:col-span-2 rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto">
           <h2 className="text-xl font-semibold mb-4">URLs surveillées</h2>
           <div className="space-y-4">
             {urls.length === 0 && (
@@ -1284,10 +972,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div
-          id="alerts-center"
-          className="rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto"
-        >
+        <div className="rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto">
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
             <h2 className="text-xl font-semibold">Centre d&apos;alertes</h2>
             <div className="flex items-center gap-2">
@@ -1392,67 +1077,10 @@ export default function DashboardPage() {
             >
               Marquer filtrees non lues
             </button>
-            <button
-              onClick={() => setGroupAlertsByRun((value) => !value)}
-              className={`text-xs px-2 py-1 rounded border transition ${
-                groupAlertsByRun
-                  ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
-                  : "border-white/15 text-gray-300 hover:bg-white/5"
-              }`}
-            >
-              {groupAlertsByRun ? "Groupement URL+run: ON" : "Groupement URL+run: OFF"}
-            </button>
-            <button
-              onClick={() => {
-                const nextMode = !quickTriageMode;
-                setQuickTriageMode(nextMode);
-                if (nextMode) {
-                  setAlertFilter("unread");
-                  setTriageCursorId(triageUnreadIds[0] || null);
-                  if (triageUnreadIds[0]) {
-                    setExpandedAlertId(triageUnreadIds[0]);
-                  }
-                } else {
-                  setTriageCursorId(null);
-                }
-              }}
-              className={`text-xs px-2 py-1 rounded border transition ${
-                quickTriageMode
-                  ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
-                  : "border-white/15 text-gray-300 hover:bg-white/5"
-              }`}
-            >
-              {quickTriageMode ? "Triage rapide: ON" : "Triage rapide: OFF"}
-            </button>
           </div>
-          {quickTriageMode && (
-            <div className="mb-4 rounded-lg border border-indigo-300/25 bg-indigo-500/10 p-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-indigo-100">
-                  {triageUnreadIds.length} non lue(s) a traiter
-                </span>
-                <button
-                  onClick={moveToNextUnread}
-                  className="text-xs px-2 py-1 rounded border border-white/20 text-gray-100 hover:bg-white/5 transition"
-                >
-                  Suivante non lue
-                </button>
-                <button
-                  onClick={markCurrentAndGoNext}
-                  className="text-xs px-2 py-1 rounded border border-emerald-300/30 text-emerald-200 hover:bg-emerald-500/10 transition"
-                  disabled={!currentTriageId}
-                >
-                  Marquer courante + suivante
-                </button>
-              </div>
-            </div>
-          )}
           {alertBulkMessage && (
             <p className="text-[11px] text-indigo-200 mb-4">{alertBulkMessage}</p>
           )}
-          <p className="text-[11px] text-indigo-100/90 mb-2">
-            Mode express: filtre URL, traite les non lues, puis marque les groupes en lot.
-          </p>
           <p className="text-[11px] text-gray-400 mb-4">
             Priorité: Haute = action rapide, Moyenne = à planifier, Basse = information.
           </p>
@@ -1465,155 +1093,8 @@ export default function DashboardPage() {
                 </p>
               </div>
             )}
-            {groupAlertsByRun
-              ? groupedAlertRuns.map((group) => {
-                  const groupExpanded = expandedGroupId === group.id;
-                  const groupClass =
-                    group.maxSeverity === "high"
-                      ? "bg-red-500/15 text-red-200"
-                      : group.maxSeverity === "medium"
-                        ? "bg-amber-500/15 text-amber-200"
-                        : "bg-emerald-500/15 text-emerald-200";
-                  return (
-                    <div key={group.id} className="rounded-lg border border-white/10 p-4">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className={`text-[10px] uppercase px-2 py-1 rounded-full ${groupClass}`}>
-                          run {group.maxSeverity}
-                        </span>
-                        <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
-                          {group.count} alerte(s)
-                        </span>
-                        <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
-                          {group.unreadCount} non lue(s)
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-200 break-all">{group.url}</p>
-                      <div className="mt-2 flex items-center justify-between gap-3">
-                        <p className="text-xs text-gray-500">{group.detectedAt || "—"}</p>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => markGroupAlertsAsRead(group.id, true)}
-                            className="text-xs px-2 py-1 rounded border border-emerald-300/30 text-emerald-200 hover:bg-emerald-500/10 transition"
-                          >
-                            Groupe lu
-                          </button>
-                          <button
-                            onClick={() => markGroupAlertsAsRead(group.id, false)}
-                            className="text-xs px-2 py-1 rounded border border-amber-300/30 text-amber-200 hover:bg-amber-500/10 transition"
-                          >
-                            Groupe non lu
-                          </button>
-                          <button
-                            onClick={() =>
-                              setExpandedGroupId(groupExpanded ? null : group.id)
-                            }
-                            className="text-xs text-gray-300 hover:text-white"
-                          >
-                            {groupExpanded ? "Masquer run" : "Voir run"}
-                          </button>
-                        </div>
-                      </div>
-                      {groupExpanded && (
-                        <div className="mt-3 space-y-3">
-                          {group.items.map((item) => (
-                            <div
-                              key={item.id}
-                              className={`rounded-md border p-3 bg-black/20 ${
-                                quickTriageMode && currentTriageId === item.id
-                                  ? "border-indigo-300/50"
-                                  : "border-white/10"
-                              }`}
-                            >
-                              {(() => {
-                                const priorityScore = getPriorityScore(item);
-                                const priorityLabel = getPriorityLabel(priorityScore);
-                                const priorityClass = getPriorityClass(priorityScore);
-                                const isExpanded = expandedAlertId === item.id;
-                                return (
-                                  <>
-                                    <div className="flex flex-wrap items-center gap-2 mb-2">
-                                      <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
-                                        {item.domain}
-                                      </span>
-                                      <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
-                                        {item.severity}
-                                      </span>
-                                      <span
-                                        className={`text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
-                                      >
-                                        Impact {priorityScore} - {priorityLabel}
-                                      </span>
-                                    </div>
-                                    <p className="text-sm text-gray-200">
-                                      {item.metadata?.summary || item.field_key}
-                                    </p>
-                                    <div className="mt-2 flex items-center justify-between gap-3">
-                                      <p className="text-xs text-gray-500">{item.detected_at || "—"}</p>
-                                      <div className="flex items-center gap-3">
-                                        <button
-                                          onClick={() =>
-                                            setExpandedAlertId(isExpanded ? null : item.id)
-                                          }
-                                          className="text-xs text-gray-300 hover:text-white"
-                                        >
-                                          {isExpanded ? "Masquer preuve" : "Voir la preuve"}
-                                        </button>
-                                        <button
-                                          onClick={() => markAlertAsRead(item.id, !item.is_read)}
-                                          className="text-xs text-indigo-200 hover:text-indigo-100"
-                                        >
-                                          {item.is_read ? "Marquer non lu" : "Marquer lu"}
-                                        </button>
-                                        {quickTriageMode && currentTriageId === item.id && (
-                                          <button
-                                            onClick={markCurrentAndGoNext}
-                                            className="text-xs text-emerald-200 hover:text-emerald-100"
-                                          >
-                                            Lu + suivante
-                                          </button>
-                                        )}
-                                      </div>
-                                    </div>
-                                    {isExpanded && (
-                                      <div className="mt-3 rounded-md border border-white/10 bg-black/20 p-3">
-                                        <p className="text-[11px] text-gray-400">
-                                          {item.metadata?.priority_reason || "Priorité calculée automatiquement."}
-                                        </p>
-                                        <div className="mt-2 grid grid-cols-1 gap-2 text-xs">
-                                          <div>
-                                            <p className="text-gray-400 mb-1">Avant</p>
-                                            <p className="text-gray-200">
-                                              {item.metadata?.before_short || "non disponible"}
-                                            </p>
-                                          </div>
-                                          <div>
-                                            <p className="text-gray-400 mb-1">Après</p>
-                                            <p className="text-gray-200">
-                                              {item.metadata?.after_short || "non disponible"}
-                                            </p>
-                                          </div>
-                                        </div>
-                                      </div>
-                                    )}
-                                  </>
-                                );
-                              })()}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              : filteredEvents.map((item) => (
-              <div
-                key={item.id}
-                className={`rounded-lg border p-4 ${
-                  quickTriageMode && currentTriageId === item.id
-                    ? "border-indigo-300/50"
-                    : "border-white/10"
-                }`}
-              >
+            {filteredEvents.map((item) => (
+              <div key={item.id} className="rounded-lg border border-white/10 p-4">
                 {(() => {
                   const priorityScore = getPriorityScore(item);
                   const priorityLabel = getPriorityLabel(priorityScore);
@@ -1666,14 +1147,6 @@ export default function DashboardPage() {
                     >
                       {item.is_read ? "Marquer non lu" : "Marquer lu"}
                     </button>
-                    {quickTriageMode && currentTriageId === item.id && (
-                      <button
-                        onClick={markCurrentAndGoNext}
-                        className="text-xs text-emerald-200 hover:text-emerald-100"
-                      >
-                        Lu + suivante
-                      </button>
-                    )}
                   </div>
                 </div>
                 {isExpanded && (
@@ -1774,7 +1247,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        <div id="add-url-section" className="rounded-xl bg-white/5 border border-white/10 p-6">
+        <div className="rounded-xl bg-white/5 border border-white/10 p-6">
           <h2 className="text-xl font-semibold mb-4">Ajouter une URL</h2>
           <p className="text-gray-300 text-sm mb-4">
             Ajoute une page concurrente à surveiller. La détection des
@@ -1794,7 +1267,6 @@ export default function DashboardPage() {
           </div>
           <div className="flex flex-col md:flex-row gap-3">
             <input
-              id="dashboard-new-url-input"
               type="url"
               placeholder="https://site-concurrent.com/pricing"
               className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
