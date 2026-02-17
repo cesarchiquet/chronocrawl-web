@@ -16,11 +16,39 @@ const fadeUp: Variants = {
   },
 };
 
+const proofSlides = [
+  {
+    badge: "Avant",
+    title: "Page pricing concurrente stable",
+    detail: "Aucun changement depuis 12 jours.",
+    footer: "Risque faible",
+  },
+  {
+    badge: "Apres",
+    title: "Nouveau plan + CTA modifie",
+    detail: "Variation detectee sur prix, bloc offre et bouton principal.",
+    footer: "Alerte priorite haute",
+  },
+  {
+    badge: "Decision",
+    title: "Action recommandee",
+    detail: "Comparer les offres, ajuster la page cible, notifier l'equipe sales.",
+    footer: "Temps de reaction: < 1h",
+  },
+];
+
+const impactMetrics = [
+  { label: "Temps economise / semaine", value: "6h" },
+  { label: "Chang. critiques detectes", value: "94%" },
+  { label: "Delai moyen de reaction", value: "< 60 min" },
+];
+
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [checkoutError, setCheckoutError] = useState("");
   const [billingError, setBillingError] = useState("");
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [subscriptionState, setSubscriptionState] = useState<{
     plan: "starter" | "pro" | "agency";
     status: string;
@@ -163,6 +191,13 @@ export default function Home() {
       : subscriptionStatus;
   const tourHref = session?.user ? "/dashboard" : "/signup";
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHeroSlideIndex((value) => (value + 1) % proofSlides.length);
+    }, 4200);
+    return () => clearInterval(interval);
+  }, []);
+
   if (authLoading) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
@@ -210,76 +245,130 @@ export default function Home() {
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="max-w-5xl mx-auto px-6 pt-28 pb-24 text-center"
+        className="max-w-6xl mx-auto px-6 pt-28 pb-24"
       >
-        {session?.user && (
-          <div className="mb-10 inline-flex items-center rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
-            Connecte : {session.user.email}
+        <div className="grid gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+          <div className="text-center lg:text-left">
+            {session?.user && (
+              <div className="mb-10 inline-flex items-center rounded-lg border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
+                Connecte : {session.user.email}
+              </div>
+            )}
+            <h1 className="text-4xl md:text-6xl font-bold leading-tight">
+              Surveiller un site concurrent{" "}
+              <span className="text-indigo-400">automatiquement</span>
+            </h1>
+
+            <p className="mt-6 text-lg text-gray-300 max-w-2xl lg:mx-0 mx-auto">
+              Veille concurrentielle automatisée : ChronoCrawl surveille les sites
+              concurrents et t’envoie une alerte changement site web dès qu’une
+              page évolue.
+            </p>
+
+            <div className="mt-8 mx-auto lg:mx-0 w-fit rounded-full border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
+              Starter gratuit 7 jours
+              {session?.user ? (
+                <button
+                  onClick={() => startCheckout("starter")}
+                  className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
+                >
+                  Demarrer l&apos;essai
+                </button>
+              ) : (
+                <a
+                  href="#tarifs"
+                  className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
+                >
+                  Demarrer l&apos;essai
+                </a>
+              )}
+            </div>
+            {checkoutError && (
+              <p className="mt-3 text-xs text-red-300">{checkoutError}</p>
+            )}
+            {billingError && (
+              <p className="mt-2 text-xs text-red-300">{billingError}</p>
+            )}
+            {session?.user && (
+              <p className="mt-2 text-xs text-indigo-200">
+                Plan actif: {String(plan).toUpperCase()} | Statut:{" "}
+                {String(effectiveSubscriptionStatus).toUpperCase()}
+              </p>
+            )}
+
+            <div className="mt-10 flex flex-wrap justify-center lg:justify-start items-start gap-2">
+              <a
+                href="/blog"
+                className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+              >
+                Voir le guide
+              </a>
+              <a
+                href="#contact"
+                className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
+              >
+                Nous contacter
+              </a>
+              <a
+                href={session?.user ? "/dashboard" : "/login"}
+                className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+              >
+                Ouvrir le dashboard
+              </a>
+            </div>
           </div>
-        )}
-        <h1 className="text-4xl md:text-6xl font-bold leading-tight">
-          Surveiller un site concurrent{" "}
-          <span className="text-indigo-400">automatiquement</span>
-        </h1>
 
-        <p className="mt-6 text-lg text-gray-300 max-w-2xl mx-auto">
-          Veille concurrentielle automatisée : ChronoCrawl surveille les sites
-          concurrents et t’envoie une alerte changement site web dès qu’une
-          page évolue.
-        </p>
-
-        <div className="mt-8 mx-auto w-fit rounded-full border border-indigo-400/30 bg-indigo-500/10 px-4 py-2 text-sm text-indigo-200">
-          Starter gratuit 7 jours
-          {session?.user ? (
-            <button
-              onClick={() => startCheckout("starter")}
-              className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
-            >
-              Démarrer l’essai
-            </button>
-          ) : (
-            <a
-              href="#tarifs"
-              className="ml-3 inline-flex items-center rounded-full bg-indigo-500 px-3 py-1 text-xs font-medium text-white hover:bg-indigo-400 transition"
-            >
-              Démarrer l’essai
-            </a>
-          )}
-        </div>
-        {checkoutError && (
-          <p className="mt-3 text-xs text-red-300">{checkoutError}</p>
-        )}
-        {billingError && (
-          <p className="mt-2 text-xs text-red-300">{billingError}</p>
-        )}
-        {session?.user && (
-          <p className="mt-2 text-xs text-indigo-200">
-            Plan actif: {String(plan).toUpperCase()} | Statut:{" "}
-            {String(effectiveSubscriptionStatus).toUpperCase()}
-          </p>
-        )}
-
-        <div className="mt-10 flex justify-center items-start gap-2">
-          <a
-            href="/blog"
-            className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
-          >
-            Voir le guide
-          </a>
-          <div className="flex flex-col items-center gap-3">
-            <a
-              href="#contact"
-              className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
-            >
-              Nous contacter
-            </a>
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+            <p className="text-xs uppercase tracking-wide text-indigo-200">
+              Apercu dashboard
+            </p>
+            <div className="mt-4 rounded-xl border border-white/10 bg-[#0a1024] p-5 min-h-[300px] flex flex-col">
+              <div className="inline-flex rounded-full border border-indigo-300/30 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-200">
+                {proofSlides[heroSlideIndex]?.badge}
+              </div>
+              <h3 className="mt-3 text-base font-semibold">
+                {proofSlides[heroSlideIndex]?.title}
+              </h3>
+              <p className="mt-2 text-sm text-gray-300">
+                {proofSlides[heroSlideIndex]?.detail}
+              </p>
+              <div className="mt-auto rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-gray-300">
+                {proofSlides[heroSlideIndex]?.footer}
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-between">
+              <button
+                onClick={() =>
+                  setHeroSlideIndex((value) =>
+                    value === 0 ? proofSlides.length - 1 : value - 1
+                  )
+                }
+                className="rounded-full border border-white/15 px-3 py-1 text-sm text-gray-300 hover:bg-white/5"
+              >
+                ←
+              </button>
+              <div className="flex items-center gap-2">
+                {proofSlides.map((slide, index) => (
+                  <button
+                    key={slide.title}
+                    onClick={() => setHeroSlideIndex(index)}
+                    className={`h-2.5 w-2.5 rounded-full transition ${
+                      heroSlideIndex === index ? "bg-indigo-300" : "bg-white/30"
+                    }`}
+                    aria-label={`Slide ${index + 1}`}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={() =>
+                  setHeroSlideIndex((value) => (value + 1) % proofSlides.length)
+                }
+                className="rounded-full border border-white/15 px-3 py-1 text-sm text-gray-300 hover:bg-white/5"
+              >
+                →
+              </button>
+            </div>
           </div>
-          <a
-            href={session?.user ? "/dashboard" : "/login"}
-            className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
-          >
-            Ouvrir le dashboard
-          </a>
         </div>
       </motion.section>
 
@@ -334,16 +423,16 @@ export default function Home() {
       <section className="max-w-6xl mx-auto px-6 pb-24 grid md:grid-cols-3 gap-6">
         {[
           {
-            title: "Détection intelligente",
-            text: "Détecte les changements importants sur les sites concurrents et réduit les faux positifs.",
+            title: "Probleme: trop de bruit",
+            text: "Action: filtrage des changements utiles. Resultat: moins de faux positifs, plus de signaux exploitables.",
           },
           {
-            title: "Alertes instantanées",
-            text: "Alerte changement site web envoyée dès qu’une page concurrente évolue.",
+            title: "Probleme: reaction tardive",
+            text: "Action: alertes immediates avec preuve. Resultat: decisions prises avant que le marche bouge.",
           },
           {
-            title: "Pensé pour la veille pro",
-            text: "Veille concurrentielle pour SaaS, e‑commerce, SEO, pricing et pages clés.",
+            title: "Probleme: pas de priorites claires",
+            text: "Action: priorite haute / moyenne / basse. Resultat: l'equipe sait quoi traiter en premier.",
           },
         ].map((item, i) => (
           <motion.div
@@ -359,6 +448,36 @@ export default function Home() {
             <p className="text-gray-300 text-sm">{item.text}</p>
           </motion.div>
         ))}
+      </section>
+
+      <section className="max-w-6xl mx-auto px-6 pb-24">
+        <div className="rounded-2xl border border-indigo-300/30 bg-indigo-500/10 p-6">
+          <p className="text-xs uppercase tracking-wide text-indigo-200">
+            Impact business
+          </p>
+          <h2 className="mt-1 text-2xl font-semibold">
+            Ce que l&apos;equipe gagne concretement
+          </h2>
+          <div className="mt-5 grid gap-4 md:grid-cols-3">
+            {impactMetrics.map((item) => (
+              <div
+                key={item.label}
+                className="rounded-xl border border-white/10 bg-white/5 p-5"
+              >
+                <p className="text-3xl font-semibold text-indigo-100">{item.value}</p>
+                <p className="mt-2 text-sm text-gray-300">{item.label}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-6">
+            <a
+              href={session?.user ? "/dashboard" : "/signup"}
+              className="inline-flex rounded-lg bg-indigo-500 px-5 py-3 text-sm font-medium text-white hover:bg-indigo-400 transition"
+            >
+              Tester sur 1 URL en 60s
+            </a>
+          </div>
+        </div>
       </section>
 
       {/* HOW IT WORKS */}
@@ -627,6 +746,14 @@ export default function Home() {
         >
           hello@chronocrawl.com
         </a>
+        <div className="mt-5">
+          <a
+            href={session?.user ? "/dashboard" : "/signup"}
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition font-medium"
+          >
+            Tester sur 1 URL en 60s
+          </a>
+        </div>
       </section>
       <PublicFooter />
     </main>
