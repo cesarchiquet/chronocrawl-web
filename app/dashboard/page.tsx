@@ -848,7 +848,44 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white" />
+      <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+        <section className="max-w-6xl mx-auto px-6 pt-20 pb-10">
+          <div className="h-6 w-32 rounded bg-white/10 animate-pulse" />
+          <div className="mt-4 h-12 w-3/4 rounded bg-white/10 animate-pulse" />
+          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="h-14 rounded-lg border border-white/10 bg-white/5 animate-pulse"
+              />
+            ))}
+          </div>
+        </section>
+        <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 rounded-xl border border-white/10 bg-white/5 p-6">
+            <div className="h-6 w-40 rounded bg-white/10 animate-pulse" />
+            <div className="mt-4 space-y-3">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-20 rounded-lg border border-white/10 bg-black/20 animate-pulse"
+                />
+              ))}
+            </div>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+            <div className="h-6 w-36 rounded bg-white/10 animate-pulse" />
+            <div className="mt-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-14 rounded-lg border border-white/10 bg-black/20 animate-pulse"
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      </main>
     );
   }
 

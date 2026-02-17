@@ -18,6 +18,7 @@ const fadeUp: Variants = {
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [checkoutError, setCheckoutError] = useState("");
   const [billingError, setBillingError] = useState("");
   const [subscriptionState, setSubscriptionState] = useState<{
@@ -30,17 +31,20 @@ export default function Home() {
       const { data: refreshed } = await supabase.auth.refreshSession();
       if (refreshed.session) {
         setSession(refreshed.session);
+        setAuthLoading(false);
         return;
       }
 
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
+      setAuthLoading(false);
     };
     hydrateSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, currentSession) => {
         setSession(currentSession);
+        setAuthLoading(false);
       }
     );
 
@@ -158,6 +162,38 @@ export default function Home() {
       ? session?.user?.user_metadata?.subscription_status || "inactive"
       : subscriptionStatus;
   const tourHref = session?.user ? "/dashboard" : "/signup";
+
+  if (authLoading) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+        <PublicNavigation />
+        <section className="max-w-5xl mx-auto px-6 pt-28 pb-24">
+          <div className="h-6 w-40 rounded bg-white/10 animate-pulse" />
+          <div className="mt-5 h-12 w-full rounded bg-white/10 animate-pulse" />
+          <div className="mt-3 h-12 w-4/5 rounded bg-white/10 animate-pulse" />
+          <div className="mt-8 h-10 w-64 rounded bg-white/10 animate-pulse" />
+          <div className="mt-10 flex flex-wrap gap-3">
+            <div className="h-11 w-40 rounded bg-white/10 animate-pulse" />
+            <div className="h-11 w-40 rounded bg-white/10 animate-pulse" />
+            <div className="h-11 w-40 rounded bg-white/10 animate-pulse" />
+          </div>
+        </section>
+        <section className="max-w-6xl mx-auto px-6 pb-24 grid md:grid-cols-3 gap-6">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={index}
+              className="rounded-xl border border-white/10 bg-white/5 p-6"
+            >
+              <div className="h-5 w-36 rounded bg-white/10 animate-pulse" />
+              <div className="mt-3 h-3 w-full rounded bg-white/10 animate-pulse" />
+              <div className="mt-2 h-3 w-5/6 rounded bg-white/10 animate-pulse" />
+            </div>
+          ))}
+        </section>
+        <PublicFooter />
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
