@@ -42,6 +42,7 @@ type KeywordBaseline = {
   keyword: string;
   target_position: number | null;
   target_detected: boolean;
+  target_match_source: "name" | "source_url" | "business_url" | null;
   competitor_best_position: number | null;
   competitors_detected: number;
   top_position: number | null;
@@ -222,7 +223,7 @@ export default function SeoLocalReportPage() {
     const { data: baselineRows } = await supabase
       .from("seo_local_keyword_baselines")
       .select(
-        "id,run_id,keyword,target_position,target_detected,competitor_best_position,competitors_detected,top_position,top_place_name"
+        "id,run_id,keyword,target_position,target_detected,target_match_source,competitor_best_position,competitors_detected,top_position,top_place_name"
       )
       .eq("run_id", latest.id)
       .order("keyword", { ascending: true })
@@ -557,6 +558,7 @@ export default function SeoLocalReportPage() {
                       <p>
                         <span className="text-indigo-200 font-medium">{row.keyword}</span>
                         {" "}- cible {row.target_position ? `#${row.target_position}` : "non detectee"}
+                        {row.target_match_source ? ` (via ${row.target_match_source})` : ""}
                       </p>
                       <p className="text-gray-300">
                         concurrent best {row.competitor_best_position ? `#${row.competitor_best_position}` : "n/a"}

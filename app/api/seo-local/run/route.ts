@@ -107,18 +107,49 @@ function isLikelyMatch(placeName: string, labels: string[]) {
   return labels.some((label) => normalizedPlace.includes(label));
 }
 
-function deriveTargetLabels(priorityPages: string[]) {
-  const domains = priorityPages
+type MatchConfig = {
+  domains: string[];
+  labels: string[];
+};
+
+function deriveMatchConfig(urls: string[]): MatchConfig {
+  const domains = urls
     .map((url) => normalizeDomain(url))
     .filter((value): value is string => Boolean(value));
-  return Array.from(new Set(domains.map((domain) => labelFromDomain(domain))));
+  const uniqueDomains = Array.from(new Set(domains));
+  const labels = Array.from(
+    new Set(uniqueDomains.map((domain) => normalizeLabel(labelFromDomain(domain))))
+  ).filter(Boolean);
+  return { domains: uniqueDomains, labels };
 }
 
-function deriveCompetitorLabels(competitorUrls: string[]) {
-  const domains = competitorUrls
-    .map((url) => normalizeDomain(url))
-    .filter((value): value is string => Boolean(value));
-  return Array.from(new Set(domains.map((domain) => labelFromDomain(domain))));
+function domainMatches(candidateDomain: string, configuredDomains: string[]) {
+  const normalizedCandidate = candidateDomain.replace(/^www\./i, "").toLowerCase();
+  return configuredDomains.some((domain) => {
+    const normalizedDomain = domain.replace(/^www\./i, "").toLowerCase();
+    return (
+      normalizedCandidate === normalizedDomain ||
+      normalizedCandidate.endsWith(`.${normalizedDomain}`)
+    );
+  });
+}
+
+function detectMatchSource(result: LocalSearchResult, config: MatchConfig) {
+  if (config.labels.length > 0 && isLikelyMatch(result.place_name, config.labels)) {
+    return "name";
+  }
+
+  const sourceDomain = normalizeDomain(result.source_url);
+  if (sourceDomain && domainMatches(sourceDomain, config.domains)) {
+    return "source_url";
+  }
+
+  const businessDomain = normalizeDomain(result.business_url);
+  if (businessDomain && domainMatches(businessDomain, config.domains)) {
+    return "business_url";
+  }
+
+  return null;
 }
 
 async function fetchNominatimResults(
@@ -410,6 +441,7 @@ export async function POST(request: Request) {
       keyword: string;
       target_position: number | null;
       target_detected: boolean;
+      target_match_source: "name" | "source_url" | "business_url" | null;
       competitor_best_position: number | null;
       competitors_detected: number;
       top_position: number | null;
@@ -428,8 +460,8 @@ export async function POST(request: Request) {
     }> = [];
 
     const currentTopByKeyword = new Map<string, KeywordTop>();
-    const targetLabels = deriveTargetLabels(priorityPages);
-    const competitorLabels = deriveCompetitorLabels(competitors);
+    const targetMatchConfig = deriveMatchConfig(priorityPages);
+    const competitorMatchConfig = deriveMatchConfig(competitors);
 
     const capturedAt = new Date().toISOString();
     let runProvider: "google_places" | "nominatim" = "nominatim";
@@ -456,6 +488,7 @@ export async function POST(request: Request) {
           keyword,
           target_position: null,
           target_detected: false,
+          target_match_source: null,
           competitor_best_position: null,
           competitors_detected: 0,
           top_position: null,
@@ -465,6 +498,7 @@ export async function POST(request: Request) {
       }
 
       let targetPosition: number | null = null;
+      let targetMatchSource: "name" | "source_url" | "business_url" | null = null;
       let competitorBestPosition: number | null = null;
       let competitorsDetected = 0;
 
@@ -503,18 +537,13 @@ export async function POST(request: Request) {
           });
         }
 
-        if (
-          targetPosition === null &&
-          targetLabels.length > 0 &&
-          isLikelyMatch(result.place_name, targetLabels)
-        ) {
+        const targetMatch = detectMatchSource(result, targetMatchConfig);
+        if (targetPosition === null && targetMatch) {
           targetPosition = position;
+          targetMatchSource = targetMatch;
         }
 
-        if (
-          competitorLabels.length > 0 &&
-          isLikelyMatch(result.place_name, competitorLabels)
-        ) {
+        if (detectMatchSource(result, competitorMatchConfig)) {
           competitorsDetected += 1;
           if (competitorBestPosition === null || position < competitorBestPosition) {
             competitorBestPosition = position;
@@ -528,6 +557,7 @@ export async function POST(request: Request) {
         keyword,
         target_position: targetPosition,
         target_detected: targetPosition !== null,
+        target_match_source: targetMatchSource,
         competitor_best_position: competitorBestPosition,
         competitors_detected: competitorsDetected,
         top_position: 1,
