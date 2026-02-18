@@ -10,6 +10,7 @@ const plans = [
     name: "Starter",
     price: "12 EUR/mois",
     desc: "7 jours d'essai gratuit, ideal pour demarrer.",
+    fit: "Pour freelance ou petite equipe",
     details: [
       "10 URLs surveillees",
       "Frequence toutes les 6h",
@@ -21,6 +22,7 @@ const plans = [
     name: "Pro",
     price: "29 EUR/mois",
     desc: "Le meilleur equilibre.",
+    fit: "Pour SaaS et e-commerce en croissance",
     details: [
       "50 URLs surveillees",
       "Frequence toutes les 60 min",
@@ -33,6 +35,7 @@ const plans = [
     name: "Agency",
     price: "79 EUR/mois",
     desc: "Pour les equipes.",
+    fit: "Pour agences multi-clients",
     details: [
       "200 URLs surveillees",
       "Frequence toutes les 15 min",
@@ -40,6 +43,13 @@ const plans = [
       "Historique 90 jours",
     ],
   },
+];
+
+const comparisonRows = [
+  { label: "URLs surveillees", starter: "10", pro: "50", agency: "200" },
+  { label: "Frequence max", starter: "Toutes les 6h", pro: "Toutes les 60 min", agency: "Toutes les 15 min" },
+  { label: "Canaux d'alerte", starter: "Email", pro: "Email + Slack", agency: "Email + Slack + Webhook" },
+  { label: "Historique", starter: "7 jours", pro: "30 jours", agency: "90 jours" },
 ];
 
 export default function TarifsPage() {
@@ -112,6 +122,7 @@ export default function TarifsPage() {
               <h2 className="text-xl font-semibold">{plan.name}</h2>
               <p className="mt-2 text-3xl font-bold">{plan.price}</p>
               <p className="mt-2 text-sm text-gray-300">{plan.desc}</p>
+              <p className="mt-2 text-xs text-indigo-200">{plan.fit}</p>
               <ul className="mt-4 space-y-2 text-sm text-gray-300">
                 {plan.details.map((detail) => (
                   <li key={detail}>• {detail}</li>
@@ -160,6 +171,32 @@ export default function TarifsPage() {
           ))}
         </div>
 
+        <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4 overflow-x-auto">
+          <p className="text-sm font-medium text-gray-100 mb-3">
+            Comparatif rapide des plans
+          </p>
+          <table className="w-full min-w-[620px] text-sm">
+            <thead>
+              <tr className="text-left text-gray-300 border-b border-white/10">
+                <th className="py-2 pr-4">Critere</th>
+                <th className="py-2 pr-4">Starter</th>
+                <th className="py-2 pr-4">Pro</th>
+                <th className="py-2">Agency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {comparisonRows.map((row) => (
+                <tr key={row.label} className="border-b border-white/5 text-gray-200">
+                  <td className="py-2 pr-4">{row.label}</td>
+                  <td className="py-2 pr-4">{row.starter}</td>
+                  <td className="py-2 pr-4">{row.pro}</td>
+                  <td className="py-2">{row.agency}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         {session ? (
           <p className="mt-8 text-center text-xs text-gray-400">
             Tu es connecte. Tu peux souscrire directement depuis cette page.
@@ -187,6 +224,23 @@ export default function TarifsPage() {
             >
               Lire la FAQ
             </a>
+          </div>
+        </div>
+        <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
+          <p className="text-sm font-medium text-gray-100">Questions frequentes avant abonnement</p>
+          <div className="mt-3 grid gap-3 md:grid-cols-3 text-xs text-gray-300">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <p className="text-indigo-200 font-medium">Paiement</p>
+              <p className="mt-1">Paiement securise via Stripe. Facture disponible depuis le portail abonnement.</p>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <p className="text-indigo-200 font-medium">Resiliation</p>
+              <p className="mt-1">Tu peux annuler a tout moment. Aucun engagement longue duree impose.</p>
+            </div>
+            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <p className="text-indigo-200 font-medium">Support</p>
+              <p className="mt-1">Besoin d&apos;aide pour choisir ? Contact direct depuis la page contact.</p>
+            </div>
           </div>
         </div>
         {checkoutError && (

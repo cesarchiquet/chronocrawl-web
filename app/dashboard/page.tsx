@@ -1097,6 +1097,7 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+
       </motion.section>
 
       <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6 items-start">
@@ -1352,6 +1353,7 @@ export default function DashboardPage() {
           </div>
         </div>
       </section>
+
       {expandedAlert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <button
