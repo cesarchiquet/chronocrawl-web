@@ -62,6 +62,19 @@ type MonitorRunLog = {
   started_at: string;
 };
 
+type UrlMeta = {
+  favorite?: boolean;
+  tag?: string;
+};
+
+type AlertFilterPreset = {
+  alertFilter: "all" | "unread" | "read";
+  alertUrlFilter: string;
+  alertSeverityFilter: "all" | "low" | "medium" | "high";
+  alertDateFilter: "all" | "24h" | "7d" | "30d";
+  alertSearchQuery: string;
+};
+
 const EVENTS_PAGE_SIZE = 1000;
 const ANALYSIS_SEVERITY_LEVELS: Array<ChangeEvent["severity"]> = [
   "low",
@@ -273,6 +286,12 @@ export default function DashboardPage() {
   const [latestRunLog, setLatestRunLog] = useState<MonitorRunLog | null>(null);
   const [recentRunFailureRate, setRecentRunFailureRate] = useState(0);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
+  const [urlMeta, setUrlMeta] = useState<Record<string, UrlMeta>>({});
+  const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
+  const [urlTagFilter, setUrlTagFilter] = useState("all");
+  const [savedAlertPreset, setSavedAlertPreset] = useState<AlertFilterPreset | null>(
+    null
+  );
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -319,6 +338,42 @@ export default function DashboardPage() {
 
     return () => clearInterval(interval);
   }, [session?.user, session?.user?.id, session?.user?.user_metadata?.subscription_status]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const rawMeta = window.localStorage.getItem(
+      `chronocrawl:url-meta:${session.user.id}`
+    );
+    const rawPreset = window.localStorage.getItem(
+      `chronocrawl:alert-preset:${session.user.id}`
+    );
+    if (rawMeta) {
+      try {
+        setUrlMeta(JSON.parse(rawMeta) as Record<string, UrlMeta>);
+      } catch {
+        setUrlMeta({});
+      }
+    } else {
+      setUrlMeta({});
+    }
+    if (rawPreset) {
+      try {
+        setSavedAlertPreset(JSON.parse(rawPreset) as AlertFilterPreset);
+      } catch {
+        setSavedAlertPreset(null);
+      }
+    } else {
+      setSavedAlertPreset(null);
+    }
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    window.localStorage.setItem(
+      `chronocrawl:url-meta:${session.user.id}`,
+      JSON.stringify(urlMeta)
+    );
+  }, [session?.user?.id, urlMeta]);
 
   const loadAllEvents = useCallback(async (userId: string) => {
     const rows: ChangeEvent[] = [];
@@ -480,6 +535,96 @@ export default function DashboardPage() {
     if (!error) {
       setEvents((prev) => prev.map((item) => ({ ...item, is_read: true })));
     }
+  };
+
+  const setUrlFavorite = (urlId: string, favorite: boolean) => {
+    setUrlMeta((prev) => ({
+      ...prev,
+      [urlId]: {
+        ...(prev[urlId] || {}),
+        favorite,
+      },
+    }));
+  };
+
+  const setUrlTag = (urlId: string, tag: string) => {
+    setUrlMeta((prev) => ({
+      ...prev,
+      [urlId]: {
+        ...(prev[urlId] || {}),
+        tag,
+      },
+    }));
+  };
+
+  const exportAlertsCsv = () => {
+    const rows = filteredEvents.map((item) => {
+      const summary = (item.metadata?.summary || "").replaceAll('"', '""');
+      const url = (item.metadata?.url || "").replaceAll('"', '""');
+      const detectedAt = item.detected_at || "";
+      const line = [
+        detectedAt,
+        item.domain,
+        item.severity,
+        item.is_read ? "read" : "unread",
+        url,
+        summary,
+      ]
+        .map((entry) => `"${entry}"`)
+        .join(",");
+      return line;
+    });
+    const csv = [
+      '"detected_at","domain","severity","read_state","url","summary"',
+      ...rows,
+    ].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const objectUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = "chronocrawl-alerts-dashboard.csv";
+    link.click();
+    URL.revokeObjectURL(objectUrl);
+  };
+
+  const exportAlertsPdf = () => {
+    const htmlRows = filteredEvents
+      .slice(0, 120)
+      .map((item) => {
+        const summary = getAlertChangeSummary(item);
+        const url = item.metadata?.url || "URL inconnue";
+        const date = formatAlertDateShort(item.detected_at);
+        return `<tr><td>${date}</td><td>${item.domain.toUpperCase()}</td><td>${item.severity.toUpperCase()}</td><td>${url}</td><td>${summary}</td></tr>`;
+      })
+      .join("");
+    const win = window.open("", "_blank", "width=1024,height=768");
+    if (!win) return;
+    win.document.write(`
+      <html>
+        <head>
+          <title>ChronoCrawl - Export alertes</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
+            h1 { margin: 0 0 8px 0; font-size: 20px; }
+            p { margin: 0 0 16px 0; font-size: 12px; color: #475569; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            th, td { border: 1px solid #d1d5db; padding: 8px; vertical-align: top; text-align: left; }
+            th { background: #f3f4f6; }
+          </style>
+        </head>
+        <body>
+          <h1>ChronoCrawl - Export alertes</h1>
+          <p>Genere le ${new Date().toLocaleString("fr-FR")} | ${filteredEvents.length} alerte(s)</p>
+          <table>
+            <thead><tr><th>Date</th><th>Domaine</th><th>Seuil</th><th>URL</th><th>Resume</th></tr></thead>
+            <tbody>${htmlRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
   };
 
   useEffect(() => {
@@ -697,18 +842,6 @@ export default function DashboardPage() {
     }
   };
 
-  const jumpToAddUrl = () => {
-    const target = document.getElementById("add-url-panel");
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const quickStartAddSample = () => {
-    if (!newUrl.trim()) {
-      setNewUrl("https://site-concurrent.com/pricing");
-    }
-    jumpToAddUrl();
-  };
-
   const plan =
     (subscriptionState?.plan as
       | "starter"
@@ -778,6 +911,32 @@ export default function DashboardPage() {
     return Array.from(values).sort((a, b) => a.localeCompare(b));
   }, [urls, events]);
 
+  const availableUrlTags = useMemo(() => {
+    const values = new Set<string>();
+    for (const item of urls) {
+      const tag = urlMeta[item.id]?.tag;
+      if (tag) values.add(tag);
+    }
+    return Array.from(values).sort((a, b) => a.localeCompare(b));
+  }, [urls, urlMeta]);
+
+  const displayedUrls = useMemo(() => {
+    const list = urls.filter((item) => {
+      const meta = urlMeta[item.id] || {};
+      if (showOnlyFavorites && !meta.favorite) return false;
+      if (urlTagFilter !== "all" && (meta.tag || "") !== urlTagFilter) {
+        return false;
+      }
+      return true;
+    });
+    return list.sort((a, b) => {
+      const aFav = urlMeta[a.id]?.favorite ? 1 : 0;
+      const bFav = urlMeta[b.id]?.favorite ? 1 : 0;
+      if (aFav !== bFav) return bFav - aFav;
+      return (b.last_checked_at || "").localeCompare(a.last_checked_at || "");
+    });
+  }, [urls, showOnlyFavorites, urlTagFilter, urlMeta]);
+
   const filteredEvents = useMemo(() => {
     const fromMs =
       alertDateFilter === "24h"
@@ -824,6 +983,30 @@ export default function DashboardPage() {
     events,
     filterReferenceNow,
   ]);
+
+  const applyAlertPreset = (preset: AlertFilterPreset) => {
+    setAlertFilter(preset.alertFilter);
+    setAlertUrlFilter(preset.alertUrlFilter);
+    setAlertSeverityFilter(preset.alertSeverityFilter);
+    setAlertDateFilter(preset.alertDateFilter);
+    setAlertSearchQuery(preset.alertSearchQuery);
+  };
+
+  const saveCurrentAlertPreset = () => {
+    if (!session?.user?.id) return;
+    const preset: AlertFilterPreset = {
+      alertFilter,
+      alertUrlFilter,
+      alertSeverityFilter,
+      alertDateFilter,
+      alertSearchQuery,
+    };
+    setSavedAlertPreset(preset);
+    window.localStorage.setItem(
+      `chronocrawl:alert-preset:${session.user.id}`,
+      JSON.stringify(preset)
+    );
+  };
 
   const getPriorityScore = (item: ChangeEvent) => {
     const raw = item.metadata?.priority_score;
@@ -1022,6 +1205,44 @@ export default function DashboardPage() {
             </span>
           )}
         </div>
+        <div className="mt-3 rounded-lg border border-white/10 bg-white/5 p-3">
+          <div className="flex items-center justify-between text-xs text-gray-300">
+            <span>Capacite URLs du plan {plan.toUpperCase()}</span>
+            <span>
+              {currentCount}/{limit} ({Math.min(100, Math.round((currentCount / Math.max(1, limit)) * 100))}%)
+            </span>
+          </div>
+          <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className={`h-full ${
+                currentCount / Math.max(1, limit) >= 0.9
+                  ? "bg-red-400"
+                  : currentCount / Math.max(1, limit) >= 0.75
+                    ? "bg-amber-400"
+                    : "bg-emerald-400"
+              }`}
+              style={{
+                width: `${Math.min(
+                  100,
+                  Math.round((currentCount / Math.max(1, limit)) * 100)
+                )}%`,
+              }}
+            />
+          </div>
+          {currentCount / Math.max(1, limit) >= 0.8 && (
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-indigo-300/30 bg-indigo-500/10 px-3 py-2">
+              <p className="text-xs text-indigo-100">
+                Tu approches la limite de ton plan. Upgrade recommande pour eviter un blocage.
+              </p>
+              <button
+                onClick={openBillingPortal}
+                className="rounded border border-indigo-300/40 px-2 py-1 text-xs text-indigo-100 hover:bg-indigo-500/20"
+              >
+                Upgrade
+              </button>
+            </div>
+          )}
+        </div>
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
           <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
             Changements 24h: <span className="font-semibold">{changes24h}</span>
@@ -1066,62 +1287,87 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="mt-5 rounded-xl border border-indigo-300/30 bg-indigo-500/10 p-4">
-          <p className="text-xs uppercase tracking-wide text-indigo-200">
-            Demarrage rapide
-          </p>
-          <h2 className="mt-1 text-lg font-semibold">Lancer la veille en 2 etapes</h2>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            <button
-              onClick={quickStartAddSample}
-              className="rounded-lg border border-white/15 bg-white/5 p-3 text-left hover:bg-white/10 transition"
-            >
-              <p className="text-xs text-indigo-200">Etape 1</p>
-              <p className="mt-1 text-sm font-medium">Ajouter une URL concurrente</p>
-              <p className="mt-1 text-xs text-gray-300">
-                Prefill automatique d&apos;une URL exemple pour gagner du temps.
-              </p>
-            </button>
-            <button
-              onClick={() => {
-                jumpToAddUrl();
-                document.getElementById("analyze-now-btn")?.focus();
-              }}
-              className="rounded-lg border border-white/15 bg-white/5 p-3 text-left hover:bg-white/10 transition"
-            >
-              <p className="text-xs text-indigo-200">Etape 2</p>
-              <p className="mt-1 text-sm font-medium">Cliquer sur Analyser maintenant</p>
-              <p className="mt-1 text-xs text-gray-300">
-                Premiere analyse immediatement avec les seuils d&apos;alerte choisis.
-              </p>
-            </button>
-          </div>
-        </div>
-
       </motion.section>
 
       <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6 items-start">
         <div className="lg:col-span-2 rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto">
-          <h2 className="text-xl font-semibold mb-4">URLs surveillées</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <h2 className="text-xl font-semibold">URLs surveillées</h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowOnlyFavorites((value) => !value)}
+                className={`text-xs px-2 py-1 rounded border ${
+                  showOnlyFavorites
+                    ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
+                    : "border-white/15 text-gray-300 hover:bg-white/5"
+                }`}
+              >
+                Favoris
+              </button>
+              <select
+                value={urlTagFilter}
+                onChange={(event) => setUrlTagFilter(event.target.value)}
+                className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              >
+                <option value="all">Tous les tags</option>
+                {availableUrlTags.map((tag) => (
+                  <option key={tag} value={tag}>
+                    {tag}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
           <div className="space-y-4">
-            {urls.length === 0 && (
+            {displayedUrls.length === 0 && (
               <p className="text-gray-400 text-sm">
-                Aucune URL pour le moment.
+                Aucune URL pour ce filtre.
               </p>
             )}
-            {urls.map((item) => {
+            {displayedUrls.map((item) => {
               const statusInfo = getUrlStatusInfo(item.status);
+              const meta = urlMeta[item.id] || {};
               return (
               <div key={item.id} className="rounded-lg border border-white/10 p-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div>
-                  <p className="text-sm text-gray-300">{item.url}</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm text-gray-300">{item.url}</p>
+                    {meta.favorite && (
+                      <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] text-indigo-200">
+                        Favori
+                      </span>
+                    )}
+                    {meta.tag && (
+                      <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-gray-200">
+                        {meta.tag}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 mt-1">
                     Dernière vérification :
                     {" " + formatDateTimeFr(item.last_checked_at)}
                   </p>
                   </div>
                   <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setUrlFavorite(item.id, !meta.favorite)}
+                      className={`text-sm ${meta.favorite ? "text-indigo-200" : "text-gray-500"} hover:text-indigo-100`}
+                      aria-label="Basculer favori"
+                    >
+                      ★
+                    </button>
+                    <select
+                      value={meta.tag || ""}
+                      onChange={(event) => setUrlTag(item.id, event.target.value)}
+                      className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                    >
+                      <option value="">Sans tag</option>
+                      <option value="Pricing">Pricing</option>
+                      <option value="SEO">SEO</option>
+                      <option value="CTA">CTA</option>
+                      <option value="Content">Content</option>
+                    </select>
                     <span
                       className={`text-xs font-medium px-3 py-1 rounded-full ${statusInfo.badgeClass}`}
                     >
@@ -1170,6 +1416,50 @@ export default function DashboardPage() {
                 Tout marquer lu
               </button>
             </div>
+          </div>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() =>
+                applyAlertPreset({
+                  alertFilter: "unread",
+                  alertUrlFilter: "all",
+                  alertSeverityFilter: "high",
+                  alertDateFilter: "7d",
+                  alertSearchQuery: "",
+                })
+              }
+              className="text-xs px-2 py-1 rounded border border-red-300/30 bg-red-500/10 text-red-100 hover:bg-red-500/15"
+            >
+              Preset urgent
+            </button>
+            <button
+              onClick={() =>
+                applyAlertPreset({
+                  alertFilter: "unread",
+                  alertUrlFilter: "all",
+                  alertSeverityFilter: "all",
+                  alertDateFilter: "all",
+                  alertSearchQuery: "",
+                })
+              }
+              className="text-xs px-2 py-1 rounded border border-white/15 text-gray-200 hover:bg-white/5"
+            >
+              Preset non lues
+            </button>
+            <button
+              onClick={saveCurrentAlertPreset}
+              className="text-xs px-2 py-1 rounded border border-indigo-300/30 bg-indigo-500/10 text-indigo-100 hover:bg-indigo-500/20"
+            >
+              Enregistrer preset
+            </button>
+            {savedAlertPreset && (
+              <button
+                onClick={() => applyAlertPreset(savedAlertPreset)}
+                className="text-xs px-2 py-1 rounded border border-indigo-300/30 text-indigo-100 hover:bg-indigo-500/10"
+              >
+                Charger preset
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2 mb-4">
             <button
@@ -1263,6 +1553,20 @@ export default function DashboardPage() {
           <p className="text-[11px] text-gray-400 mb-4">
             Priorité: Haute = action rapide, Moyenne = à planifier, Basse = information.
           </p>
+          <div className="mb-4 flex items-center gap-2">
+            <button
+              onClick={exportAlertsCsv}
+              className="text-xs px-2 py-1 rounded border border-white/15 text-gray-200 hover:bg-white/5"
+            >
+              Export CSV
+            </button>
+            <button
+              onClick={exportAlertsPdf}
+              className="text-xs px-2 py-1 rounded border border-white/15 text-gray-200 hover:bg-white/5"
+            >
+              Export PDF
+            </button>
+          </div>
           <div className="space-y-4">
             {filteredEvents.length === 0 && (
               <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-gray-300">

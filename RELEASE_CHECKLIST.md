@@ -21,8 +21,14 @@ Use this checklist before each production push.
 - [ ] Add at least 1 URL and run analysis.
 - [ ] Confirm:
   - [ ] URL status updates in "URLs surveillees"
+  - [ ] URL favorites/tags can be set and filtered
   - [ ] Alerts appear in "Centre d'alertes"
   - [ ] "Voir la preuve" before/after values display
+- [ ] In dashboard alert center:
+  - [ ] preset buttons apply expected filters
+  - [ ] "Enregistrer preset" and "Charger preset" work
+  - [ ] export CSV works from current filters
+  - [ ] export PDF opens print dialog with report
 - [ ] Open full history (`/dashboard/alerts`) and verify:
   - [ ] filters (severity, url, read, date, search)
   - [ ] bulk read/unread actions
@@ -48,6 +54,10 @@ Use this checklist before each production push.
   - [ ] retries happen on transient failures
   - [ ] failure statuses are actionable (`TIMEOUT`, `DNS_ERROR`, `SSL_ERROR`, `HTTP_xxx`)
 - [ ] Confirm dashboard "Sante monitoring" block updates.
+- [ ] Trigger `/api/alerts/digest` (manual test) and verify:
+  - [ ] email includes action-oriented summary (HIGH/MEDIUM + focus domain)
+  - [ ] email includes "Action prioritaire du jour"
+  - [ ] digest marks `digest_sent_at` on included alerts
 
 ## 5) Build and Lint
 

@@ -3,6 +3,7 @@ import { Resend } from "resend";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { renderAlertEmail } from "@/lib/emailTemplates";
 import { requireUserFromRequest } from "@/lib/routeAuth";
+import { appLogger } from "@/lib/appLogger";
 
 type AlertSettingRow = {
   user_id: string;
@@ -42,6 +43,13 @@ function severitiesFromThreshold(threshold: "low" | "medium" | "high") {
   if (threshold === "high") return ["high"];
   if (threshold === "medium") return ["medium", "high"];
   return ["low", "medium", "high"];
+}
+
+function actionSuggestion(domain: ChangeRow["domain"]) {
+  if (domain === "pricing") return "Comparer les prix et ajuster la page offre.";
+  if (domain === "cta") return "Verifier le CTA cible et lancer un test rapide.";
+  if (domain === "content") return "Mettre a jour le message principal de la page cible.";
+  return "Verifier les balises SEO critiques de la page cible.";
 }
 
 export async function POST(request: Request) {
@@ -96,6 +104,7 @@ export async function POST(request: Request) {
 
   const settings = (settingsRows || []) as AlertSettingRow[];
   if (settings.length === 0) {
+    appLogger.info("digest:no_settings");
     return NextResponse.json({ sent: 0, processed: 0 });
   }
 
@@ -126,19 +135,47 @@ export async function POST(request: Request) {
     const rows = (changes || []) as ChangeRow[];
     if (rows.length === 0) continue;
 
+    const highCount = rows.filter((row) => row.severity === "high").length;
+    const mediumCount = rows.filter((row) => row.severity === "medium").length;
+    const domainCounts = rows.reduce<Record<string, number>>((acc, row) => {
+      acc[row.domain] = (acc[row.domain] || 0) + 1;
+      return acc;
+    }, {});
+    const topDomain =
+      Object.entries(domainCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "seo";
+
+    const { data: usage } = await supabaseAdmin
+      .from("user_monitor_usage")
+      .select("run_count")
+      .eq("user_id", setting.user_id)
+      .maybeSingle<{ run_count: number }>();
+    const runCount = usage?.run_count || 0;
+    const relanceNote =
+      runCount < 2
+        ? "Relance usage: lance une analyse manuelle aujourd'hui pour garder les alertes a jour."
+        : "Usage OK: le moteur tourne regulierement.";
+
     try {
-      const items = rows.slice(0, 20).map((row) => {
+      const headlineItems = [
+        `Resume actionnable: ${highCount} HIGH, ${mediumCount} MEDIUM, domaine prioritaire ${topDomain.toUpperCase()}.`,
+        `Action prioritaire du jour: ${actionSuggestion(topDomain as ChangeRow["domain"])}`,
+        relanceNote,
+      ];
+
+      const alertItems = rows.slice(0, 17).map((row) => {
         const summary = row.metadata?.summary || `${row.domain} change`;
         const url = row.metadata?.url ? ` — ${row.metadata.url}` : "";
-        return `[${row.severity.toUpperCase()}] ${summary}${url}`;
+        return `[${row.severity.toUpperCase()}] ${summary}${url} | Action: ${actionSuggestion(row.domain)}`;
       });
+      const items = [...headlineItems, ...alertItems];
       const { html, text } = renderAlertEmail({
         title: "Digest quotidien des alertes",
-        intro: `Seuil applique: ${setting.min_email_severity.toUpperCase()}. Voici les derniers changements non lus.`,
+        intro: `Seuil applique: ${setting.min_email_severity.toUpperCase()}. Voici un resume orientee decision + les changements non lus.`,
         items,
         ctaUrl: "https://chronocrawl.com/dashboard",
-        ctaLabel: "Ouvrir le dashboard",
-        footerNote: "Tu peux modifier ce mode depuis le dashboard ChronoCrawl.",
+        ctaLabel: "Ouvrir le dashboard et agir",
+        footerNote:
+          "Tu peux modifier ce mode depuis le dashboard ChronoCrawl. Objectif: 1 action concrete aujourd'hui.",
       });
 
       await resend.emails.send({
@@ -159,10 +196,20 @@ export async function POST(request: Request) {
         .eq("user_id", setting.user_id);
 
       sent += 1;
+      appLogger.info("digest:sent", {
+        userId: setting.user_id,
+        rows: rows.length,
+        highCount,
+        mediumCount,
+        topDomain,
+      });
     } catch {
-      // Keep loop resilient if one email fails.
+      appLogger.warn("digest:send_failed", {
+        userId: setting.user_id,
+      });
     }
   }
 
+  appLogger.info("digest:completed", { sent, processed });
   return NextResponse.json({ sent, processed, code: "OK" });
 }

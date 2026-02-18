@@ -312,6 +312,9 @@ export default function Home() {
               concurrents et t’envoie une alerte changement site web dès qu’une
               page évolue.
             </p>
+            <div className="mt-4 rounded-lg border border-indigo-300/25 bg-indigo-500/10 p-3 text-sm text-indigo-100 max-w-2xl lg:mx-0 mx-auto">
+              Essai gratuit 7 jours, sans engagement. En moyenne: premier signal utile en moins de 24h.
+            </div>
 
             {checkoutError && (
               <p className="mt-3 text-xs text-red-300">{checkoutError}</p>
@@ -332,14 +335,14 @@ export default function Home() {
                   onClick={() => startCheckout("starter")}
                   className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
                 >
-                  Demarrer l&apos;essai gratuit
+                  Commencer l&apos;essai 7 jours
                 </button>
               ) : (
                 <a
                   href="#tarifs"
                   className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
                 >
-                  Demarrer l&apos;essai gratuit
+                  Commencer l&apos;essai 7 jours
                 </a>
               )}
               <a
@@ -504,6 +507,23 @@ export default function Home() {
         </div>
       </motion.section>
 
+      <section className="max-w-6xl mx-auto px-6 pb-10">
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-xs text-gray-400">Temps de mise en route</p>
+            <p className="mt-1 text-lg font-semibold text-indigo-100">~2 minutes</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-xs text-gray-400">Alertes prioritaires</p>
+            <p className="mt-1 text-lg font-semibold text-indigo-100">High / Medium / Low</p>
+          </div>
+          <div className="rounded-lg border border-white/10 bg-white/5 px-4 py-3">
+            <p className="text-xs text-gray-400">Mode essai</p>
+            <p className="mt-1 text-lg font-semibold text-indigo-100">Sans engagement</p>
+          </div>
+        </div>
+      </section>
+
       <section className="max-w-6xl mx-auto px-6 pb-20">
         <div className="rounded-2xl border border-indigo-300/30 bg-indigo-500/10 p-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -589,17 +609,39 @@ export default function Home() {
                   </div>
                 </motion.div>
               </AnimatePresence>
-              <div className="mt-4 flex items-center gap-2">
-                {compactOffers.map((offer, index) => (
-                  <button
-                    key={offer.name}
-                    onClick={() => setOfferIndex(index)}
-                    className={`h-2.5 w-2.5 rounded-full ${
-                      offerIndex === index ? "bg-indigo-300" : "bg-white/30"
-                    }`}
-                    aria-label={`Offre ${index + 1}`}
-                  />
-                ))}
+              <div className="mt-4 flex items-center justify-between">
+                <button
+                  onClick={() =>
+                    setOfferIndex((value) =>
+                      value === 0 ? compactOffers.length - 1 : value - 1
+                    )
+                  }
+                  className="rounded-full border border-white/15 px-3 py-1 text-sm text-gray-300 hover:bg-white/5"
+                  aria-label="Offre precedente"
+                >
+                  ←
+                </button>
+                <div className="flex items-center gap-2">
+                  {compactOffers.map((offer, index) => (
+                    <button
+                      key={offer.name}
+                      onClick={() => setOfferIndex(index)}
+                      className={`h-2.5 w-2.5 rounded-full ${
+                        offerIndex === index ? "bg-indigo-300" : "bg-white/30"
+                      }`}
+                      aria-label={`Offre ${index + 1}`}
+                    />
+                  ))}
+                </div>
+                <button
+                  onClick={() =>
+                    setOfferIndex((value) => (value + 1) % compactOffers.length)
+                  }
+                  className="rounded-full border border-white/15 px-3 py-1 text-sm text-gray-300 hover:bg-white/5"
+                  aria-label="Offre suivante"
+                >
+                  →
+                </button>
               </div>
               <div className="mt-3 h-1 rounded-full bg-white/10 overflow-hidden">
                 <motion.div
