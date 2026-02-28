@@ -603,9 +603,12 @@ export default function Home() {
                     ))}
                   </ul>
                   <div className="mt-auto pt-4">
-                    <div className="rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-center text-xs text-gray-200">
+                    <a
+                      href="/tarifs"
+                      className="block rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-center text-xs text-gray-200 hover:bg-white/10 transition"
+                    >
                       Voir l&apos;offre {compactOffers[offerIndex].name}
-                    </div>
+                    </a>
                   </div>
                 </motion.div>
               </AnimatePresence>

@@ -21,12 +21,20 @@ export default function MentionsLegalesPage() {
             par les utilisateurs.
           </p>
           <p>
-            Hebergement et services tiers: infrastructure cloud, Supabase
-            (donnees), Stripe (paiements), Resend (emails transactionnels).
+            Hebergement et services tiers: Supabase (donnees + auth), Stripe
+            (paiements), Resend (emails transactionnels).
           </p>
           <p>
             Pour toute demande legale ou signalement, utilise l&apos;adresse
             ci-dessus avec un objet explicite.
+          </p>
+          <p>
+            Donnees personnelles: pour les details de traitement, consulte la{" "}
+            <a className="text-indigo-300 underline" href="/confidentialite">
+              Politique de confidentialite
+            </a>
+            . Les demandes RGPD peuvent etre exercees depuis le dashboard
+            (export/suppression) ou par email.
           </p>
         </div>
       </section>

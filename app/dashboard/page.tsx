@@ -275,6 +275,10 @@ export default function DashboardPage() {
   const [digestHour, setDigestHour] = useState(8);
   const [alertSettingsMessage, setAlertSettingsMessage] = useState("");
   const [digestMessage, setDigestMessage] = useState("");
+  const [privacyMessage, setPrivacyMessage] = useState("");
+  const [runningPrivacyExport, setRunningPrivacyExport] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState("");
   const [savingAlertSettings, setSavingAlertSettings] = useState(false);
   const [runningDigest, setRunningDigest] = useState(false);
   const [subscriptionState, setSubscriptionState] =
@@ -712,6 +716,79 @@ export default function DashboardPage() {
       );
     } finally {
       setRunningDigest(false);
+    }
+  };
+
+  const exportPersonalData = async () => {
+    if (!session?.access_token) return;
+    setPrivacyMessage("");
+    setRunningPrivacyExport(true);
+
+    try {
+      const response = await fetch("/api/privacy/export", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data?.export) {
+        throw new Error(data?.error || "Export RGPD impossible.");
+      }
+
+      const payload = JSON.stringify(data.export, null, 2);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const dateSlug = new Date().toISOString().slice(0, 10);
+      link.href = url;
+      link.download = `chronocrawl-export-${dateSlug}.json`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      setPrivacyMessage("Export termine. Fichier JSON telecharge.");
+    } catch (error: unknown) {
+      setPrivacyMessage(
+        error instanceof Error ? error.message : "Export RGPD impossible."
+      );
+    } finally {
+      setRunningPrivacyExport(false);
+    }
+  };
+
+  const deleteAccount = async () => {
+    if (!session?.access_token) return;
+    if (deleteAccountConfirmText.trim().toUpperCase() !== "SUPPRIMER") {
+      setPrivacyMessage('Ecris "SUPPRIMER" pour confirmer.');
+      return;
+    }
+
+    setPrivacyMessage("");
+    setDeletingAccount(true);
+    try {
+      const response = await fetch("/api/privacy/delete-account", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Suppression impossible.");
+      }
+
+      await supabase.auth.signOut();
+      window.location.href = "/";
+    } catch (error: unknown) {
+      setPrivacyMessage(
+        error instanceof Error ? error.message : "Suppression impossible."
+      );
+    } finally {
+      setDeletingAccount(false);
     }
   };
 
@@ -1797,6 +1874,67 @@ export default function DashboardPage() {
           {digestMessage && (
             <p className="text-sm text-indigo-200 mt-1">{digestMessage}</p>
           )}
+        </div>
+
+        <div className="rounded-xl bg-white/5 border border-white/10 p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-2">
+            Confidentialite et donnees (RGPD)
+          </h2>
+          <p className="text-sm text-gray-300 mb-4">
+            Tu peux exporter tes donnees personnelles ou supprimer ton compte
+            directement depuis le dashboard.
+          </p>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-white/10 bg-black/20 p-4">
+              <p className="text-sm font-medium text-gray-100 mb-1">
+                Export de donnees
+              </p>
+              <p className="text-xs text-gray-400 mb-3">
+                Telecharge un JSON complet: URLs, alertes, snapshots, preferences
+                et abonnement.
+              </p>
+              <button
+                onClick={exportPersonalData}
+                disabled={runningPrivacyExport}
+                className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {runningPrivacyExport ? "Export..." : "Exporter mes donnees"}
+              </button>
+            </div>
+            <div className="rounded-lg border border-rose-300/20 bg-rose-500/5 p-4">
+              <p className="text-sm font-medium text-rose-200 mb-1">
+                Suppression de compte
+              </p>
+              <p className="text-xs text-gray-300 mb-3">
+                Action irreversible. Ton compte, tes URLs, tes alertes et
+                historiques seront supprimes.
+              </p>
+              <input
+                type="text"
+                value={deleteAccountConfirmText}
+                onChange={(event) => setDeleteAccountConfirmText(event.target.value)}
+                placeholder='Tape SUPPRIMER pour confirmer'
+                className="mb-3 w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-rose-300/40 text-sm"
+              />
+              <button
+                onClick={deleteAccount}
+                disabled={deletingAccount}
+                className="px-4 py-2 rounded-lg border border-rose-300/40 text-rose-200 hover:bg-rose-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deletingAccount ? "Suppression..." : "Supprimer mon compte"}
+              </button>
+            </div>
+          </div>
+          {privacyMessage && (
+            <p className="text-sm text-indigo-200 mt-3">{privacyMessage}</p>
+          )}
+          <p className="mt-2 text-xs text-gray-400">
+            Details complets:{" "}
+            <a href="/confidentialite" className="text-indigo-300 underline">
+              Politique de confidentialite
+            </a>
+            .
+          </p>
         </div>
 
         <div id="add-url-panel" className="rounded-xl bg-white/5 border border-white/10 p-6">
