@@ -4,9 +4,18 @@ import { AnimatePresence, motion, Variants } from "framer-motion";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import type { Session } from "@supabase/supabase-js";
-import Image from "next/image";
 import PublicNavigation from "@/components/PublicNavigation";
 import PublicFooter from "@/components/PublicFooter";
+import DemoVideoModal from "@/features/landing/components/DemoVideoModal";
+import HeroDashboardPreview from "@/features/landing/components/HeroDashboardPreview";
+import {
+  compactOffers,
+  HERO_SLIDE_DURATION_MS,
+  impactMetrics,
+  OFFER_ROTATION_MS,
+  proofSlides,
+  URL_VOLUME_STOPS,
+} from "@/features/landing/content";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -16,67 +25,6 @@ const fadeUp: Variants = {
     transition: { duration: 0.6, ease: "easeOut" },
   },
 };
-
-const HERO_SLIDE_DURATION_MS = 6500;
-
-const proofSlides = [
-  {
-    key: "urls",
-    badge: "Photo 1",
-    title: "Toutes vos URLs au meme endroit",
-    detail: "Vous voyez en un coup d'oeil quelles pages sont bien surveillees.",
-  },
-  {
-    key: "alerts",
-    badge: "Photo 2",
-    title: "Les alertes importantes ressortent",
-    detail: "Le centre d'alertes vous montre quoi traiter maintenant en priorite.",
-  },
-  {
-    key: "setup",
-    badge: "Photo 3",
-    title: "Configuration simple en 2 minutes",
-    detail: "Vous reglez vos alertes et vous lancez la surveillance sans complexite.",
-  },
-];
-
-const impactMetrics = [
-  { label: "Temps economise / semaine", value: "6h" },
-  { label: "Chang. critiques detectes", value: "94%" },
-  { label: "Delai moyen de reaction", value: "< 60 min" },
-];
-
-const OFFER_ROTATION_MS = 7500;
-
-const compactOffers = [
-  {
-    name: "Starter",
-    price: "12 EUR/mois",
-    desc: "7 jours d'essai gratuit, ideal pour demarrer.",
-    fit: "Freelance ou petite equipe",
-    why: "Parfait pour lancer une veille concurrentielle propre sans complexite technique.",
-    features: ["10 URLs", "Toutes les 6h", "Alertes email"],
-  },
-  {
-    name: "Pro",
-    price: "29 EUR/mois",
-    desc: "Le meilleur equilibre.",
-    fit: "SaaS et e-commerce",
-    why: "Le niveau recommande pour suivre vos concurrents en continu avec un vrai rythme business.",
-    features: ["50 URLs", "Toutes les 60 min", "Email + Slack"],
-    highlight: true,
-  },
-  {
-    name: "Agency",
-    price: "79 EUR/mois",
-    desc: "Pour les equipes multi-clients.",
-    fit: "Agence",
-    why: "Concu pour les equipes qui pilotent plusieurs comptes et ont besoin d'un suivi intensif.",
-    features: ["200 URLs", "Toutes les 15 min", "Webhook"],
-  },
-] as const;
-
-const URL_VOLUME_STOPS = [10, 25, 50, 100, 200] as const;
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
@@ -369,156 +317,10 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-            <p className="text-xs uppercase tracking-wide text-indigo-200">
-              Apercu dashboard
-            </p>
-            <div className="mt-4 rounded-xl border border-white/10 bg-[#0a1024] p-4 min-h-[360px] relative overflow-hidden">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={heroSlideIndex}
-                  initial={{ opacity: 0, x: 22, scale: 0.98, filter: "blur(4px)" }}
-                  animate={{ opacity: 1, x: 0, scale: 1, filter: "blur(0px)" }}
-                  exit={{ opacity: 0, x: -22, scale: 0.98, filter: "blur(4px)" }}
-                  transition={{ duration: 0.34, ease: "easeOut" }}
-                  className="absolute inset-0 p-4 flex flex-col"
-                >
-                  {proofSlides[heroSlideIndex]?.key === "urls" && (
-                    <div className="rounded-lg border border-white/10 bg-black/20 p-3 h-[210px] overflow-hidden">
-                      <p className="text-xs font-medium text-gray-200">URLs surveillees</p>
-                      <div className="mt-2 space-y-2">
-                        {[
-                          "https://www.concurrent-a.com/pricing",
-                          "https://www.concurrent-b.com/offres",
-                          "https://www.concurrent-c.com/tarifs",
-                        ].map((url) => (
-                          <div
-                            key={url}
-                            className="rounded-md border border-white/10 bg-[#111a35] px-2 py-2 text-[11px] text-gray-300 flex items-center justify-between gap-2"
-                          >
-                            <span className="truncate">{url}</span>
-                            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] text-emerald-200">
-                              OK
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  {proofSlides[heroSlideIndex]?.key === "alerts" && (
-                    <div className="rounded-lg border border-white/10 bg-black/20 p-3 min-h-[200px]">
-                      <p className="text-xs font-medium text-gray-200">Centre d&apos;alertes</p>
-                      <div className="mt-2 flex flex-wrap gap-1 text-[10px] text-gray-300">
-                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1">Historique</span>
-                        <span className="rounded border border-indigo-300/30 bg-indigo-500/15 px-2 py-1">0 non lu</span>
-                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1">Tout marquer lu</span>
-                      </div>
-                      <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-gray-300">
-                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1">URL: Toutes les URLs</span>
-                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1">Seuil: Tous</span>
-                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1">Periode: Tout</span>
-                      </div>
-                      <div className="mt-2 rounded-md border border-white/10 bg-[#111a35] p-2">
-                        <div className="flex flex-wrap gap-1 text-[10px]">
-                          <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-indigo-200">CONTENT</span>
-                          <span className="rounded bg-red-500/20 px-2 py-0.5 text-red-200">HIGH</span>
-                          <span className="rounded bg-red-500/20 px-2 py-0.5 text-red-200">IMPACT 90 - HAUTE</span>
-                          <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-emerald-200">CONFIANCE ELEVEE</span>
-                        </div>
-                        <p className="mt-2 text-[11px] text-gray-200">[Content] Contenu modifie</p>
-                        <p className="mt-1 text-[10px] text-gray-400">Action: Intervention immediate recommandee pour corriger l&apos;impact business.</p>
-                        <div className="mt-1 flex items-center justify-between text-[10px] text-gray-300">
-                          <span>17/02 3H25</span>
-                          <span className="rounded border border-white/10 px-1.5 py-0.5">Voir changement</span>
-                          <span className="rounded border border-white/10 px-1.5 py-0.5">Marquer non lu</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  {proofSlides[heroSlideIndex]?.key === "setup" && (
-                    <div className="rounded-lg border border-white/10 bg-black/20 p-3 min-h-[200px]">
-                      <p className="text-xs font-medium text-gray-200">Preferences d&apos;alertes</p>
-                      <div className="mt-2 grid grid-cols-3 gap-2 text-[10px] text-gray-300">
-                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1">Mode email: Aucun</span>
-                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1">Seuil email: LOW</span>
-                        <span className="rounded border border-white/10 bg-white/5 px-2 py-1">Digest: 19</span>
-                      </div>
-                      <div className="mt-2 flex gap-2 text-[10px]">
-                        <span className="rounded border border-indigo-300/35 bg-indigo-500/15 px-2 py-1 text-indigo-100">Tous</span>
-                        <span className="rounded border border-indigo-300/35 bg-indigo-500/15 px-2 py-1 text-indigo-100">LOW</span>
-                        <span className="rounded border border-indigo-300/35 bg-indigo-500/15 px-2 py-1 text-indigo-100">MEDIUM</span>
-                        <span className="rounded border border-indigo-300/35 bg-indigo-500/15 px-2 py-1 text-indigo-100">HIGH</span>
-                      </div>
-                      <div className="mt-2 rounded-md border border-white/10 bg-[#111a35] p-2 text-[11px] text-gray-300">
-                        Ajouter une URL
-                      </div>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="flex-1 rounded border border-white/10 bg-white/5 px-2 py-1 text-[10px] text-gray-400">
-                          https://site-concurrent.com/pricing
-                        </span>
-                        <span className="rounded bg-indigo-500 px-2 py-1 text-[10px] text-white">
-                          Ajouter
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                  <div className="inline-flex w-fit rounded-full border border-indigo-300/30 bg-indigo-500/10 px-2 py-1 text-xs text-indigo-200">
-                    {proofSlides[heroSlideIndex]?.badge}
-                  </div>
-                  <h3 className="mt-3 text-base font-semibold leading-snug">
-                    {proofSlides[heroSlideIndex]?.title}
-                  </h3>
-                  <p className="mt-2 text-sm text-gray-300 leading-relaxed">
-                    {proofSlides[heroSlideIndex]?.detail}
-                  </p>
-                </motion.div>
-              </AnimatePresence>
-            </div>
-            <div className="mt-3 h-1.5 rounded-full bg-white/10 overflow-hidden">
-              <motion.div
-                key={heroSlideIndex}
-                initial={{ width: "0%" }}
-                animate={{ width: "100%" }}
-                transition={{
-                  duration: HERO_SLIDE_DURATION_MS / 1000,
-                  ease: "linear",
-                }}
-                className="h-full bg-indigo-400/90"
-              />
-            </div>
-            <div className="mt-4 flex items-center justify-between">
-              <button
-                onClick={() =>
-                  setHeroSlideIndex((value) =>
-                    value === 0 ? proofSlides.length - 1 : value - 1
-                  )
-                }
-                className="rounded-full border border-white/15 px-3 py-1 text-sm text-gray-300 hover:bg-white/5"
-              >
-                ←
-              </button>
-              <div className="flex items-center gap-2">
-                {proofSlides.map((slide, index) => (
-                  <button
-                    key={slide.title}
-                    onClick={() => setHeroSlideIndex(index)}
-                    className={`h-2.5 w-2.5 rounded-full transition ${
-                      heroSlideIndex === index ? "bg-indigo-300" : "bg-white/30"
-                    }`}
-                    aria-label={`Slide ${index + 1}`}
-                  />
-                ))}
-              </div>
-              <button
-                onClick={() =>
-                  setHeroSlideIndex((value) => (value + 1) % proofSlides.length)
-                }
-                className="rounded-full border border-white/15 px-3 py-1 text-sm text-gray-300 hover:bg-white/5"
-              >
-                →
-              </button>
-            </div>
-          </div>
+          <HeroDashboardPreview
+            heroSlideIndex={heroSlideIndex}
+            setHeroSlideIndex={setHeroSlideIndex}
+          />
         </div>
       </motion.section>
 
@@ -1130,64 +932,11 @@ export default function Home() {
         </div>
       </section>
 
-      {demoOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            aria-label="Fermer la demo"
-            className="absolute inset-0 bg-black/70"
-            onClick={() => setDemoOpen(false)}
-          />
-          <div className="relative w-full max-w-3xl rounded-2xl border border-white/10 bg-[#070d22] p-5">
-            <div className="mb-4 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-wide text-indigo-200">
-                  Demo rapide
-                </p>
-                <h3 className="mt-1 text-xl font-semibold">
-                  Video explicative ChronoCrawl
-                </h3>
-                <p className="mt-1 text-sm text-gray-300">
-                  Sequence fluide de 18 secondes, sans audio.
-                </p>
-              </div>
-              <button
-                onClick={() => setDemoOpen(false)}
-                className="rounded-md border border-white/15 px-3 py-1 text-sm text-gray-300 hover:bg-white/5"
-              >
-                Fermer
-              </button>
-            </div>
-
-            <div className="rounded-xl border border-white/10 bg-[#0b132f] p-4">
-              <Image
-                src="/demo/chronocrawl-demo.gif"
-                alt="Demo ChronoCrawl: ajout URL, analyse, alerte high et action recommandee"
-                className="w-full rounded-lg border border-white/10 bg-black/40"
-                width={1200}
-                height={675}
-                unoptimized
-                priority
-              />
-            </div>
-
-            <div className="mt-4 rounded-lg border border-indigo-300/25 bg-indigo-500/10 p-3">
-              <p className="text-sm text-indigo-100">
-                Sequence attendue: vous ajoutez une URL concurrente, vous cliquez
-                sur &quot;Analyser maintenant&quot;, puis vous voyez une alerte HIGH
-                et l&apos;action recommandee.
-              </p>
-            </div>
-            <div className="mt-3 flex items-center justify-end">
-              <a
-                href={session?.user ? "/dashboard" : "/signup"}
-                className="rounded-md border border-white/15 px-3 py-1 text-sm text-gray-300 hover:bg-white/5"
-              >
-                Tester en live
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+      <DemoVideoModal
+        isOpen={demoOpen}
+        ctaHref={session?.user ? "/dashboard" : "/signup"}
+        onClose={() => setDemoOpen(false)}
+      />
       <PublicFooter />
     </main>
   );

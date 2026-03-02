@@ -1,50 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ChronoCrawl Web
 
-## Getting Started
+ChronoCrawl is a SaaS for competitive page monitoring: users add URLs, run scans, and receive prioritized alerts when SEO/content/pricing/CTA signals change.
 
-First, run the development server:
+## Tech
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- Next.js App Router + TypeScript
+- Supabase (Auth + Postgres)
+- Stripe (billing)
+- Resend (email digest)
+
+## Project layout
+
+```text
+app/                  # routes + API endpoints
+components/           # shared UI shell components
+features/             # domain-oriented UI modules (landing, dashboard, ...)
+lib/                  # auth, db clients, helpers
+db/                   # Supabase SQL migrations
+docs/                 # architecture + contribution guides
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Detailed docs:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- `docs/ARCHITECTURE.md`
+- `docs/CONTRIBUTING_DEV.md`
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Local run
 
-## Learn More
+```bash
+npm install
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+App URL: `http://localhost:3000`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Quality checks
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run lint
+npm run build
+```
 
-## Deploy on Vercel
+## Database migrations (Supabase)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Run SQL scripts in order from `db/`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. `001_phase1_signal_model.sql`
+2. `002_alert_preferences.sql`
+3. `003_billing_source_of_truth.sql`
+4. `004_monitor_guards.sql`
+5. `005_monitor_jobs_queue.sql`
+6. `006_monitor_run_logs.sql`
+7. `007_detected_changes_perf_indexes.sql`
 
-## Database Setup (Phase 1)
+## Current cleanup status
 
-To initialize the new multi-signal surveillance schema in Supabase:
+V1 cleanup started:
 
-1. Open Supabase SQL Editor.
-2. Run the script in `db/001_phase1_signal_model.sql`.
-
-This creates:
-
-- `url_snapshots`: extracted page snapshots (SEO/content/pricing/CTA fields)
-- `detected_changes`: normalized event log for timeline and alerts
-- `change_events_v2` view (compatibility feed)
-- RLS policies and indexes
+- Landing static content moved to `features/landing/content.ts`
+- Landing heavy UI blocks extracted into `features/landing/components/*`
+- Architecture and contribution docs added for onboarding
