@@ -55,8 +55,10 @@ Run SQL scripts in order from `db/`:
 
 ## Current cleanup status
 
-V1 cleanup started:
+V1 + V2 + V3 cleanup:
 
 - Landing static content moved to `features/landing/content.ts`
-- Landing heavy UI blocks extracted into `features/landing/components/*`
+- Landing and dashboard heavy UI blocks extracted into `features/*/components/*`
+- Dashboard shared types/utils moved to `features/dashboard/*`
+- Monitor diff/fetch/dedupe/request parsing extracted into `lib/monitor*`
 - Architecture and contribution docs added for onboarding

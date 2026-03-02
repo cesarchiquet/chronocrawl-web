@@ -19,6 +19,7 @@
   - Current: `features/landing`
 - `lib/`
   - External clients + auth helpers + logger
+  - Monitor pipeline helpers (`monitorDiff`, `monitorFetch`, `monitorDedupe`, `monitorRun*`)
 - `db/`
   - SQL migrations executed in Supabase
 
@@ -40,5 +41,5 @@
 
 ## Current technical debt (known)
 
-- `app/dashboard/page.tsx` and `app/api/monitor/run/route.ts` are still large.
-- Next cleanup should split dashboard blocks and monitor pipeline helpers.
+- `app/dashboard/page.tsx` remains a central orchestrator and can still be split by hook/state domains.
+- `app/api/monitor/run/route.ts` now delegates core logic to `lib/monitor*`, but endpoint orchestration can be split further into service layers.

@@ -4,13 +4,21 @@ import { extractSignalsFromHtml } from "@/lib/monitorSignals";
 import { renderAlertEmail } from "@/lib/emailTemplates";
 import { Resend } from "resend";
 import { requireUserFromRequest } from "@/lib/routeAuth";
+import { fetchPageHtml } from "@/lib/monitorFetch";
+import { dedupeConsecutiveRows } from "@/lib/monitorDedupe";
 import {
   buildDiffRows,
   filterDynamicNoiseRows,
   severityAtLeast,
-  type ChangeRow,
   type DbSnapshot,
 } from "@/lib/monitorDiff";
+import { parseMonitorRunRequestBody } from "@/lib/monitorRunRequest";
+import {
+  COOLDOWN_MS,
+  DAILY_RUN_LIMIT_BY_PLAN,
+  JOB_BATCH_SIZE,
+  MAX_URLS_BY_PLAN,
+} from "@/lib/monitorRunConfig";
 
 type MonitoredUrl = {
   id: string;
@@ -23,12 +31,6 @@ type MonitorJob = {
   monitored_url_id: string;
   status: "queued" | "processing" | "done" | "failed";
   attempt_count: number;
-};
-
-type LastChange = {
-  domain: "content" | "seo" | "pricing" | "cta";
-  field_key: string;
-  after_value: string | null;
 };
 
 type AlertSettings = {
@@ -46,32 +48,8 @@ type MonitorRunStatus =
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
-const JOB_BATCH_SIZE = 8;
-const FETCH_TIMEOUT_MS = 15000;
-const FETCH_MAX_ATTEMPTS = 3;
-const FETCH_RETRY_BACKOFF_MS = [0, 700, 1600];
 
-type FetchResult =
-  | {
-      ok: true;
-      status: number;
-      html: string;
-      attempts: number;
-    }
-  | {
-      ok: false;
-      status: number | null;
-      html: "";
-      attempts: number;
-      failureCode: string;
-      failureDetail: string;
-    };
-
-function errorResponse(
-  message: string,
-  status: number,
-  code: string
-) {
+function errorResponse(message: string, status: number, code: string) {
   return NextResponse.json(
     {
       error: message,
@@ -81,211 +59,19 @@ function errorResponse(
   );
 }
 
-async function dedupeConsecutiveRows(params: {
-  userId: string;
-  monitoredUrlId: string;
-  rows: ChangeRow[];
-}) {
-  const { userId, monitoredUrlId, rows } = params;
-  if (rows.length === 0) return rows;
-
-  const { data: lastChanges } = await supabaseAdmin
-    .from("detected_changes")
-    .select("domain,field_key,after_value")
-    .eq("user_id", userId)
-    .eq("monitored_url_id", monitoredUrlId)
-    .order("detected_at", { ascending: false })
-    .limit(100);
-
-  const latestByField = new Map<string, LastChange>();
-  for (const row of (lastChanges || []) as LastChange[]) {
-    const key = `${row.domain}:${row.field_key}`;
-    if (!latestByField.has(key)) {
-      latestByField.set(key, row);
-    }
-  }
-
-  return rows.filter((row) => {
-    const key = `${row.domain}:${row.field_key}`;
-    const latest = latestByField.get(key);
-    if (!latest) return true;
-    return (latest.after_value || "") !== (row.after_value || "");
-  });
-}
-
-async function fetchPageHtml(url: string): Promise<FetchResult> {
-  const shouldRetryStatus = (status: number) =>
-    [408, 425, 429, 500, 502, 503, 504, 522, 524].includes(status);
-
-  const classifyFetchError = (error: unknown) => {
-    if (error instanceof DOMException && error.name === "AbortError") {
-      return "TIMEOUT";
-    }
-
-    const message = error instanceof Error ? error.message.toLowerCase() : "";
-    if (
-      message.includes("enotfound") ||
-      message.includes("eai_again") ||
-      message.includes("dns")
-    ) {
-      return "DNS_ERROR";
-    }
-    if (
-      message.includes("ssl") ||
-      message.includes("tls") ||
-      message.includes("certificate")
-    ) {
-      return "SSL_ERROR";
-    }
-    return "NETWORK_ERROR";
-  };
-
-  let lastFailure: FetchResult = {
-    ok: false,
-    status: null,
-    html: "",
-    attempts: 0,
-    failureCode: "UNKNOWN_ERROR",
-    failureDetail: "Erreur reseau inconnue.",
-  };
-
-  for (let attempt = 1; attempt <= FETCH_MAX_ATTEMPTS; attempt += 1) {
-    if (attempt > 1) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, FETCH_RETRY_BACKOFF_MS[attempt - 1] || 2000)
-      );
-    }
-
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-    try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          "User-Agent": "ChronoCrawlBot/1.0 (+https://chronocrawl.com)",
-        },
-      });
-
-      const html = await response.text();
-      if (response.ok) {
-        return {
-          ok: true,
-          status: response.status,
-          html,
-          attempts: attempt,
-        };
-      }
-
-      lastFailure = {
-        ok: false,
-        status: response.status,
-        html: "",
-        attempts: attempt,
-        failureCode: `HTTP_${response.status}`,
-        failureDetail: `HTTP_${response.status}`,
-      };
-
-      if (!shouldRetryStatus(response.status)) {
-        return lastFailure;
-      }
-    } catch (error: unknown) {
-      const failureCode = classifyFetchError(error);
-      lastFailure = {
-        ok: false,
-        status: null,
-        html: "",
-        attempts: attempt,
-        failureCode,
-        failureDetail: error instanceof Error ? error.message : "Fetch error",
-      };
-      if (attempt >= FETCH_MAX_ATTEMPTS) {
-        return lastFailure;
-      }
-    } finally {
-      clearTimeout(timeout);
-    }
-  }
-
-  return lastFailure;
-}
-
 export async function POST(request: Request) {
   const requestStartedAtMs = Date.now();
-  let continueQueue = false;
-  let selectedSeverities: ChangeRow["severity"][] = ["low", "medium", "high"];
   const rawBody = (await request.json().catch(() => ({}))) as {
     continueQueue?: unknown;
     severities?: unknown;
     minSeverity?: unknown;
   };
-
-  if (
-    Object.prototype.hasOwnProperty.call(rawBody, "continueQueue") &&
-    typeof rawBody.continueQueue !== "boolean"
-  ) {
-    return errorResponse(
-      "Le champ continueQueue doit etre un booleen.",
-      400,
-      "INVALID_BODY"
-    );
+  const parsedBody = parseMonitorRunRequestBody(rawBody);
+  if ("code" in parsedBody) {
+    return errorResponse(parsedBody.message, 400, parsedBody.code);
   }
-
-  continueQueue = rawBody.continueQueue === true;
-
-  if (Object.prototype.hasOwnProperty.call(rawBody, "severities")) {
-    if (
-      !Array.isArray(rawBody.severities) ||
-      rawBody.severities.some(
-        (value) => !["low", "medium", "high"].includes(String(value))
-      )
-    ) {
-      return errorResponse(
-        "Le champ severities doit etre une liste parmi low, medium, high.",
-        400,
-        "INVALID_BODY"
-      );
-    }
-
-    const deduped = Array.from(
-      new Set(rawBody.severities.map((value) => String(value)))
-    ) as ChangeRow["severity"][];
-
-    if (deduped.length === 0) {
-      return errorResponse(
-        "Le champ severities doit contenir au moins une valeur.",
-        400,
-        "INVALID_BODY"
-      );
-    }
-
-    selectedSeverities = ["low", "medium", "high"].filter((severity) =>
-      deduped.includes(severity as ChangeRow["severity"])
-    ) as ChangeRow["severity"][];
-  }
-
-  if (Object.prototype.hasOwnProperty.call(rawBody, "minSeverity")) {
-    const validSeverities = ["all", "low", "medium", "high"];
-    if (
-      typeof rawBody.minSeverity !== "string" ||
-      !validSeverities.includes(rawBody.minSeverity)
-    ) {
-      return errorResponse(
-        "Le champ minSeverity doit valoir all, low, medium ou high.",
-        400,
-        "INVALID_BODY"
-      );
-    }
-    const minSeverity = rawBody.minSeverity as "all" | "low" | "medium" | "high";
-    selectedSeverities =
-      minSeverity === "all"
-        ? ["low", "medium", "high"]
-        : minSeverity === "low"
-          ? ["low", "medium", "high"]
-          : minSeverity === "medium"
-            ? ["medium", "high"]
-            : ["high"];
-  }
+  const continueQueue = parsedBody.continueQueue;
+  const selectedSeverities = parsedBody.selectedSeverities;
 
   const auth = await requireUserFromRequest(request);
   if ("error" in auth) {
@@ -385,13 +171,7 @@ export async function POST(request: Request) {
       last_run_at: string | null;
     }>();
 
-  const dailyRunLimitByPlan: Record<string, number> = {
-    starter: 50,
-    pro: 300,
-    agency: 1200,
-  };
-  const dailyLimit = dailyRunLimitByPlan[plan] || dailyRunLimitByPlan.starter;
-  const cooldownMs = 15_000;
+  const dailyLimit = DAILY_RUN_LIMIT_BY_PLAN[plan] || DAILY_RUN_LIMIT_BY_PLAN.starter;
 
   const now = Date.now();
   const windowStartedAt = usageRow?.window_started_at
@@ -404,7 +184,7 @@ export async function POST(request: Request) {
     : null;
 
   if (!continueQueue) {
-    if (lastRunAt && now - lastRunAt < cooldownMs) {
+    if (lastRunAt && now - lastRunAt < COOLDOWN_MS) {
       await writeRunLog({
         status: "rate_limited",
       });
@@ -439,12 +219,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const limitByPlan: Record<string, number> = {
-    starter: 10,
-    pro: 50,
-    agency: 200,
-  };
-  const maxUrls = limitByPlan[plan] || limitByPlan.starter;
+  const maxUrls = MAX_URLS_BY_PLAN[plan] || MAX_URLS_BY_PLAN.starter;
 
   const { data: monitoredUrls, error: monitoredUrlsError } = await supabaseAdmin
     .from("monitored_urls")
