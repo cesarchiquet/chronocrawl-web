@@ -38,6 +38,8 @@ App URL: `http://localhost:3000`
 
 ```bash
 npm run lint
+npm run typecheck
+npm run test:run
 npm run build
 ```
 
