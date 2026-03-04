@@ -24,6 +24,13 @@ describe("parseMonitorRunRequestBody", () => {
     expect(parsed.selectedSeverities).toEqual(["high"]);
   });
 
+  it("defaults to MEDIUM + HIGH", () => {
+    const parsed = parseMonitorRunRequestBody({});
+    expect("code" in parsed).toBe(false);
+    if ("code" in parsed) return;
+    expect(parsed.selectedSeverities).toEqual(["medium", "high"]);
+  });
+
   it("returns INVALID_BODY on invalid continueQueue", () => {
     const parsed = parseMonitorRunRequestBody({
       continueQueue: "yes",

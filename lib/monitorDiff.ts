@@ -1,5 +1,5 @@
-export type MonitorDomain = "content" | "seo" | "pricing" | "cta";
-export type MonitorSeverity = "low" | "medium" | "high";
+export type MonitorDomain = "seo" | "pricing" | "cta";
+export type MonitorSeverity = "medium" | "high";
 
 export type DbSnapshot = {
   id: string;
@@ -92,7 +92,6 @@ function fieldLabel(fieldKey: string) {
     robots_directive: "Robots",
     pricing_json: "Prix",
     cta_json: "CTA",
-    content_fingerprint: "Contenu",
   };
   return labels[fieldKey] || fieldKey;
 }
@@ -102,7 +101,6 @@ function domainLabel(domain: ChangeRow["domain"]) {
     seo: "SEO",
     pricing: "Pricing",
     cta: "CTA",
-    content: "Content",
   };
   return labels[domain];
 }
@@ -112,20 +110,18 @@ export function severityAtLeast(
   threshold: ChangeRow["severity"]
 ) {
   const rank: Record<ChangeRow["severity"], number> = {
-    low: 0,
-    medium: 1,
-    high: 2,
+    medium: 0,
+    high: 1,
   };
   return rank[value] >= rank[threshold];
 }
 
 function computeSeverity(params: {
-  domain: ChangeRow["domain"];
   fieldKey: string;
   beforeValue: string;
   afterValue: string;
 }) {
-  const { domain, fieldKey, beforeValue, afterValue } = params;
+  const { fieldKey, beforeValue, afterValue } = params;
 
   const beforeEmpty = beforeValue.trim().length === 0;
   const afterEmpty = afterValue.trim().length === 0;
@@ -179,8 +175,8 @@ function computeSeverity(params: {
       };
     }
     return {
-      severity: "low" as const,
-      score: 30,
+      severity: "medium" as const,
+      score: 50,
       reason: "Variation mineure du H1.",
     };
   }
@@ -260,17 +256,9 @@ function computeSeverity(params: {
     };
   }
 
-  if (domain === "content") {
-    return {
-      severity: "low" as const,
-      score: 20,
-      reason: "Changement de contenu brut.",
-    };
-  }
-
   return {
-    severity: "low" as const,
-    score: 25,
+    severity: "medium" as const,
+    score: 50,
     reason: "Changement detecte.",
   };
 }
@@ -296,7 +284,6 @@ export function buildDiffRows(params: {
     const afterText = asText(afterValue);
     if (beforeText === afterText) return;
     const computed = computeSeverity({
-      domain,
       fieldKey,
       beforeValue: beforeText,
       afterValue: afterText,
@@ -354,13 +341,6 @@ export function buildDiffRows(params: {
     normalizeJson(before.cta_json),
     normalizeJson(after.cta_json)
   );
-  push(
-    "content",
-    "content_fingerprint",
-    before.content_fingerprint,
-    after.content_fingerprint
-  );
-
   return rows;
 }
 
@@ -368,22 +348,7 @@ export function filterDynamicNoiseRows(params: {
   rows: ChangeRow[];
   dynamicNoiseScore: number;
 }) {
-  const { rows, dynamicNoiseScore } = params;
+  const { rows } = params;
   if (rows.length === 0) return { kept: rows, filtered: 0 };
-
-  const hasPrioritySignal = rows.some((row) =>
-    ["seo", "pricing", "cta"].includes(row.domain)
-  );
-  if (hasPrioritySignal) return { kept: rows, filtered: 0 };
-
-  if (dynamicNoiseScore < 2) return { kept: rows, filtered: 0 };
-
-  const kept = rows.filter(
-    (row) => !(row.domain === "content" && row.severity === "low")
-  );
-
-  return {
-    kept,
-    filtered: rows.length - kept.length,
-  };
+  return { kept: rows, filtered: 0 };
 }

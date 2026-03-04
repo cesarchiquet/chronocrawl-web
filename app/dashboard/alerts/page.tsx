@@ -14,8 +14,8 @@ import { formatAlertDateShort } from "@/lib/dateFormat";
 type ChangeEvent = {
   id: string;
   field_key?: string;
-  domain: "seo" | "pricing" | "cta" | "content";
-  severity: "low" | "medium" | "high";
+  domain: "seo" | "pricing" | "cta";
+  severity: "medium" | "high";
   metadata: {
     summary?: string;
     url?: string;
@@ -39,7 +39,7 @@ export default function AlertsHistoryPage() {
   const [nowReferenceMs, setNowReferenceMs] = useState(0);
   const [events, setEvents] = useState<ChangeEvent[]>([]);
   const [severityFilter, setSeverityFilter] = useState<
-    "all" | "low" | "medium" | "high"
+    "all" | "medium" | "high"
   >("all");
   const [urlFilter, setUrlFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,6 +60,7 @@ export default function AlertsHistoryPage() {
         .from("detected_changes")
         .select("id,field_key,domain,severity,metadata,detected_at,is_read")
         .eq("user_id", userId)
+        .in("domain", ["seo", "pricing", "cta"])
         .order("detected_at", { ascending: false })
         .range(from, to);
 
@@ -372,13 +373,12 @@ export default function AlertsHistoryPage() {
                 value={severityFilter}
                 onChange={(e) =>
                   setSeverityFilter(
-                    e.target.value as "all" | "low" | "medium" | "high"
+                    e.target.value as "all" | "medium" | "high"
                   )
                 }
                 className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
               >
                 <option value="all">Toutes</option>
-                <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
               </select>

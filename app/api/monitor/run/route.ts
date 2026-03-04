@@ -35,6 +35,10 @@ type MonitorJob = {
 
 type AlertSettings = {
   email_mode: "instant" | "daily" | "off";
+  min_email_severity: "medium" | "high";
+};
+type AlertSettingsRow = {
+  email_mode: "instant" | "daily" | "off";
   min_email_severity: "low" | "medium" | "high";
 };
 type MonitorRunStatus =
@@ -140,12 +144,14 @@ export async function POST(request: Request) {
     .from("user_alert_settings")
     .select("email_mode,min_email_severity")
     .eq("user_id", userId)
-    .maybeSingle<AlertSettings>();
+    .maybeSingle<AlertSettingsRow>();
 
   if (alertSettingsRow) {
+    const minEmailSeverity =
+      alertSettingsRow.min_email_severity === "high" ? "high" : "medium";
     alertSettings = {
       email_mode: alertSettingsRow.email_mode ?? "instant",
-      min_email_severity: alertSettingsRow.min_email_severity ?? "high",
+      min_email_severity: minEmailSeverity,
     };
   }
 

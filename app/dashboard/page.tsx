@@ -51,7 +51,7 @@ export default function DashboardPage() {
   const [analysisRunning, setAnalysisRunning] = useState(false);
   const [analysisSeverities, setAnalysisSeverities] = useState<
     ChangeEvent["severity"][]
-  >(["low", "medium", "high"]);
+  >(["medium", "high"]);
   const [alertFilter, setAlertFilter] = useState<"all" | "unread" | "read">(
     "all"
   );
@@ -61,14 +61,14 @@ export default function DashboardPage() {
     "all" | "24h" | "7d" | "30d"
   >("all");
   const [alertSeverityFilter, setAlertSeverityFilter] = useState<
-    "all" | "low" | "medium" | "high"
+    "all" | "medium" | "high"
   >("all");
   const [filterReferenceNow, setFilterReferenceNow] = useState(() => Date.now());
   const [emailMode, setEmailMode] = useState<"instant" | "daily" | "off">(
     "instant"
   );
   const [minEmailSeverity, setMinEmailSeverity] = useState<
-    "low" | "medium" | "high"
+    "medium" | "high"
   >("high");
   const [digestHour, setDigestHour] = useState(8);
   const [alertSettingsMessage, setAlertSettingsMessage] = useState("");
@@ -189,6 +189,7 @@ export default function DashboardPage() {
           "id,monitored_url_id,domain,severity,field_key,metadata,detected_at,is_read"
         )
         .eq("user_id", userId)
+        .in("domain", ["seo", "pricing", "cta"])
         .order("detected_at", { ascending: false })
         .range(from, to);
 
@@ -217,12 +218,10 @@ export default function DashboardPage() {
       seo: 0,
       pricing: 1,
       cta: 2,
-      content: 3,
     };
     const severityRank: Record<ChangeEvent["severity"], number> = {
       high: 0,
       medium: 1,
-      low: 2,
     };
 
     const ranked = eventsData.sort((a, b) => {
@@ -242,12 +241,14 @@ export default function DashboardPage() {
       .from("detected_changes")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
+      .in("domain", ["seo", "pricing", "cta"])
       .gt("detected_at", since24h);
 
     const { count: highCount7d } = await supabase
       .from("detected_changes")
       .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
+      .in("domain", ["seo", "pricing", "cta"])
       .eq("severity", "high")
       .gt("detected_at", since7d);
 
@@ -309,7 +310,7 @@ export default function DashboardPage() {
 
     if (!data) return;
     setEmailMode(data.email_mode || "instant");
-    setMinEmailSeverity(data.min_email_severity || "high");
+    setMinEmailSeverity(data.min_email_severity === "high" ? "high" : "medium");
     setDigestHour(Number.isFinite(data.digest_hour) ? data.digest_hour : 8);
   }, []);
 
@@ -1392,13 +1393,12 @@ export default function DashboardPage() {
               value={alertSeverityFilter}
               onChange={(e) =>
                 setAlertSeverityFilter(
-                  e.target.value as "all" | "low" | "medium" | "high"
+                  e.target.value as "all" | "medium" | "high"
                 )
               }
               className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
             >
               <option value="all">Tous</option>
-              <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
             </select>

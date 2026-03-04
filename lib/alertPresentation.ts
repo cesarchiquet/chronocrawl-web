@@ -1,5 +1,5 @@
-type AlertDomain = "seo" | "pricing" | "cta" | "content";
-type AlertSeverity = "low" | "medium" | "high";
+type AlertDomain = "seo" | "pricing" | "cta";
+type AlertSeverity = "medium" | "high";
 
 type AlertInput = {
   domain: AlertDomain;

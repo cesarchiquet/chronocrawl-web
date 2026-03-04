@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import type { ChangeRow } from "@/lib/monitorDiff";
 
 type LastChange = {
-  domain: "content" | "seo" | "pricing" | "cta";
+  domain: "seo" | "pricing" | "cta";
   field_key: string;
   after_value: string | null;
 };

@@ -24,7 +24,7 @@ function makeSnapshot(overrides: Partial<DbSnapshot>): DbSnapshot {
 describe("monitorDiff", () => {
   it("applies severity ordering", () => {
     expect(severityAtLeast("high", "medium")).toBe(true);
-    expect(severityAtLeast("low", "medium")).toBe(false);
+    expect(severityAtLeast("medium", "high")).toBe(false);
   });
 
   it("builds diff rows with metadata summary", () => {
@@ -45,7 +45,23 @@ describe("monitorDiff", () => {
     expect(titleRow?.metadata.summary).toMatch("SEO");
   });
 
-  it("filters low content-only noise when dynamic score is high", () => {
+  it("does not generate content domain rows", () => {
+    const before = makeSnapshot({ content_fingerprint: "abc" });
+    const after = makeSnapshot({ id: "snap-new", content_fingerprint: "def" });
+    const rows = buildDiffRows({
+      userId: "user-1",
+      monitoredUrlId: "url-1",
+      monitoredUrl: "https://concurrent.com/pricing",
+      before,
+      after,
+    });
+
+    expect(rows.some((row) => row.field_key === "content_fingerprint")).toBe(
+      false
+    );
+  });
+
+  it("keeps rows unchanged in dynamic noise filter", () => {
     const filtered = filterDynamicNoiseRows({
       dynamicNoiseScore: 3,
       rows: [
@@ -54,17 +70,17 @@ describe("monitorDiff", () => {
           monitored_url_id: "m",
           snapshot_before_id: "a",
           snapshot_after_id: "b",
-          domain: "content",
-          field_key: "content_fingerprint",
+          domain: "seo",
+          field_key: "title",
           before_value: "a",
           after_value: "b",
-          severity: "low",
+          severity: "medium",
           metadata: {},
         },
       ],
     });
 
-    expect(filtered.kept).toHaveLength(0);
-    expect(filtered.filtered).toBe(1);
+    expect(filtered.kept).toHaveLength(1);
+    expect(filtered.filtered).toBe(0);
   });
 });

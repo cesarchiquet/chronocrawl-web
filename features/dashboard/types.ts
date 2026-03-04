@@ -9,8 +9,8 @@ export type MonitoredUrl = {
 export type ChangeEvent = {
   id: string;
   monitored_url_id: string;
-  domain: "seo" | "pricing" | "cta" | "content";
-  severity: "low" | "medium" | "high";
+  domain: "seo" | "pricing" | "cta";
+  severity: "medium" | "high";
   field_key: string;
   metadata: {
     summary?: string;
@@ -48,14 +48,13 @@ export type UrlMeta = {
 export type AlertFilterPreset = {
   alertFilter: "all" | "unread" | "read";
   alertUrlFilter: string;
-  alertSeverityFilter: "all" | "low" | "medium" | "high";
+  alertSeverityFilter: "all" | "medium" | "high";
   alertDateFilter: "all" | "24h" | "7d" | "30d";
   alertSearchQuery: string;
 };
 
 export const EVENTS_PAGE_SIZE = 1000;
 export const ANALYSIS_SEVERITY_LEVELS: Array<ChangeEvent["severity"]> = [
-  "low",
   "medium",
   "high",
 ];

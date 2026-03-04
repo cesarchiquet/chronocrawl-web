@@ -7,14 +7,14 @@ import {
 
 type DashboardControlPanelsProps = {
   emailMode: "instant" | "daily" | "off";
-  minEmailSeverity: "low" | "medium" | "high";
+  minEmailSeverity: "medium" | "high";
   digestHour: number;
   savingAlertSettings: boolean;
   runningDigest: boolean;
   alertSettingsMessage: string;
   digestMessage: string;
   onEmailModeChange: (value: "instant" | "daily" | "off") => void;
-  onMinEmailSeverityChange: (value: "low" | "medium" | "high") => void;
+  onMinEmailSeverityChange: (value: "medium" | "high") => void;
   onDigestHourChange: (value: number) => void;
   onSaveAlertSettings: () => void;
   onRunDailyDigestNow: () => void;
@@ -97,7 +97,7 @@ export default function DashboardControlPanels({
             </button>
             <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-md border border-white/10 bg-[#0b1025] p-2 text-[11px] text-gray-200 shadow-lg group-hover:block group-focus-within:block">
               <span className="block">- Mode email: instant envoie chaque alerte, daily envoie un digest, off coupe les emails.</span>
-              <span className="block mt-1">- Seuil email: niveau minimal envoye (HIGH uniquement, ou MEDIUM/HIGH, ou tout).</span>
+              <span className="block mt-1">- Seuil email: niveau minimal envoye (HIGH uniquement, ou MEDIUM/HIGH).</span>
               <span className="block mt-1">- Heure digest: heure locale (0-23) a laquelle le recap quotidien est envoye.</span>
             </span>
           </span>
@@ -123,12 +123,11 @@ export default function DashboardControlPanels({
               value={minEmailSeverity}
               onChange={(e) =>
                 onMinEmailSeverityChange(
-                  e.target.value as "low" | "medium" | "high"
+                  e.target.value as "medium" | "high"
                 )
               }
               className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
             >
-              <option value="low">Low</option>
               <option value="medium">Medium</option>
               <option value="high">High</option>
             </select>
@@ -249,8 +248,8 @@ export default function DashboardControlPanels({
               </button>
               <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-64 -translate-x-1/2 rounded-md border border-white/10 bg-[#0b1025] p-2 text-[11px] text-gray-200 shadow-lg group-hover:block group-focus-within:block">
                 Choisis les niveaux d&apos;alertes a conserver pendant
-                &quot;Analyser maintenant&quot;. Exemple: coche MEDIUM + HIGH
-                pour ignorer LOW.
+                &quot;Analyser maintenant&quot;. Seules les alertes MEDIUM et
+                HIGH sont conservees.
               </span>
             </span>
             <label className="text-xs px-2 py-1 rounded border border-white/15 text-gray-200 flex items-center gap-2">

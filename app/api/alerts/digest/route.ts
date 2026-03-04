@@ -13,8 +13,8 @@ type AlertSettingRow = {
 
 type ChangeRow = {
   id: string;
-  domain: "seo" | "pricing" | "cta" | "content";
-  severity: "low" | "medium" | "high";
+  domain: "seo" | "pricing" | "cta";
+  severity: "medium" | "high";
   metadata: { summary?: string; url?: string } | null;
   detected_at: string | null;
 };
@@ -41,14 +41,12 @@ function errorResponse(
 
 function severitiesFromThreshold(threshold: "low" | "medium" | "high") {
   if (threshold === "high") return ["high"];
-  if (threshold === "medium") return ["medium", "high"];
-  return ["low", "medium", "high"];
+  return ["medium", "high"];
 }
 
 function actionSuggestion(domain: ChangeRow["domain"]) {
   if (domain === "pricing") return "Comparer les prix et ajuster la page offre.";
   if (domain === "cta") return "Verifier le CTA cible et lancer un test rapide.";
-  if (domain === "content") return "Mettre a jour le message principal de la page cible.";
   return "Verifier les balises SEO critiques de la page cible.";
 }
 
@@ -127,6 +125,7 @@ export async function POST(request: Request) {
       .eq("is_read", false)
       .is("digest_sent_at", null)
       .in("severity", severities)
+      .in("domain", ["seo", "pricing", "cta"])
       .order("detected_at", { ascending: false })
       .limit(40);
 

@@ -16,7 +16,7 @@ export function parseMonitorRunRequestBody(rawBody: {
   minSeverity?: unknown;
 }): MonitorRunRequestParsed | MonitorRunRequestError {
   let continueQueue = false;
-  let selectedSeverities: MonitorSeverity[] = ["low", "medium", "high"];
+  let selectedSeverities: MonitorSeverity[] = ["medium", "high"];
 
   if (
     Object.prototype.hasOwnProperty.call(rawBody, "continueQueue") &&
@@ -33,11 +33,11 @@ export function parseMonitorRunRequestBody(rawBody: {
     if (
       !Array.isArray(rawBody.severities) ||
       rawBody.severities.some(
-        (value) => !["low", "medium", "high"].includes(String(value))
+        (value) => !["medium", "high"].includes(String(value))
       )
     ) {
       return {
-        message: "Le champ severities doit etre une liste parmi low, medium, high.",
+        message: "Le champ severities doit etre une liste parmi medium, high.",
         code: "INVALID_BODY",
       };
     }
@@ -53,29 +53,27 @@ export function parseMonitorRunRequestBody(rawBody: {
       };
     }
 
-    selectedSeverities = ["low", "medium", "high"].filter((severity) =>
+    selectedSeverities = ["medium", "high"].filter((severity) =>
       deduped.includes(severity as MonitorSeverity)
     ) as MonitorSeverity[];
   }
 
   if (Object.prototype.hasOwnProperty.call(rawBody, "minSeverity")) {
-    const validSeverities = ["all", "low", "medium", "high"];
+    const validSeverities = ["all", "medium", "high"];
     if (
       typeof rawBody.minSeverity !== "string" ||
       !validSeverities.includes(rawBody.minSeverity)
     ) {
       return {
-        message: "Le champ minSeverity doit valoir all, low, medium ou high.",
+        message: "Le champ minSeverity doit valoir all, medium ou high.",
         code: "INVALID_BODY",
       };
     }
-    const minSeverity = rawBody.minSeverity as "all" | "low" | "medium" | "high";
+    const minSeverity = rawBody.minSeverity as "all" | "medium" | "high";
     selectedSeverities =
       minSeverity === "all"
-        ? ["low", "medium", "high"]
-        : minSeverity === "low"
-          ? ["low", "medium", "high"]
-          : minSeverity === "medium"
+        ? ["medium", "high"]
+        : minSeverity === "medium"
             ? ["medium", "high"]
             : ["high"];
   }
