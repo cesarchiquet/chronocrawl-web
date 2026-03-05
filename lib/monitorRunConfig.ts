@@ -12,3 +12,15 @@ export const MAX_URLS_BY_PLAN: Record<string, number> = {
   pro: 50,
   agency: 200,
 };
+
+function featureFlagEnabled(value: string | undefined, defaultValue = true) {
+  if (value === undefined) return defaultValue;
+  const normalized = value.trim().toLowerCase();
+  return ["1", "true", "yes", "on"].includes(normalized);
+}
+
+export const FEATURE_FLAGS = {
+  monitorConfidenceV1: featureFlagEnabled(process.env.MONITOR_CONFIDENCE_V1, true),
+  monitorRulesV1: featureFlagEnabled(process.env.MONITOR_RULES_V1, false),
+  groupedAlertsV1: featureFlagEnabled(process.env.GROUPED_ALERTS_V1, true),
+} as const;

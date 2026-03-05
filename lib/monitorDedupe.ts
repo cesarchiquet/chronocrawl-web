@@ -1,5 +1,6 @@
-import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import type { ChangeRow } from "@/lib/monitorDiff";
+import { supabaseAdmin } from "./supabaseAdmin";
+import type { ChangeRow } from "./monitorDiff";
+export { groupRowsByDomain } from "./monitorGrouping";
 
 type LastChange = {
   domain: "seo" | "pricing" | "cta";

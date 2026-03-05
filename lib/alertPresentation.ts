@@ -5,6 +5,8 @@ type AlertInput = {
   domain: AlertDomain;
   severity: AlertSeverity;
   field_key?: string;
+  confidence_score?: number | null;
+  noise_flags?: string[] | null;
   metadata: {
     summary?: string;
     url?: string;
@@ -57,6 +59,20 @@ export function getAlertRecommendedAction(alert: AlertInput): string {
 export function getAlertConfidence(
   alert: AlertInput
 ): { label: "Elevee" | "Moyenne" | "Faible"; className: string } {
+  const confidenceScore =
+    typeof alert.confidence_score === "number" && Number.isFinite(alert.confidence_score)
+      ? alert.confidence_score
+      : null;
+  if (confidenceScore !== null) {
+    if (confidenceScore >= 75) {
+      return { label: "Elevee", className: "bg-emerald-500/15 text-emerald-200" };
+    }
+    if (confidenceScore >= 50) {
+      return { label: "Moyenne", className: "bg-amber-500/15 text-amber-200" };
+    }
+    return { label: "Faible", className: "bg-rose-500/15 text-rose-200" };
+  }
+
   const hasBefore = !!alert.metadata?.before_short;
   const hasAfter = !!alert.metadata?.after_short;
   const hasReason = !!alert.metadata?.priority_reason;

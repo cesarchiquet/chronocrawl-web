@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   buildDiffRows,
+  buildRuleRows,
   filterDynamicNoiseRows,
   severityAtLeast,
   type DbSnapshot,
+  type MonitorRule,
 } from "../lib/monitorDiff";
 
 function makeSnapshot(overrides: Partial<DbSnapshot>): DbSnapshot {
@@ -43,6 +45,7 @@ describe("monitorDiff", () => {
     expect(rows.some((row) => row.field_key === "title")).toBe(true);
     const titleRow = rows.find((row) => row.field_key === "title");
     expect(titleRow?.metadata.summary).toMatch("SEO");
+    expect(typeof titleRow?.confidence_score).toBe("number");
   });
 
   it("does not generate content domain rows", () => {
@@ -61,6 +64,38 @@ describe("monitorDiff", () => {
     );
   });
 
+  it("detects headlines rotation as SEO change", () => {
+    const before = makeSnapshot({
+      raw_extract: {
+        headlines: [
+          "Titre A de demonstration tres detaille",
+          "Titre B de demonstration tres detaille",
+        ],
+      },
+    });
+    const after = makeSnapshot({
+      id: "snap-new",
+      raw_extract: {
+        headlines: [
+          "Titre C de demonstration tres detaille",
+          "Titre D de demonstration tres detaille",
+        ],
+      },
+    });
+
+    const rows = buildDiffRows({
+      userId: "user-1",
+      monitoredUrlId: "url-1",
+      monitoredUrl: "https://concurrent.com/news",
+      before,
+      after,
+    });
+
+    const headlineRow = rows.find((row) => row.field_key === "headlines_json");
+    expect(headlineRow).toBeTruthy();
+    expect(headlineRow?.domain).toBe("seo");
+  });
+
   it("keeps rows unchanged in dynamic noise filter", () => {
     const filtered = filterDynamicNoiseRows({
       dynamicNoiseScore: 3,
@@ -75,6 +110,8 @@ describe("monitorDiff", () => {
           before_value: "a",
           after_value: "b",
           severity: "medium",
+          confidence_score: 60,
+          noise_flags: [],
           metadata: {},
         },
       ],
@@ -82,5 +119,83 @@ describe("monitorDiff", () => {
 
     expect(filtered.kept).toHaveLength(1);
     expect(filtered.filtered).toBe(0);
+    expect(filtered.kept[0].confidence_score).toBeGreaterThan(0);
+  });
+
+  it("builds rule-based rows", () => {
+    const rule: MonitorRule = {
+      id: "rule-1",
+      rule_type: "css",
+      selector: ".cta",
+      label: "CTA hero",
+    };
+    const rows = buildRuleRows({
+      userId: "u",
+      monitoredUrlId: "m",
+      monitoredUrl: "https://example.com",
+      snapshotBeforeId: "snap-1",
+      snapshotAfterId: "snap-2",
+      evaluations: [
+        {
+          rule,
+          beforeValue: "Essai gratuit",
+          afterValue: "Demander une demo",
+          matchFound: true,
+        },
+      ],
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].field_key).toBe("rule:rule-1");
+    expect(rows[0].severity).toBe("high");
+  });
+
+  it("keeps noisy medium changes on protected SEO fields", () => {
+    const filtered = filterDynamicNoiseRows({
+      dynamicNoiseScore: 12,
+      rows: [
+        {
+          user_id: "u",
+          monitored_url_id: "m",
+          snapshot_before_id: "a",
+          snapshot_after_id: "b",
+          domain: "seo",
+          field_key: "title",
+          before_value: "title 1699999999999",
+          after_value: "title 1700000000000",
+          severity: "medium",
+          confidence_score: 52,
+          noise_flags: [],
+          metadata: {},
+        },
+      ],
+    });
+
+    expect(filtered.filtered).toBe(0);
+    expect(filtered.kept).toHaveLength(1);
+  });
+
+  it("filters noisy medium changes on non-protected fields", () => {
+    const filtered = filterDynamicNoiseRows({
+      dynamicNoiseScore: 12,
+      rows: [
+        {
+          user_id: "u",
+          monitored_url_id: "m",
+          snapshot_before_id: "a",
+          snapshot_after_id: "b",
+          domain: "cta",
+          field_key: "cta_json",
+          before_value: '["essai 1699999999999"]',
+          after_value: '["essai 1700000000000"]',
+          severity: "medium",
+          confidence_score: 52,
+          noise_flags: [],
+          metadata: {},
+        },
+      ],
+    });
+
+    expect(filtered.filtered).toBeGreaterThanOrEqual(1);
   });
 });

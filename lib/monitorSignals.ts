@@ -102,6 +102,26 @@ function extractCtas(html: string) {
   return Array.from(new Set(ctas)).slice(0, 20);
 }
 
+function extractHeadlines(html: string) {
+  const headlines: string[] = [];
+  const patterns = [/<h1[^>]*>([\s\S]*?)<\/h1>/gi, /<h2[^>]*>([\s\S]*?)<\/h2>/gi, /<h3[^>]*>([\s\S]*?)<\/h3>/gi];
+
+  for (const pattern of patterns) {
+    let match: RegExpExecArray | null;
+    while ((match = pattern.exec(html)) !== null) {
+      const text = decodeHtmlEntities(cleanText(match[1] || ""));
+      const words = text.split(/\s+/).filter(Boolean);
+      if (text.length >= 20 && text.length <= 180 && words.length >= 4) {
+        headlines.push(text);
+      }
+      if (headlines.length >= 40) break;
+    }
+    if (headlines.length >= 40) break;
+  }
+
+  return Array.from(new Set(headlines)).slice(0, 20);
+}
+
 function normalizeDynamicNoise(input: string) {
   let text = input;
   let score = 0;
@@ -151,6 +171,7 @@ export function extractSignalsFromHtml(html: string, sourceUrl: string): Extract
   const canonicalUrl = extractCanonical(html);
   const prices = extractPrices(html);
   const ctas = extractCtas(html);
+  const headlines = extractHeadlines(html);
   const content = buildContentFingerprint(html);
   const pageHash = sha256(html);
 
@@ -173,6 +194,7 @@ export function extractSignalsFromHtml(html: string, sourceUrl: string): Extract
       robotsDirective,
       prices,
       ctas,
+      headlines,
       dynamic_noise_score: content.dynamicNoiseScore,
     },
   };

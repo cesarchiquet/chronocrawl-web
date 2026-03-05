@@ -5,17 +5,21 @@ import { supabase } from "@/lib/supabaseClient";
 import type { Session } from "@supabase/supabase-js";
 import {
   getAlertChangeSummary,
-  getAlertConfidence,
   getAlertImpactLabel,
   getAlertRecommendedAction,
 } from "@/lib/alertPresentation";
 import { formatAlertDateShort } from "@/lib/dateFormat";
+import DashboardSuiteMenu from "@/components/DashboardSuiteMenu";
 
 type ChangeEvent = {
   id: string;
   field_key?: string;
   domain: "seo" | "pricing" | "cta";
   severity: "medium" | "high";
+  confidence_score?: number | null;
+  noise_flags?: string[] | null;
+  change_group_id?: string | null;
+  is_group_root?: boolean | null;
   metadata: {
     summary?: string;
     url?: string;
@@ -23,6 +27,7 @@ type ChangeEvent = {
     after_short?: string;
     priority_score?: number;
     priority_reason?: string;
+    grouped_changes_count?: number;
   } | null;
   detected_at: string | null;
   is_read: boolean | null;
@@ -56,13 +61,31 @@ export default function AlertsHistoryPage() {
   const loadEventsPage = useCallback(
     async (userId: string, from: number, reset = false) => {
       const to = from + HISTORY_PAGE_SIZE - 1;
-      const { data } = await supabase
+      const extendedSelect =
+        "id,field_key,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,metadata,detected_at,is_read";
+      const legacySelect =
+        "id,field_key,domain,severity,metadata,detected_at,is_read";
+
+      let data: unknown[] | null = null;
+      const extendedRes = await supabase
         .from("detected_changes")
-        .select("id,field_key,domain,severity,metadata,detected_at,is_read")
+        .select(extendedSelect)
         .eq("user_id", userId)
-        .in("domain", ["seo", "pricing", "cta"])
+        .in("severity", ["medium", "high"])
         .order("detected_at", { ascending: false })
         .range(from, to);
+      if (extendedRes.error) {
+        const legacyRes = await supabase
+          .from("detected_changes")
+          .select(legacySelect)
+          .eq("user_id", userId)
+          .in("severity", ["medium", "high"])
+          .order("detected_at", { ascending: false })
+          .range(from, to);
+        data = legacyRes.data;
+      } else {
+        data = extendedRes.data;
+      }
 
       const pageRows = (data || []) as ChangeEvent[];
       setHasMore(pageRows.length === HISTORY_PAGE_SIZE);
@@ -203,6 +226,9 @@ export default function AlertsHistoryPage() {
   ]);
 
   const getPriorityScore = (event: ChangeEvent) => {
+    if (typeof event.confidence_score === "number" && Number.isFinite(event.confidence_score)) {
+      return event.confidence_score;
+    }
     const raw = event.metadata?.priority_score;
     if (typeof raw === "number" && Number.isFinite(raw)) return raw;
     if (event.severity === "high") return 85;
@@ -237,6 +263,10 @@ export default function AlertsHistoryPage() {
           ? String(event.metadata.priority_score)
           : "";
       const priorityReason = event.metadata?.priority_reason || "";
+      const changeGroupId = event.change_group_id || "";
+      const noiseFlags = Array.isArray(event.noise_flags)
+        ? event.noise_flags.join("|")
+        : "";
       const beforeShort = event.metadata?.before_short || "";
       const afterShort = event.metadata?.after_short || "";
       return [
@@ -249,6 +279,8 @@ export default function AlertsHistoryPage() {
         summary,
         priorityScore,
         priorityReason,
+        changeGroupId,
+        noiseFlags,
         beforeShort,
         afterShort,
       ]
@@ -266,6 +298,8 @@ export default function AlertsHistoryPage() {
       "summary",
       "priority_score",
       "priority_reason",
+      "change_group_id",
+      "noise_flags",
       "before_short",
       "after_short",
     ]
@@ -362,6 +396,7 @@ export default function AlertsHistoryPage() {
             </a>
           </div>
         </div>
+        <DashboardSuiteMenu />
       </section>
 
       <section className="max-w-6xl mx-auto px-6 pb-24">
@@ -476,10 +511,7 @@ export default function AlertsHistoryPage() {
               const score = getPriorityScore(event);
               const priorityLabel = getPriorityLabel(score);
               const priorityClass = getPriorityClass(score);
-              const confidence = getAlertConfidence(event);
               const changeSummary = getAlertChangeSummary(event);
-              const impactLabel = getAlertImpactLabel(event);
-              const recommendedAction = getAlertRecommendedAction(event);
               const isExpanded = expandedAlertId === event.id;
 
               return (
@@ -499,11 +531,16 @@ export default function AlertsHistoryPage() {
                   >
                     Impact {score} - {priorityLabel}
                   </span>
-                  <span
-                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${confidence.className}`}
-                  >
-                    Confiance {confidence.label}
-                  </span>
+                  {event.change_group_id && (
+                    <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/15 text-indigo-200">
+                      Groupe x{event.metadata?.grouped_changes_count || 1}
+                    </span>
+                  )}
+                  {Array.isArray(event.noise_flags) && event.noise_flags.length > 0 && (
+                    <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
+                      Bruit filtre
+                    </span>
+                  )}
                   <span
                     className={`text-[10px] uppercase px-2 py-1 rounded-full ${
                       event.is_read
@@ -520,14 +557,6 @@ export default function AlertsHistoryPage() {
                     {event.metadata.url}
                   </p>
                 )}
-                <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
-                  <p className="text-gray-300">
-                    <span className="text-gray-400">Impact:</span> {impactLabel}
-                  </p>
-                  <p className="text-gray-300">
-                    <span className="text-gray-400">Action:</span> {recommendedAction}
-                  </p>
-                </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <p className="text-xs text-gray-500">
                     {formatAlertDateShort(event.detected_at)}

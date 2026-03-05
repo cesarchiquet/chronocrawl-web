@@ -6,29 +6,23 @@ import { motion, type Variants } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
 import {
   getAlertChangeSummary,
-  getAlertConfidence,
-  getAlertImpactLabel,
-  getAlertRecommendedAction,
 } from "@/lib/alertPresentation";
 import { formatAlertDateShort } from "@/lib/dateFormat";
 import {
-  ANALYSIS_SEVERITY_LEVELS,
   EVENTS_PAGE_SIZE,
-  type AlertFilterPreset,
   type ChangeEvent,
-  type MonitorRunLog,
   type MonitoredUrl,
   type SubscriptionState,
   type UrlMeta,
 } from "@/features/dashboard/types";
 import {
   formatDateTimeFr,
-  getRunHealthInfo,
   getUrlStatusInfo,
   normalizeMonitoredUrl,
 } from "@/features/dashboard/utils";
 import DashboardControlPanels from "@/features/dashboard/components/DashboardControlPanels";
 import AlertDetailModal from "@/features/dashboard/components/AlertDetailModal";
+import DashboardSuiteMenu from "@/components/DashboardSuiteMenu";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -49,19 +43,15 @@ export default function DashboardPage() {
   const [billingMessage, setBillingMessage] = useState("");
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [analysisRunning, setAnalysisRunning] = useState(false);
-  const [analysisSeverities, setAnalysisSeverities] = useState<
-    ChangeEvent["severity"][]
-  >(["medium", "high"]);
   const [alertFilter, setAlertFilter] = useState<"all" | "unread" | "read">(
     "all"
   );
   const [alertUrlFilter, setAlertUrlFilter] = useState("all");
-  const [alertSearchQuery, setAlertSearchQuery] = useState("");
   const [alertDateFilter, setAlertDateFilter] = useState<
     "all" | "24h" | "7d" | "30d"
   >("all");
-  const [alertSeverityFilter, setAlertSeverityFilter] = useState<
-    "all" | "medium" | "high"
+  const [alertDomainFilter, setAlertDomainFilter] = useState<
+    "all" | "seo" | "cta" | "pricing"
   >("all");
   const [filterReferenceNow, setFilterReferenceNow] = useState(() => Date.now());
   const [emailMode, setEmailMode] = useState<"instant" | "daily" | "off">(
@@ -73,27 +63,14 @@ export default function DashboardPage() {
   const [digestHour, setDigestHour] = useState(8);
   const [alertSettingsMessage, setAlertSettingsMessage] = useState("");
   const [digestMessage, setDigestMessage] = useState("");
-  const [privacyMessage, setPrivacyMessage] = useState("");
-  const [runningPrivacyExport, setRunningPrivacyExport] = useState(false);
-  const [deletingAccount, setDeletingAccount] = useState(false);
-  const [deleteAccountConfirmText, setDeleteAccountConfirmText] = useState("");
   const [savingAlertSettings, setSavingAlertSettings] = useState(false);
   const [runningDigest, setRunningDigest] = useState(false);
   const [subscriptionState, setSubscriptionState] =
     useState<SubscriptionState | null>(null);
-  const [changes24h, setChanges24h] = useState(0);
-  const [high7d, setHigh7d] = useState(0);
-  const [dailyRunCount, setDailyRunCount] = useState(0);
-  const [dailyRunStartedAt, setDailyRunStartedAt] = useState<string | null>(null);
-  const [latestRunLog, setLatestRunLog] = useState<MonitorRunLog | null>(null);
-  const [recentRunFailureRate, setRecentRunFailureRate] = useState(0);
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
   const [urlMeta, setUrlMeta] = useState<Record<string, UrlMeta>>({});
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
   const [urlTagFilter, setUrlTagFilter] = useState("all");
-  const [savedAlertPreset, setSavedAlertPreset] = useState<AlertFilterPreset | null>(
-    null
-  );
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -146,9 +123,6 @@ export default function DashboardPage() {
     const rawMeta = window.localStorage.getItem(
       `chronocrawl:url-meta:${session.user.id}`
     );
-    const rawPreset = window.localStorage.getItem(
-      `chronocrawl:alert-preset:${session.user.id}`
-    );
     if (rawMeta) {
       try {
         setUrlMeta(JSON.parse(rawMeta) as Record<string, UrlMeta>);
@@ -157,15 +131,6 @@ export default function DashboardPage() {
       }
     } else {
       setUrlMeta({});
-    }
-    if (rawPreset) {
-      try {
-        setSavedAlertPreset(JSON.parse(rawPreset) as AlertFilterPreset);
-      } catch {
-        setSavedAlertPreset(null);
-      }
-    } else {
-      setSavedAlertPreset(null);
     }
   }, [session?.user?.id]);
 
@@ -180,18 +145,41 @@ export default function DashboardPage() {
   const loadAllEvents = useCallback(async (userId: string) => {
     const rows: ChangeEvent[] = [];
     let from = 0;
+    let useLegacySelect = false;
+    const extendedSelect =
+      "id,monitored_url_id,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,field_key,metadata,detected_at,is_read";
+    const legacySelect =
+      "id,monitored_url_id,domain,severity,field_key,metadata,detected_at,is_read";
 
     while (true) {
       const to = from + EVENTS_PAGE_SIZE - 1;
-      const { data, error } = await supabase
-        .from("detected_changes")
-        .select(
-          "id,monitored_url_id,domain,severity,field_key,metadata,detected_at,is_read"
-        )
-        .eq("user_id", userId)
-        .in("domain", ["seo", "pricing", "cta"])
-        .order("detected_at", { ascending: false })
-        .range(from, to);
+      let data: unknown[] | null = null;
+      let error: { message?: string } | null = null;
+
+      if (!useLegacySelect) {
+        const res = await supabase
+          .from("detected_changes")
+          .select(extendedSelect)
+          .eq("user_id", userId)
+          .in("severity", ["medium", "high"])
+          .order("detected_at", { ascending: false })
+          .range(from, to);
+        data = res.data;
+        error = res.error;
+      }
+
+      if (useLegacySelect || error) {
+        const legacyRes = await supabase
+          .from("detected_changes")
+          .select(legacySelect)
+          .eq("user_id", userId)
+          .in("severity", ["medium", "high"])
+          .order("detected_at", { ascending: false })
+          .range(from, to);
+        data = legacyRes.data;
+        error = legacyRes.error;
+        useLegacySelect = true;
+      }
 
       if (error || !data || data.length === 0) break;
 
@@ -234,51 +222,6 @@ export default function DashboardPage() {
 
     setEvents(ranked);
 
-    const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-    const since7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-
-    const { count: changeCount24h } = await supabase
-      .from("detected_changes")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .in("domain", ["seo", "pricing", "cta"])
-      .gt("detected_at", since24h);
-
-    const { count: highCount7d } = await supabase
-      .from("detected_changes")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userId)
-      .in("domain", ["seo", "pricing", "cta"])
-      .eq("severity", "high")
-      .gt("detected_at", since7d);
-
-    const { data: usage } = await supabase
-      .from("user_monitor_usage")
-      .select("run_count,window_started_at")
-      .eq("user_id", userId)
-      .maybeSingle<{ run_count: number; window_started_at: string }>();
-
-    const { data: runLogsData } = await supabase
-      .from("monitor_run_logs")
-      .select(
-        "status,checked,changes,failed_count,queued_remaining,duration_ms,started_at"
-      )
-      .eq("user_id", userId)
-      .order("started_at", { ascending: false })
-      .limit(20);
-
-    setChanges24h(changeCount24h || 0);
-    setHigh7d(highCount7d || 0);
-    setDailyRunCount(usage?.run_count || 0);
-    setDailyRunStartedAt(usage?.window_started_at || null);
-    const runLogs = (runLogsData || []) as MonitorRunLog[];
-    setLatestRunLog(runLogs[0] || null);
-    if (runLogs.length === 0) {
-      setRecentRunFailureRate(0);
-    } else {
-      const failedRuns = runLogs.filter((row) => row.failed_count > 0).length;
-      setRecentRunFailureRate(Math.round((failedRuns / runLogs.length) * 100));
-    }
   }, [loadAllEvents]);
 
   const loadSubscriptionState = useCallback(async (userId: string) => {
@@ -358,76 +301,6 @@ export default function DashboardPage() {
         tag,
       },
     }));
-  };
-
-  const exportAlertsCsv = () => {
-    const rows = filteredEvents.map((item) => {
-      const summary = (item.metadata?.summary || "").replaceAll('"', '""');
-      const url = (item.metadata?.url || "").replaceAll('"', '""');
-      const detectedAt = item.detected_at || "";
-      const line = [
-        detectedAt,
-        item.domain,
-        item.severity,
-        item.is_read ? "read" : "unread",
-        url,
-        summary,
-      ]
-        .map((entry) => `"${entry}"`)
-        .join(",");
-      return line;
-    });
-    const csv = [
-      '"detected_at","domain","severity","read_state","url","summary"',
-      ...rows,
-    ].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const objectUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = objectUrl;
-    link.download = "chronocrawl-alerts-dashboard.csv";
-    link.click();
-    URL.revokeObjectURL(objectUrl);
-  };
-
-  const exportAlertsPdf = () => {
-    const htmlRows = filteredEvents
-      .slice(0, 120)
-      .map((item) => {
-        const summary = getAlertChangeSummary(item);
-        const url = item.metadata?.url || "URL inconnue";
-        const date = formatAlertDateShort(item.detected_at);
-        return `<tr><td>${date}</td><td>${item.domain.toUpperCase()}</td><td>${item.severity.toUpperCase()}</td><td>${url}</td><td>${summary}</td></tr>`;
-      })
-      .join("");
-    const win = window.open("", "_blank", "width=1024,height=768");
-    if (!win) return;
-    win.document.write(`
-      <html>
-        <head>
-          <title>ChronoCrawl - Export alertes</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
-            h1 { margin: 0 0 8px 0; font-size: 20px; }
-            p { margin: 0 0 16px 0; font-size: 12px; color: #475569; }
-            table { width: 100%; border-collapse: collapse; font-size: 12px; }
-            th, td { border: 1px solid #d1d5db; padding: 8px; vertical-align: top; text-align: left; }
-            th { background: #f3f4f6; }
-          </style>
-        </head>
-        <body>
-          <h1>ChronoCrawl - Export alertes</h1>
-          <p>Genere le ${new Date().toLocaleString("fr-FR")} | ${filteredEvents.length} alerte(s)</p>
-          <table>
-            <thead><tr><th>Date</th><th>Domaine</th><th>Seuil</th><th>URL</th><th>Resume</th></tr></thead>
-            <tbody>${htmlRows}</tbody>
-          </table>
-        </body>
-      </html>
-    `);
-    win.document.close();
-    win.focus();
-    win.print();
   };
 
   useEffect(() => {
@@ -518,79 +391,6 @@ export default function DashboardPage() {
     }
   };
 
-  const exportPersonalData = async () => {
-    if (!session?.access_token) return;
-    setPrivacyMessage("");
-    setRunningPrivacyExport(true);
-
-    try {
-      const response = await fetch("/api/privacy/export", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      const data = await response.json();
-      if (!response.ok || !data?.export) {
-        throw new Error(data?.error || "Export RGPD impossible.");
-      }
-
-      const payload = JSON.stringify(data.export, null, 2);
-      const blob = new Blob([payload], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      const dateSlug = new Date().toISOString().slice(0, 10);
-      link.href = url;
-      link.download = `chronocrawl-export-${dateSlug}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
-      setPrivacyMessage("Export termine. Fichier JSON telecharge.");
-    } catch (error: unknown) {
-      setPrivacyMessage(
-        error instanceof Error ? error.message : "Export RGPD impossible."
-      );
-    } finally {
-      setRunningPrivacyExport(false);
-    }
-  };
-
-  const deleteAccount = async () => {
-    if (!session?.access_token) return;
-    if (deleteAccountConfirmText.trim().toUpperCase() !== "SUPPRIMER") {
-      setPrivacyMessage('Ecris "SUPPRIMER" pour confirmer.');
-      return;
-    }
-
-    setPrivacyMessage("");
-    setDeletingAccount(true);
-    try {
-      const response = await fetch("/api/privacy/delete-account", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error || "Suppression impossible.");
-      }
-
-      await supabase.auth.signOut();
-      window.location.href = "/";
-    } catch (error: unknown) {
-      setPrivacyMessage(
-        error instanceof Error ? error.message : "Suppression impossible."
-      );
-    } finally {
-      setDeletingAccount(false);
-    }
-  };
-
   const addUrl = async () => {
     if (!newUrl || !session?.user) return;
     const normalizedUrl = normalizeMonitoredUrl(newUrl);
@@ -624,26 +424,6 @@ export default function DashboardPage() {
     }
   };
 
-  const allAnalysisSeveritiesSelected =
-    analysisSeverities.length === ANALYSIS_SEVERITY_LEVELS.length;
-
-  const toggleAnalysisSeverity = (level: ChangeEvent["severity"]) => {
-    setAnalysisSeverities((prev) => {
-      if (prev.includes(level)) {
-        if (prev.length === 1) return prev;
-        return prev.filter((item) => item !== level);
-      }
-      return ANALYSIS_SEVERITY_LEVELS.filter(
-        (item) => item === level || prev.includes(item)
-      );
-    });
-  };
-
-  const toggleAllAnalysisSeverities = (checked: boolean) => {
-    if (!checked) return;
-    setAnalysisSeverities([...ANALYSIS_SEVERITY_LEVELS]);
-  };
-
   const runAnalysis = async () => {
     if (!session?.user?.id || !session?.access_token) return;
     setAnalysisMessage("");
@@ -654,6 +434,7 @@ export default function DashboardPage() {
       let totalChanges = 0;
       let totalDeduped = 0;
       let totalNoise = 0;
+      let totalGrouped = 0;
       let totalFailed = 0;
       const failedSamples: string[] = [];
       let queuedRemaining = 0;
@@ -669,7 +450,6 @@ export default function DashboardPage() {
           },
           body: JSON.stringify({
             continueQueue: rounds > 0,
-            severities: analysisSeverities,
           }),
         });
 
@@ -682,6 +462,7 @@ export default function DashboardPage() {
         totalChanges += Number(data?.changes || 0);
         totalDeduped += Number(data?.deduped || 0);
         totalNoise += Number(data?.noiseFiltered || 0);
+        totalGrouped += Number(data?.grouped || 0);
         if (Array.isArray(data?.failed)) {
           totalFailed += data.failed.length;
           for (const item of data.failed as string[]) {
@@ -702,11 +483,14 @@ export default function DashboardPage() {
           ? ` File partiellement traitee (${queuedRemaining} URL(s) restantes). Relance l'analyse.`
           : "";
 
-      const thresholdLabel = allAnalysisSeveritiesSelected
-        ? "TOUS"
-        : analysisSeverities.map((level) => level.toUpperCase()).join(" + ");
+      const runHeadline =
+        totalChanges === 0 && totalFailed === 0
+          ? "Analyse terminee: moteur actif, aucun nouveau changement detecte."
+          : totalChecked === 0 && totalFailed > 0
+            ? "Analyse terminee: les URLs ont echoue pendant la verification."
+            : "Analyse terminee.";
       setAnalysisMessage(
-        `Analyse terminee (seuil ${thresholdLabel}): ${totalChecked} URL verifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
+        `${runHeadline} ${totalChecked} URL verifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalGrouped} evenement(s) groupe(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
       );
       await loadData(session.user.id);
     } catch (error: unknown) {
@@ -753,27 +537,23 @@ export default function DashboardPage() {
       ? (session?.user?.user_metadata?.subscription_status as string | undefined) ||
         "inactive"
       : subscriptionStatus;
-  const trialEndRaw =
-    subscriptionState?.trial_end ||
-    (session?.user?.user_metadata?.subscription_trial_end as
-    | string
-    | undefined);
   const hasActiveSubscription =
     effectiveSubscriptionStatus === "active" ||
     effectiveSubscriptionStatus === "trialing";
   const canAddUrl =
     (isBypass || hasActiveSubscription) && currentCount < limit;
-  const trialEndDate = trialEndRaw ? new Date(trialEndRaw) : null;
-  const trialDaysLeft =
-    trialEndDate && Number.isFinite(trialEndDate.getTime())
-      ? Math.max(
-          0,
-          Math.ceil(
-            (trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-          )
-        )
-      : null;
-  const runHealthInfo = getRunHealthInfo(latestRunLog, recentRunFailureRate);
+  const hasThreeUrls = currentCount >= 3;
+  const hasFirstScan = urls.some((item) => !!item.last_checked_at);
+  const hasFirstAlert = events.length > 0;
+  const activationSteps = [
+    { label: "Ajouter 3 URLs concurrentes", done: hasThreeUrls },
+    { label: "Lancer un premier scan", done: hasFirstScan },
+    { label: "Recevoir 1 alerte utile", done: hasFirstAlert },
+  ];
+  const activationDoneCount = activationSteps.filter((step) => step.done).length;
+  const activationProgress = Math.round(
+    (activationDoneCount / activationSteps.length) * 100
+  );
   const unreadCount = events.filter((item) => !item.is_read).length;
   const alertUrls = useMemo(() => {
     const values = new Set<string>();
@@ -822,12 +602,10 @@ export default function DashboardPage() {
           : alertDateFilter === "30d"
             ? filterReferenceNow - 30 * 24 * 60 * 60 * 1000
             : null;
-    const query = alertSearchQuery.trim().toLowerCase();
-
     return events.filter((item) => {
       if (alertFilter === "unread" && item.is_read) return false;
       if (alertFilter === "read" && !item.is_read) return false;
-      if (alertSeverityFilter !== "all" && item.severity !== alertSeverityFilter) {
+      if (alertDomainFilter !== "all" && item.domain !== alertDomainFilter) {
         return false;
       }
       if (alertUrlFilter !== "all" && item.metadata?.url !== alertUrlFilter) {
@@ -837,52 +615,47 @@ export default function DashboardPage() {
         const detectedMs = item.detected_at ? Date.parse(item.detected_at) : NaN;
         if (!Number.isFinite(detectedMs) || detectedMs < fromMs) return false;
       }
-      if (query) {
-        const haystack = [
-          item.metadata?.summary || "",
-          item.metadata?.url || "",
-          item.field_key || "",
-          item.domain || "",
-        ]
-          .join(" ")
-          .toLowerCase();
-        if (!haystack.includes(query)) return false;
-      }
       return true;
     });
   }, [
     alertDateFilter,
     alertFilter,
-    alertSearchQuery,
-    alertSeverityFilter,
+    alertDomainFilter,
     alertUrlFilter,
     events,
     filterReferenceNow,
   ]);
+  const emptyStateMessage = useMemo(() => {
+    const hasFilter =
+      alertFilter !== "all" ||
+      alertDomainFilter !== "all" ||
+      alertUrlFilter !== "all" ||
+      alertDateFilter !== "all";
 
-  const applyAlertPreset = (preset: AlertFilterPreset) => {
-    setAlertFilter(preset.alertFilter);
-    setAlertUrlFilter(preset.alertUrlFilter);
-    setAlertSeverityFilter(preset.alertSeverityFilter);
-    setAlertDateFilter(preset.alertDateFilter);
-    setAlertSearchQuery(preset.alertSearchQuery);
-  };
+    if (!hasFilter) {
+      return {
+        title: "Aucun changement detecte pour le moment.",
+        hint: "Pour demarrer: ajoute au moins 1 URL puis lance \"Analyser maintenant\".",
+      };
+    }
 
-  const saveCurrentAlertPreset = () => {
-    if (!session?.user?.id) return;
-    const preset: AlertFilterPreset = {
-      alertFilter,
-      alertUrlFilter,
-      alertSeverityFilter,
-      alertDateFilter,
-      alertSearchQuery,
+    const active: string[] = [];
+    if (alertFilter === "unread") active.push("Non lues");
+    if (alertFilter === "read") active.push("Lues");
+    if (alertDomainFilter !== "all") active.push(`Type ${alertDomainFilter.toUpperCase()}`);
+    if (alertUrlFilter !== "all") active.push("URL specifique");
+    if (alertDateFilter !== "all") active.push(`Periode ${alertDateFilter}`);
+
+    return {
+      title: "Aucune alerte pour les filtres actuels.",
+      hint: `Filtres actifs: ${active.join(" | ")}.`,
     };
-    setSavedAlertPreset(preset);
-    window.localStorage.setItem(
-      `chronocrawl:alert-preset:${session.user.id}`,
-      JSON.stringify(preset)
-    );
-  };
+  }, [
+    alertDateFilter,
+    alertDomainFilter,
+    alertFilter,
+    alertUrlFilter,
+  ]);
 
   const getPriorityScore = (item: ChangeEvent) => {
     const raw = item.metadata?.priority_score;
@@ -1042,18 +815,9 @@ export default function DashboardPage() {
             </button>
           </div>
         </div>
+        <DashboardSuiteMenu />
         {billingMessage && (
           <p className="mt-3 text-sm text-amber-200">{billingMessage}</p>
-        )}
-        {effectiveSubscriptionStatus === "trialing" && (
-          <div className="mt-4 rounded-lg border border-indigo-400/30 bg-indigo-500/10 p-4 text-sm text-indigo-100">
-            <p className="font-medium">Essai en cours</p>
-            <p className="mt-1 text-indigo-200">
-              {trialDaysLeft !== null
-                ? `Il te reste ${trialDaysLeft} jour${trialDaysLeft > 1 ? "s" : ""} d'essai.`
-                : "Ton essai est actif. Passe au plan superieur quand tu veux depuis \"Gerer l'abonnement\"."}
-            </p>
-          </div>
         )}
         {effectiveSubscriptionStatus === "inactive" && (
           <div className="mt-4 rounded-lg border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
@@ -1119,50 +883,39 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-sm">
-          <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
-            Changements 24h: <span className="font-semibold">{changes24h}</span>
-          </div>
-          <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
-            Alertes HIGH 7j: <span className="font-semibold">{high7d}</span>
-          </div>
-          <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
-            Analyses 24h: <span className="font-semibold">{dailyRunCount}</span>
-            {dailyRunStartedAt ? (
-              <span className="text-gray-400"> (depuis {formatDateTimeFr(dailyRunStartedAt)})</span>
-            ) : null}
-          </div>
-          <div className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-200">
-            <span className="inline-flex items-center gap-1">
-              Sante monitoring:
-              <span className="relative inline-flex items-center group">
-                <button
-                  type="button"
-                  aria-label="Information sur la sante monitoring"
-                  className="h-4 w-4 rounded-full border border-white/20 text-[10px] leading-none text-gray-300 hover:text-white hover:border-white/40"
-                >
-                  i
-                </button>
-                <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-md border border-white/10 bg-[#0b1025] p-2 text-[11px] text-gray-200 shadow-lg group-hover:block group-focus-within:block">
-                  <span className="block">- STABLE: les derniers runs se passent bien.</span>
-                  <span className="block mt-1">- PARTIEL: certaines URLs n&apos;ont pas ete traitees.</span>
-                  <span className="block mt-1">- A SURVEILLER: taux d&apos;echec eleve, relance conseillée.</span>
-                </span>
-              </span>
-            </span>{" "}
-            <span className={`font-semibold px-2 py-0.5 rounded-full text-[11px] ${runHealthInfo.badgeClass}`}>
-              {runHealthInfo.label}
+        <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-4">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-gray-200">Activation dashboard</p>
+            <span className="text-xs text-gray-300">
+              {activationDoneCount}/{activationSteps.length} etapes
             </span>
-            {latestRunLog ? (
-              <span className="text-gray-400">
-                {" "}
-                ({latestRunLog.duration_ms} ms, {recentRunFailureRate}% analyses en echec)
-              </span>
-            ) : null}
-            <p className="text-[11px] text-gray-400 mt-1">{runHealthInfo.detail}</p>
+          </div>
+          <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
+            <div
+              className="h-full bg-indigo-400"
+              style={{ width: `${activationProgress}%` }}
+            />
+          </div>
+          <div className="mt-3 grid gap-2">
+            {activationSteps.map((step) => (
+              <div
+                key={step.label}
+                className="flex items-center gap-2 text-xs text-gray-300"
+              >
+                <span
+                  className={`inline-flex h-4 w-4 items-center justify-center rounded-full border ${
+                    step.done
+                      ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-200"
+                      : "border-white/20 text-gray-400"
+                  }`}
+                >
+                  {step.done ? "✓" : "•"}
+                </span>
+                <span>{step.label}</span>
+              </div>
+            ))}
           </div>
         </div>
-
       </motion.section>
 
       <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6 items-start">
@@ -1193,6 +946,53 @@ export default function DashboardPage() {
                 ))}
               </select>
             </div>
+          </div>
+          <div id="add-url-panel" className="mb-4 rounded-lg border border-white/10 p-4">
+            <p className="text-gray-300 text-sm mb-3">
+              Ajoute une page concurrente à surveiller, puis lance une analyse.
+            </p>
+            <div className="mb-3">
+              <button
+                id="analyze-now-btn"
+                onClick={runAnalysis}
+                className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={(!hasActiveSubscription && !isBypass) || analysisRunning}
+              >
+                {analysisRunning ? "Analyse en cours..." : "Analyser maintenant"}
+              </button>
+              {analysisMessage && (
+                <p className="text-indigo-200 text-sm mt-2">{analysisMessage}</p>
+              )}
+            </div>
+            <div className="flex flex-col md:flex-row gap-3">
+              <input
+                type="url"
+                placeholder="https://site-concurrent.com/pricing"
+                className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                value={newUrl}
+                onChange={(e) => setNewUrl(e.target.value)}
+              />
+              <button
+                onClick={addUrl}
+                className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={!canAddUrl}
+              >
+                Ajouter
+              </button>
+            </div>
+            {!hasActiveSubscription && !isBypass && (
+              <p className="text-amber-200 text-sm mt-3">
+                Ajout bloque : ton abonnement n&apos;est pas encore actif.
+                Selectionne un plan depuis la landing, puis reviens ici.
+              </p>
+            )}
+            {currentCount >= limit && (
+              <p className="text-amber-200 text-sm mt-3">
+                Limite atteinte : ton plan {plan.toUpperCase()} autorise {limit} URLs
+                max. Supprime une URL ou upgrade ton abonnement.
+              </p>
+            )}
+            {message && <p className="text-red-400 text-sm mt-3">{message}</p>}
           </div>
           <div className="space-y-4">
             {displayedUrls.length === 0 && (
@@ -1293,50 +1093,6 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <button
-              onClick={() =>
-                applyAlertPreset({
-                  alertFilter: "unread",
-                  alertUrlFilter: "all",
-                  alertSeverityFilter: "high",
-                  alertDateFilter: "7d",
-                  alertSearchQuery: "",
-                })
-              }
-              className="text-xs px-2 py-1 rounded border border-red-300/30 bg-red-500/10 text-red-100 hover:bg-red-500/15"
-            >
-              Preset urgent
-            </button>
-            <button
-              onClick={() =>
-                applyAlertPreset({
-                  alertFilter: "unread",
-                  alertUrlFilter: "all",
-                  alertSeverityFilter: "all",
-                  alertDateFilter: "all",
-                  alertSearchQuery: "",
-                })
-              }
-              className="text-xs px-2 py-1 rounded border border-white/15 text-gray-200 hover:bg-white/5"
-            >
-              Preset non lues
-            </button>
-            <button
-              onClick={saveCurrentAlertPreset}
-              className="text-xs px-2 py-1 rounded border border-indigo-300/30 bg-indigo-500/10 text-indigo-100 hover:bg-indigo-500/20"
-            >
-              Enregistrer preset
-            </button>
-            {savedAlertPreset && (
-              <button
-                onClick={() => applyAlertPreset(savedAlertPreset)}
-                className="text-xs px-2 py-1 rounded border border-indigo-300/30 text-indigo-100 hover:bg-indigo-500/10"
-              >
-                Charger preset
-              </button>
-            )}
-          </div>
           <div className="flex items-center gap-2 mb-4">
             <button
               onClick={() => setAlertFilter("all")}
@@ -1388,19 +1144,20 @@ export default function DashboardPage() {
             </span>
           </div>
           <div className="flex items-center gap-2 mb-4">
-            <label className="text-xs text-gray-300">Seuil</label>
+            <label className="text-xs text-gray-300">Type</label>
             <select
-              value={alertSeverityFilter}
+              value={alertDomainFilter}
               onChange={(e) =>
-                setAlertSeverityFilter(
-                  e.target.value as "all" | "medium" | "high"
+                setAlertDomainFilter(
+                  e.target.value as "all" | "seo" | "cta" | "pricing"
                 )
               }
               className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
             >
               <option value="all">Tous</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
+              <option value="seo">SEO</option>
+              <option value="cta">CTA</option>
+              <option value="pricing">Pricing</option>
             </select>
           </div>
           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -1417,37 +1174,13 @@ export default function DashboardPage() {
               <option value="7d">7j</option>
               <option value="30d">30j</option>
             </select>
-            <input
-              type="text"
-              value={alertSearchQuery}
-              onChange={(e) => setAlertSearchQuery(e.target.value)}
-              placeholder="Rechercher (URL, resume, champ)"
-              className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400 min-w-[230px]"
-            />
-          </div>
-          <p className="text-[11px] text-gray-400 mb-4">
-            Priorité: Haute = action rapide, Moyenne = à planifier, Basse = information.
-          </p>
-          <div className="mb-4 flex items-center gap-2">
-            <button
-              onClick={exportAlertsCsv}
-              className="text-xs px-2 py-1 rounded border border-white/15 text-gray-200 hover:bg-white/5"
-            >
-              Export CSV
-            </button>
-            <button
-              onClick={exportAlertsPdf}
-              className="text-xs px-2 py-1 rounded border border-white/15 text-gray-200 hover:bg-white/5"
-            >
-              Export PDF
-            </button>
           </div>
           <div className="space-y-4">
             {filteredEvents.length === 0 && (
               <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-gray-300">
-                <p>Aucun changement detecte pour ce filtre.</p>
+                <p>{emptyStateMessage.title}</p>
                 <p className="mt-1 text-xs text-gray-400">
-                  Pour demarrer: ajoute au moins 1 URL puis lance &quot;Analyser maintenant&quot;.
+                  {emptyStateMessage.hint}
                 </p>
               </div>
             )}
@@ -1457,10 +1190,7 @@ export default function DashboardPage() {
                   const priorityScore = getPriorityScore(item);
                   const priorityLabel = getPriorityLabel(priorityScore);
                   const priorityClass = getPriorityClass(priorityScore);
-                  const confidence = getAlertConfidence(item);
                   const changeSummary = getAlertChangeSummary(item);
-                  const impactLabel = getAlertImpactLabel(item);
-                  const recommendedAction = getAlertRecommendedAction(item);
                   const isExpanded = expandedAlertId === item.id;
                   return (
                     <>
@@ -1477,11 +1207,6 @@ export default function DashboardPage() {
                     Impact {priorityScore} - {priorityLabel}
                   </span>
                   <span
-                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${confidence.className}`}
-                  >
-                    Confiance {confidence.label}
-                  </span>
-                  <span
                     className={`text-[10px] uppercase px-2 py-1 rounded-full ${
                       item.is_read
                         ? "bg-emerald-500/15 text-emerald-200"
@@ -1495,14 +1220,6 @@ export default function DashboardPage() {
                 {item.metadata?.url && (
                   <p className="text-xs text-gray-400 mt-1">{item.metadata.url}</p>
                 )}
-                <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
-                  <p className="text-gray-300">
-                    <span className="text-gray-400">Impact:</span> {impactLabel}
-                  </p>
-                  <p className="text-gray-300">
-                    <span className="text-gray-400">Action:</span> {recommendedAction}
-                  </p>
-                </div>
                 <div className="mt-2 flex items-center justify-between gap-3">
                   <p className="text-xs text-gray-500">
                     {formatAlertDateShort(item.detected_at)}
@@ -1553,30 +1270,6 @@ export default function DashboardPage() {
         onDigestHourChange={setDigestHour}
         onSaveAlertSettings={saveAlertSettings}
         onRunDailyDigestNow={runDailyDigestNow}
-        privacyMessage={privacyMessage}
-        runningPrivacyExport={runningPrivacyExport}
-        deletingAccount={deletingAccount}
-        deleteAccountConfirmText={deleteAccountConfirmText}
-        onDeleteAccountConfirmTextChange={setDeleteAccountConfirmText}
-        onExportPersonalData={exportPersonalData}
-        onDeleteAccount={deleteAccount}
-        analysisSeverities={analysisSeverities}
-        allAnalysisSeveritiesSelected={allAnalysisSeveritiesSelected}
-        analysisRunning={analysisRunning}
-        analysisMessage={analysisMessage}
-        newUrl={newUrl}
-        canAddUrl={canAddUrl}
-        hasActiveSubscription={hasActiveSubscription}
-        isBypass={isBypass}
-        currentCount={currentCount}
-        limit={limit}
-        plan={plan}
-        message={message}
-        onToggleAllAnalysisSeverities={toggleAllAnalysisSeverities}
-        onToggleAnalysisSeverity={toggleAnalysisSeverity}
-        onRunAnalysis={runAnalysis}
-        onNewUrlChange={setNewUrl}
-        onAddUrl={addUrl}
       />
     </main>
   );

@@ -5,12 +5,15 @@ import { renderAlertEmail } from "@/lib/emailTemplates";
 import { Resend } from "resend";
 import { requireUserFromRequest } from "@/lib/routeAuth";
 import { fetchPageHtml } from "@/lib/monitorFetch";
-import { dedupeConsecutiveRows } from "@/lib/monitorDedupe";
+import { dedupeConsecutiveRows, groupRowsByDomain } from "@/lib/monitorDedupe";
 import {
   buildDiffRows,
+  buildRuleRows,
   filterDynamicNoiseRows,
   severityAtLeast,
   type DbSnapshot,
+  type MonitorRule,
+  type RuleEvaluation,
 } from "@/lib/monitorDiff";
 import { parseMonitorRunRequestBody } from "@/lib/monitorRunRequest";
 import {
@@ -18,6 +21,7 @@ import {
   DAILY_RUN_LIMIT_BY_PLAN,
   JOB_BATCH_SIZE,
   MAX_URLS_BY_PLAN,
+  FEATURE_FLAGS,
 } from "@/lib/monitorRunConfig";
 
 type MonitoredUrl = {
@@ -31,6 +35,15 @@ type MonitorJob = {
   monitored_url_id: string;
   status: "queued" | "processing" | "done" | "failed";
   attempt_count: number;
+};
+
+type MonitorRuleRow = {
+  id: string;
+  monitored_url_id: string;
+  rule_type: "css" | "text_pattern" | "attribute";
+  selector: string;
+  label: string | null;
+  is_active: boolean;
 };
 
 type AlertSettings = {
@@ -49,6 +62,24 @@ type MonitorRunStatus =
   | "rate_limited"
   | "failed_internal";
 
+type UrlRunDiagnostic = {
+  url: string;
+  fetch: "ok" | "failed";
+  status: string;
+  title: string | null;
+  h1: string | null;
+  canonical: string | null;
+  robots: string | null;
+  headlinesCount: number;
+  ctaCount: number;
+  pricingSignals: number;
+  rawDiffCount: number;
+  noiseFilteredCount: number;
+  dedupedCount: number;
+  storedCount: number;
+  note?: string;
+};
+
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
@@ -61,6 +92,99 @@ function errorResponse(message: string, status: number, code: string) {
     },
     { status }
   );
+}
+
+function toRuleSignalsMap(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object") return {};
+  return Object.entries(value as Record<string, unknown>).reduce<Record<string, string>>(
+    (acc, [key, raw]) => {
+      acc[key] = typeof raw === "string" ? raw : String(raw ?? "");
+      return acc;
+    },
+    {}
+  );
+}
+
+function extractCssSelectorSignal(html: string, selector: string) {
+  const trimmed = selector.trim();
+  if (!trimmed) return "";
+
+  if (trimmed.startsWith("#")) {
+    const id = trimmed.slice(1).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(
+      `<([a-z0-9]+)[^>]*\\bid=["']${id}["'][^>]*>([\\s\\S]{0,240}?)<\\/\\1>`,
+      "i"
+    );
+    const match = html.match(regex);
+    if (match?.[2]) return match[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    return "";
+  }
+
+  if (trimmed.startsWith(".")) {
+    const className = trimmed.slice(1).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(
+      `<([a-z0-9]+)[^>]*\\bclass=["'][^"']*\\b${className}\\b[^"']*["'][^>]*>([\\s\\S]{0,240}?)<\\/\\1>`,
+      "i"
+    );
+    const match = html.match(regex);
+    if (match?.[2]) return match[2].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+    return "";
+  }
+
+  const tag = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const tagRegex = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]{0,240}?)<\\/${tag}>`, "i");
+  const tagMatch = html.match(tagRegex);
+  if (tagMatch?.[1]) {
+    return tagMatch[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  }
+  return "";
+}
+
+function evaluateMonitorRuleSignals(params: {
+  html: string;
+  rules: MonitorRule[];
+  previousSignals: Record<string, string>;
+}): { evaluations: RuleEvaluation[]; currentSignals: Record<string, string> } {
+  const { html, rules, previousSignals } = params;
+  const evaluations: RuleEvaluation[] = [];
+  const currentSignals: Record<string, string> = {};
+
+  for (const rule of rules) {
+    let afterValue = "";
+    if (rule.rule_type === "css") {
+      afterValue = extractCssSelectorSignal(html, rule.selector);
+    } else if (rule.rule_type === "text_pattern") {
+      const pattern = rule.selector.trim();
+      const regex = new RegExp(pattern, "i");
+      afterValue = regex.test(html) ? "matched" : "";
+    } else {
+      // attribute format: selector@attr (minimal support)
+      const [selectorPart, attrPart] = rule.selector.split("@");
+      const attr = (attrPart || "").trim();
+      const selector = (selectorPart || "").trim();
+      if (selector && attr) {
+        const escapedSelector = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const escapedAttr = attr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(
+          `<${escapedSelector}\\b[^>]*\\b${escapedAttr}=["']([^"']*)["'][^>]*>`,
+          "i"
+        );
+        const match = html.match(regex);
+        afterValue = match?.[1] || "";
+      }
+    }
+
+    const beforeValue = previousSignals[rule.id] || "";
+    currentSignals[rule.id] = afterValue;
+    evaluations.push({
+      rule,
+      beforeValue: beforeValue || null,
+      afterValue: afterValue || null,
+      matchFound: afterValue.trim().length > 0,
+    });
+  }
+
+  return { evaluations, currentSignals };
 }
 
 export async function POST(request: Request) {
@@ -257,6 +381,32 @@ export async function POST(request: Request) {
     });
   }
 
+  const rulesByUrl = new Map<string, MonitorRule[]>();
+  if (FEATURE_FLAGS.monitorRulesV1) {
+    const { data: monitorRules, error: monitorRulesError } = await supabaseAdmin
+      .from("monitor_rules")
+      .select("id,monitored_url_id,rule_type,selector,label,is_active")
+      .eq("user_id", userId)
+      .eq("is_active", true)
+      .in(
+        "monitored_url_id",
+        urls.map((item) => item.id)
+      );
+
+    if (!monitorRulesError) {
+      for (const rule of ((monitorRules || []) as MonitorRuleRow[])) {
+        const list = rulesByUrl.get(rule.monitored_url_id) || [];
+        list.push({
+          id: rule.id,
+          rule_type: rule.rule_type,
+          selector: rule.selector,
+          label: rule.label,
+        });
+        rulesByUrl.set(rule.monitored_url_id, list);
+      }
+    }
+  }
+
   const queueNowIso = new Date().toISOString();
 
   if (!continueQueue) {
@@ -316,8 +466,11 @@ export async function POST(request: Request) {
   let changes = 0;
   let deduped = 0;
   let noiseFiltered = 0;
+  let grouped = 0;
+  let highConfidence = 0;
   const failed: string[] = [];
   const highSeverityAlerts: string[] = [];
+  const diagnostics: UrlRunDiagnostic[] = [];
   const userEmail = userData.user.email || "";
 
   for (const job of jobs) {
@@ -343,6 +496,23 @@ export async function POST(request: Request) {
         const statusLabel = page.status ? `HTTP_${page.status}` : page.failureCode;
         const lastError = `${statusLabel} after ${page.attempts} attempt(s)`;
         failed.push(`${item.url} (${statusLabel})`);
+        diagnostics.push({
+          url: item.url,
+          fetch: "failed",
+          status: statusLabel,
+          title: null,
+          h1: null,
+          canonical: null,
+          robots: null,
+          headlinesCount: 0,
+          ctaCount: 0,
+          pricingSignals: 0,
+          rawDiffCount: 0,
+          noiseFilteredCount: 0,
+          dedupedCount: 0,
+          storedCount: 0,
+          note: page.failureDetail,
+        });
         await supabaseAdmin
           .from("monitored_urls")
           .update({
@@ -369,13 +539,23 @@ export async function POST(request: Request) {
       const { data: previousSnapshot } = await supabaseAdmin
         .from("url_snapshots")
         .select(
-          "id,title,meta_description,h1,canonical_url,robots_directive,pricing_json,cta_json,content_fingerprint"
+          "id,title,meta_description,h1,canonical_url,robots_directive,pricing_json,cta_json,content_fingerprint,raw_extract"
         )
         .eq("user_id", userId)
         .eq("monitored_url_id", item.id)
         .order("fetched_at", { ascending: false })
         .limit(1)
         .maybeSingle<DbSnapshot>();
+
+      const urlRules = rulesByUrl.get(item.id) || [];
+      const previousRuleSignals = toRuleSignalsMap(
+        (previousSnapshot?.raw_extract as Record<string, unknown> | null | undefined)?.rule_signals
+      );
+      const ruleEvaluation = evaluateMonitorRuleSignals({
+        html: page.html,
+        rules: urlRules,
+        previousSignals: previousRuleSignals,
+      });
 
       const { data: insertedSnapshot, error: insertSnapshotError } =
         await supabaseAdmin
@@ -393,15 +573,39 @@ export async function POST(request: Request) {
             pricing_json: extracted.pricingJson,
             cta_json: extracted.ctaJson,
             content_fingerprint: extracted.contentFingerprint,
-            raw_extract: extracted.rawExtract,
+            raw_extract: {
+              ...extracted.rawExtract,
+              rule_signals: ruleEvaluation.currentSignals,
+            },
           })
           .select(
-            "id,title,meta_description,h1,canonical_url,robots_directive,pricing_json,cta_json,content_fingerprint"
+            "id,title,meta_description,h1,canonical_url,robots_directive,pricing_json,cta_json,content_fingerprint,raw_extract"
           )
           .single<DbSnapshot>();
 
       if (insertSnapshotError || !insertedSnapshot) {
         failed.push(item.url);
+        diagnostics.push({
+          url: item.url,
+          fetch: "ok",
+          status: "SNAPSHOT_INSERT_ERROR",
+          title: extracted.title || null,
+          h1: extracted.h1 || null,
+          canonical: extracted.canonicalUrl || null,
+          robots: extracted.robotsDirective || null,
+          headlinesCount: Array.isArray((extracted.rawExtract as Record<string, unknown>)?.headlines)
+            ? ((extracted.rawExtract as Record<string, unknown>).headlines as unknown[]).length
+            : 0,
+          ctaCount: Array.isArray(extracted.ctaJson) ? extracted.ctaJson.length : 0,
+          pricingSignals:
+            extracted.pricingJson && typeof extracted.pricingJson === "object"
+              ? Object.keys(extracted.pricingJson).length
+              : 0,
+          rawDiffCount: 0,
+          noiseFilteredCount: 0,
+          dedupedCount: 0,
+          storedCount: 0,
+        });
         await supabaseAdmin
           .from("monitor_jobs")
           .update({
@@ -422,12 +626,24 @@ export async function POST(request: Request) {
         before: previousSnapshot ?? null,
         after: insertedSnapshot,
       });
+      const ruleRows =
+        FEATURE_FLAGS.monitorRulesV1 && ruleEvaluation.evaluations.length > 0
+          ? buildRuleRows({
+              userId,
+              monitoredUrlId: item.id,
+              monitoredUrl: item.url,
+              snapshotBeforeId: previousSnapshot?.id || null,
+              snapshotAfterId: insertedSnapshot.id,
+              evaluations: ruleEvaluation.evaluations,
+            })
+          : [];
+      const allDiffRows = [...diffRows, ...ruleRows];
 
       const dynamicNoiseScore = Number(
         (extracted.rawExtract?.dynamic_noise_score as number | undefined) || 0
       );
       const noiseFilter = filterDynamicNoiseRows({
-        rows: diffRows,
+        rows: allDiffRows,
         dynamicNoiseScore,
       });
       noiseFiltered += noiseFilter.filtered;
@@ -439,14 +655,74 @@ export async function POST(request: Request) {
       });
       deduped += noiseFilter.kept.length - dedupedRows.length;
 
-      const rowsToStore = dedupedRows.filter((row) =>
+      const groupedRows = FEATURE_FLAGS.groupedAlertsV1
+        ? groupRowsByDomain(dedupedRows)
+        : dedupedRows;
+      grouped += groupedRows.filter((row) => row.change_group_id).length;
+
+      const rowsToStore = groupedRows.filter((row) =>
         selectedSeverities.includes(row.severity)
       );
+      highConfidence += rowsToStore.filter((row) => row.confidence_score >= 75).length;
+      const ctaCount = Array.isArray(extracted.ctaJson) ? extracted.ctaJson.length : 0;
+      const headlinesCount = Array.isArray((extracted.rawExtract as Record<string, unknown>)?.headlines)
+        ? ((extracted.rawExtract as Record<string, unknown>).headlines as unknown[]).length
+        : 0;
+      const pricingSignals =
+        extracted.pricingJson && typeof extracted.pricingJson === "object"
+          ? Object.keys(extracted.pricingJson).length
+          : 0;
 
       if (rowsToStore.length > 0) {
-        const { error: insertChangesError } = await supabaseAdmin
+        const rowsInsertPayload = rowsToStore.map((row) => {
+          const baseRow = {
+            user_id: row.user_id,
+            monitored_url_id: row.monitored_url_id,
+            snapshot_before_id: row.snapshot_before_id,
+            snapshot_after_id: row.snapshot_after_id,
+            domain: row.domain,
+            field_key: row.field_key,
+            before_value: row.before_value,
+            after_value: row.after_value,
+            severity: row.severity,
+            metadata: row.metadata,
+          } as Record<string, unknown>;
+
+          if (FEATURE_FLAGS.monitorConfidenceV1) {
+            baseRow.confidence_score = row.confidence_score;
+            baseRow.noise_flags = row.noise_flags;
+          }
+          if (FEATURE_FLAGS.groupedAlertsV1) {
+            baseRow.change_group_id = row.change_group_id || null;
+            baseRow.is_group_root = Boolean(row.is_group_root);
+          }
+
+          return baseRow;
+        });
+
+        let { error: insertChangesError } = await supabaseAdmin
           .from("detected_changes")
-          .insert(rowsToStore);
+          .insert(rowsInsertPayload);
+
+        // Fallback compat: if migration 008 is missing, retry with legacy columns only.
+        if (insertChangesError) {
+          const legacyPayload = rowsToStore.map((row) => ({
+            user_id: row.user_id,
+            monitored_url_id: row.monitored_url_id,
+            snapshot_before_id: row.snapshot_before_id,
+            snapshot_after_id: row.snapshot_after_id,
+            domain: row.domain,
+            field_key: row.field_key,
+            before_value: row.before_value,
+            after_value: row.after_value,
+            severity: row.severity,
+            metadata: row.metadata,
+          }));
+          const legacyInsert = await supabaseAdmin
+            .from("detected_changes")
+            .insert(legacyPayload);
+          insertChangesError = legacyInsert.error;
+        }
 
         if (!insertChangesError) {
           changes += rowsToStore.length;
@@ -459,8 +735,27 @@ export async function POST(request: Request) {
               highSeverityAlerts.push(`${summary} sur ${item.url}`);
             }
           }
+        } else {
+          failed.push(`${item.url} (DB_INSERT_ERROR)`);
         }
       }
+
+      diagnostics.push({
+        url: item.url,
+        fetch: "ok",
+        status: "OK",
+        title: extracted.title || null,
+        h1: extracted.h1 || null,
+        canonical: extracted.canonicalUrl || null,
+        robots: extracted.robotsDirective || null,
+        headlinesCount,
+        ctaCount,
+        pricingSignals,
+        rawDiffCount: allDiffRows.length,
+        noiseFilteredCount: noiseFilter.filtered,
+        dedupedCount: Math.max(0, noiseFilter.kept.length - dedupedRows.length),
+        storedCount: rowsToStore.length,
+      });
 
       await supabaseAdmin
         .from("monitored_urls")
@@ -484,6 +779,22 @@ export async function POST(request: Request) {
       checked += 1;
     } catch {
       failed.push(`${item.url} (RUNTIME_ERROR)`);
+      diagnostics.push({
+        url: item.url,
+        fetch: "failed",
+        status: "RUNTIME_ERROR",
+        title: null,
+        h1: null,
+        canonical: null,
+        robots: null,
+        headlinesCount: 0,
+        ctaCount: 0,
+        pricingSignals: 0,
+        rawDiffCount: 0,
+        noiseFilteredCount: 0,
+        dedupedCount: 0,
+        storedCount: 0,
+      });
       await supabaseAdmin
         .from("monitored_urls")
         .update({
@@ -544,7 +855,10 @@ export async function POST(request: Request) {
     changes,
     deduped,
     noiseFiltered,
+    grouped,
+    highConfidence,
     failed,
+    diagnostics,
     queuedRemaining: queuedRemaining || 0,
     processedBatch: jobs.length,
   };

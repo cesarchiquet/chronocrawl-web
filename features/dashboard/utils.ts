@@ -1,4 +1,5 @@
 import type { MonitorRunLog } from "@/features/dashboard/types";
+import type { ChangeEvent } from "@/features/dashboard/types";
 
 export function getUrlStatusInfo(statusRaw: string | null) {
   const status = (statusRaw || "OK").toUpperCase();
@@ -156,5 +157,41 @@ export function getRunHealthInfo(
     label: status,
     badgeClass: "bg-amber-500/20 text-amber-200",
     detail: `Execution recente: ${runLog.duration_ms} ms, ${failureRate}% d'echec.`,
+  };
+}
+
+export function getAlertPriorityInfo(event: ChangeEvent) {
+  const confidence = typeof event.confidence_score === "number"
+    ? event.confidence_score
+    : typeof event.metadata?.priority_score === "number"
+      ? event.metadata.priority_score
+      : event.severity === "high"
+        ? 82
+        : 58;
+
+  if (confidence >= 80) {
+    return {
+      label: "Priorite haute",
+      reason:
+        event.metadata?.priority_reason ||
+        "Signal structurel ou changement fort detecte.",
+      badgeClass: "bg-red-500/15 text-red-200",
+    };
+  }
+  if (confidence >= 60) {
+    return {
+      label: "Priorite moyenne",
+      reason:
+        event.metadata?.priority_reason ||
+        "Changement a suivre rapidement.",
+      badgeClass: "bg-amber-500/15 text-amber-200",
+    };
+  }
+  return {
+    label: "Priorite faible",
+    reason:
+      event.metadata?.priority_reason ||
+      "Signal peu stable ou partiellement bruité.",
+    badgeClass: "bg-emerald-500/15 text-emerald-200",
   };
 }

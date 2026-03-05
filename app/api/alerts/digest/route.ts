@@ -15,6 +15,7 @@ type ChangeRow = {
   id: string;
   domain: "seo" | "pricing" | "cta";
   severity: "medium" | "high";
+  confidence_score: number;
   metadata: { summary?: string; url?: string } | null;
   detected_at: string | null;
 };
@@ -120,7 +121,7 @@ export async function POST(request: Request) {
     const severities = severitiesFromThreshold(setting.min_email_severity);
     const { data: changes, error: changesError } = await supabaseAdmin
       .from("detected_changes")
-      .select("id,domain,severity,metadata,detected_at")
+      .select("id,domain,severity,confidence_score,metadata,detected_at")
       .eq("user_id", setting.user_id)
       .eq("is_read", false)
       .is("digest_sent_at", null)
@@ -134,7 +135,12 @@ export async function POST(request: Request) {
     const rows = (changes || []) as ChangeRow[];
     if (rows.length === 0) continue;
 
-    const highCount = rows.filter((row) => row.severity === "high").length;
+    const rankedRows = [...rows].sort((a, b) => {
+      if (a.severity !== b.severity) return a.severity === "high" ? -1 : 1;
+      return (b.confidence_score || 0) - (a.confidence_score || 0);
+    });
+
+    const highCount = rankedRows.filter((row) => row.severity === "high").length;
     const mediumCount = rows.filter((row) => row.severity === "medium").length;
     const domainCounts = rows.reduce<Record<string, number>>((acc, row) => {
       acc[row.domain] = (acc[row.domain] || 0) + 1;
@@ -161,10 +167,10 @@ export async function POST(request: Request) {
         relanceNote,
       ];
 
-      const alertItems = rows.slice(0, 17).map((row) => {
+      const alertItems = rankedRows.slice(0, 17).map((row) => {
         const summary = row.metadata?.summary || `${row.domain} change`;
         const url = row.metadata?.url ? ` — ${row.metadata.url}` : "";
-        return `[${row.severity.toUpperCase()}] ${summary}${url} | Action: ${actionSuggestion(row.domain)}`;
+        return `[${row.severity.toUpperCase()}][Conf ${row.confidence_score || 50}] ${summary}${url} | Action: ${actionSuggestion(row.domain)}`;
       });
       const items = [...headlineItems, ...alertItems];
       const { html, text } = renderAlertEmail({

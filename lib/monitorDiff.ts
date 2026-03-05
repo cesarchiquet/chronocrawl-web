@@ -11,6 +11,21 @@ export type DbSnapshot = {
   pricing_json: Record<string, unknown> | null;
   cta_json: string[] | null;
   content_fingerprint: string | null;
+  raw_extract?: Record<string, unknown> | null;
+};
+
+export type MonitorRule = {
+  id: string;
+  rule_type: "css" | "text_pattern" | "attribute";
+  selector: string;
+  label: string | null;
+};
+
+export type RuleEvaluation = {
+  rule: MonitorRule;
+  beforeValue: string | null;
+  afterValue: string | null;
+  matchFound: boolean;
 };
 
 export type ChangeRow = {
@@ -24,6 +39,10 @@ export type ChangeRow = {
   after_value: string | null;
   severity: MonitorSeverity;
   metadata: Record<string, unknown>;
+  confidence_score: number;
+  noise_flags: string[];
+  change_group_id?: string | null;
+  is_group_root?: boolean;
 };
 
 function asText(input: unknown) {
@@ -92,6 +111,7 @@ function fieldLabel(fieldKey: string) {
     robots_directive: "Robots",
     pricing_json: "Prix",
     cta_json: "CTA",
+    headlines_json: "Headlines",
   };
   return labels[fieldKey] || fieldKey;
 }
@@ -132,7 +152,7 @@ function computeSeverity(params: {
   if (fieldKey === "robots_directive" || fieldKey === "canonical_url") {
     return {
       severity: "high" as const,
-      score: 90,
+      score: 92,
       reason: "Signal SEO structurel critique.",
     };
   }
@@ -141,7 +161,7 @@ function computeSeverity(params: {
     if (becameEmpty || becameFilled) {
       return {
         severity: "high" as const,
-        score: 90,
+        score: 88,
         reason: "Ajout/suppression d'un champ SEO principal.",
       };
     }
@@ -154,7 +174,7 @@ function computeSeverity(params: {
     }
     return {
       severity: "medium" as const,
-      score: 60,
+      score: 64,
       reason: "Variation moderee de texte SEO principal.",
     };
   }
@@ -163,20 +183,20 @@ function computeSeverity(params: {
     if (becameEmpty || becameFilled) {
       return {
         severity: "high" as const,
-        score: 75,
+        score: 78,
         reason: "Ajout/suppression du H1.",
       };
     }
     if (ratio >= 0.6) {
       return {
         severity: "medium" as const,
-        score: 55,
+        score: 58,
         reason: "Forte variation du H1.",
       };
     }
     return {
       severity: "medium" as const,
-      score: 50,
+      score: 52,
       reason: "Variation mineure du H1.",
     };
   }
@@ -189,7 +209,7 @@ function computeSeverity(params: {
     if (maxLen === 0) {
       return {
         severity: "medium" as const,
-        score: 65,
+        score: 66,
         reason: "Structure pricing modifiee.",
       };
     }
@@ -208,14 +228,14 @@ function computeSeverity(params: {
     if (majorNumericShift) {
       return {
         severity: "high" as const,
-        score: 92,
+        score: 94,
         reason: "Variation de prix >= 10%.",
       };
     }
 
     return {
       severity: "medium" as const,
-      score: 68,
+      score: 70,
       reason: "Variation pricing faible ou structurelle.",
     };
   }
@@ -235,7 +255,7 @@ function computeSeverity(params: {
     if (beforeImportant && !afterImportant) {
       return {
         severity: "high" as const,
-        score: 88,
+        score: 86,
         reason: "Disparition d'un CTA commercial important.",
       };
     }
@@ -244,15 +264,52 @@ function computeSeverity(params: {
     if (countDelta >= 2) {
       return {
         severity: "medium" as const,
-        score: 58,
+        score: 60,
         reason: "Variation notable du volume de CTA.",
       };
     }
 
     return {
       severity: "medium" as const,
-      score: 50,
+      score: 52,
       reason: "Variation de CTA detectee.",
+    };
+  }
+
+  if (fieldKey === "headlines_json") {
+    const beforeHeadlines = parseStringArray(beforeValue);
+    const afterHeadlines = parseStringArray(afterValue);
+    const beforeSet = new Set(beforeHeadlines);
+    const afterSet = new Set(afterHeadlines);
+    let delta = 0;
+    for (const item of beforeSet) {
+      if (!afterSet.has(item)) delta += 1;
+    }
+    for (const item of afterSet) {
+      if (!beforeSet.has(item)) delta += 1;
+    }
+
+    if (
+      (beforeHeadlines.length === 0 && afterHeadlines.length > 0) ||
+      (beforeHeadlines.length > 0 && afterHeadlines.length === 0)
+    ) {
+      return {
+        severity: "high" as const,
+        score: 84,
+        reason: "Apparition/disparition du bloc de headlines.",
+      };
+    }
+    if (delta >= 4) {
+      return {
+        severity: "high" as const,
+        score: 78,
+        reason: "Rotation forte des headlines detectee.",
+      };
+    }
+    return {
+      severity: "medium" as const,
+      score: 64,
+      reason: "Variation des headlines detectee.",
     };
   }
 
@@ -261,6 +318,24 @@ function computeSeverity(params: {
     score: 50,
     reason: "Changement detecte.",
   };
+}
+
+function hasVolatileTokenPattern(value: string) {
+  if (!value) return false;
+  return (
+    /\b[0-9a-f]{16,}\b/i.test(value) ||
+    /\b\d{10,13}\b/.test(value) ||
+    /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i.test(value)
+  );
+}
+
+function isMicroCopyChange(beforeValue: string | null, afterValue: string | null) {
+  const beforeText = asText(beforeValue);
+  const afterText = asText(afterValue);
+  if (!beforeText || !afterText) return false;
+  const ratio = tokenChangeRatio(beforeText, afterText);
+  const delta = Math.abs(beforeText.length - afterText.length);
+  return ratio < 0.25 && delta <= 12;
 }
 
 export function buildDiffRows(params: {
@@ -274,6 +349,16 @@ export function buildDiffRows(params: {
   if (!before) return [];
 
   const rows: ChangeRow[] = [];
+  const extractHeadlines = (snapshot: DbSnapshot | null) => {
+    const raw = snapshot?.raw_extract as Record<string, unknown> | undefined;
+    if (!raw) return [] as string[];
+    const values = raw.headlines;
+    if (!Array.isArray(values)) return [] as string[];
+    return values
+      .map((item) => asText(item))
+      .filter((item) => item.length >= 8)
+      .slice(0, 20);
+  };
   const push = (
     domain: ChangeRow["domain"],
     fieldKey: string,
@@ -298,6 +383,8 @@ export function buildDiffRows(params: {
       before_value: beforeText || null,
       after_value: afterText || null,
       severity: computed.severity,
+      confidence_score: computed.score,
+      noise_flags: [],
       metadata: {
         url: monitoredUrl,
         summary: `[${domainLabel(domain)}] ${fieldLabel(fieldKey)} modifie`,
@@ -310,37 +397,67 @@ export function buildDiffRows(params: {
   };
 
   push("seo", "title", before.title, after.title);
-  push(
-    "seo",
-    "meta_description",
-    before.meta_description,
-    after.meta_description
-  );
+  push("seo", "meta_description", before.meta_description, after.meta_description);
   push("seo", "h1", before.h1, after.h1);
+  push("seo", "canonical_url", before.canonical_url, after.canonical_url);
+  push("seo", "robots_directive", before.robots_directive, after.robots_directive);
   push(
     "seo",
-    "canonical_url",
-    before.canonical_url,
-    after.canonical_url
+    "headlines_json",
+    normalizeJson(extractHeadlines(before)),
+    normalizeJson(extractHeadlines(after))
   );
-  push(
-    "seo",
-    "robots_directive",
-    before.robots_directive,
-    after.robots_directive
-  );
-  push(
-    "pricing",
-    "pricing_json",
-    normalizeJson(before.pricing_json),
-    normalizeJson(after.pricing_json)
-  );
-  push(
-    "cta",
-    "cta_json",
-    normalizeJson(before.cta_json),
-    normalizeJson(after.cta_json)
-  );
+  push("pricing", "pricing_json", normalizeJson(before.pricing_json), normalizeJson(after.pricing_json));
+  push("cta", "cta_json", normalizeJson(before.cta_json), normalizeJson(after.cta_json));
+  return rows;
+}
+
+export function buildRuleRows(params: {
+  userId: string;
+  monitoredUrlId: string;
+  monitoredUrl: string;
+  snapshotBeforeId: string | null;
+  snapshotAfterId: string;
+  evaluations: RuleEvaluation[];
+}): ChangeRow[] {
+  const { userId, monitoredUrlId, monitoredUrl, snapshotBeforeId, snapshotAfterId, evaluations } = params;
+  const rows: ChangeRow[] = [];
+
+  for (const evaluation of evaluations) {
+    const beforeText = asText(evaluation.beforeValue);
+    const afterText = asText(evaluation.afterValue);
+    if (beforeText === afterText) continue;
+
+    const fieldKey = `rule:${evaluation.rule.id}`;
+    const baseConfidence = evaluation.matchFound ? 82 : 40;
+    rows.push({
+      user_id: userId,
+      monitored_url_id: monitoredUrlId,
+      snapshot_before_id: snapshotBeforeId,
+      snapshot_after_id: snapshotAfterId,
+      domain: "seo",
+      field_key: fieldKey,
+      before_value: beforeText || null,
+      after_value: afterText || null,
+      severity: evaluation.matchFound ? "high" : "medium",
+      confidence_score: baseConfidence,
+      noise_flags: evaluation.matchFound ? [] : ["rule_selector_missing"],
+      metadata: {
+        url: monitoredUrl,
+        summary: `[RULE] ${evaluation.rule.label || evaluation.rule.selector} modifie`,
+        before_short: shortValue(beforeText),
+        after_short: shortValue(afterText),
+        priority_score: baseConfidence,
+        priority_reason: evaluation.matchFound
+          ? "Variation detectee sur une zone ciblee de surveillance."
+          : "Regle configuree mais zone cible non detectee sur cette page.",
+        rule_id: evaluation.rule.id,
+        rule_type: evaluation.rule.rule_type,
+        rule_selector: evaluation.rule.selector,
+      },
+    });
+  }
+
   return rows;
 }
 
@@ -348,7 +465,61 @@ export function filterDynamicNoiseRows(params: {
   rows: ChangeRow[];
   dynamicNoiseScore: number;
 }) {
-  const { rows } = params;
+  const { rows, dynamicNoiseScore } = params;
   if (rows.length === 0) return { kept: rows, filtered: 0 };
-  return { kept: rows, filtered: 0 };
+  const protectedSeoFields = new Set([
+    "title",
+    "meta_description",
+    "h1",
+    "canonical_url",
+    "robots_directive",
+    "headlines_json",
+  ]);
+
+  const kept: ChangeRow[] = [];
+  let filtered = 0;
+
+  for (const row of rows) {
+    const noiseFlags = new Set<string>(Array.isArray(row.noise_flags) ? row.noise_flags : []);
+
+    if (dynamicNoiseScore >= 10) noiseFlags.add("dynamic_noise_high");
+    if (hasVolatileTokenPattern(asText(row.before_value)) || hasVolatileTokenPattern(asText(row.after_value))) {
+      noiseFlags.add("volatile_token");
+    }
+    if (isMicroCopyChange(row.before_value, row.after_value)) {
+      noiseFlags.add("micro_copy_change");
+    }
+
+    const nextRow: ChangeRow = {
+      ...row,
+      noise_flags: Array.from(noiseFlags),
+    };
+
+    let adjustedConfidence = Number.isFinite(nextRow.confidence_score)
+      ? nextRow.confidence_score
+      : 50;
+    if (noiseFlags.has("dynamic_noise_high")) adjustedConfidence -= 12;
+    if (noiseFlags.has("volatile_token")) adjustedConfidence -= 10;
+    if (noiseFlags.has("micro_copy_change")) adjustedConfidence -= 6;
+    nextRow.confidence_score = Math.max(10, Math.min(99, adjustedConfidence));
+    nextRow.metadata = {
+      ...nextRow.metadata,
+      priority_score: nextRow.confidence_score,
+    };
+
+    const shouldFilter =
+      nextRow.severity === "medium" &&
+      !protectedSeoFields.has(nextRow.field_key) &&
+      (noiseFlags.has("dynamic_noise_high") || noiseFlags.has("volatile_token")) &&
+      nextRow.confidence_score < 55;
+
+    if (shouldFilter) {
+      filtered += 1;
+      continue;
+    }
+
+    kept.push(nextRow);
+  }
+
+  return { kept, filtered };
 }

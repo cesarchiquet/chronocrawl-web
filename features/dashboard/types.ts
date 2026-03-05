@@ -11,6 +11,10 @@ export type ChangeEvent = {
   monitored_url_id: string;
   domain: "seo" | "pricing" | "cta";
   severity: "medium" | "high";
+  confidence_score?: number | null;
+  noise_flags?: string[] | null;
+  change_group_id?: string | null;
+  is_group_root?: boolean | null;
   field_key: string;
   metadata: {
     summary?: string;
@@ -19,9 +23,20 @@ export type ChangeEvent = {
     after_short?: string;
     priority_score?: number;
     priority_reason?: string;
+    grouped_changes_count?: number;
   } | null;
   detected_at: string | null;
   is_read: boolean | null;
+};
+
+export type MonitorRule = {
+  id: string;
+  monitored_url_id: string;
+  rule_type: "css" | "text_pattern" | "attribute";
+  selector: string;
+  label: string | null;
+  is_active: boolean;
+  created_at: string;
 };
 
 export type SubscriptionState = {
