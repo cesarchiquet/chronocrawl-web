@@ -61,8 +61,12 @@ function statusLabel(status: AuditCheck["status"]) {
 }
 
 function statusBadgeClass(status: AuditCheck["status"]) {
-  if (status === "pass") return "bg-emerald-500/15 text-emerald-200";
+  if (status === "pass") return "bg-emerald-500/20 text-emerald-300";
   return "bg-rose-500/15 text-rose-200";
+}
+
+function okTextClass(value: string) {
+  return value.includes("OK") ? "text-emerald-200" : "text-white";
 }
 
 function confidenceLabel(level?: AuditPayload["observationConfidence"]) {
@@ -535,7 +539,7 @@ export default function DashboardAuditSeoPage() {
                           className="cc-panel rounded-[16px] px-3 py-2"
                         >
                           <p className="text-[11px] text-gray-400">{item.label}</p>
-                          <p className="mt-1 text-sm font-medium text-gray-100">
+                          <p className={`mt-1 text-sm font-medium ${okTextClass(item.value)}`}>
                             {item.value}
                           </p>
                         </div>
@@ -546,7 +550,7 @@ export default function DashboardAuditSeoPage() {
                 {stats && (
                   <div className="mt-4 grid gap-3 sm:grid-cols-4 text-sm">
                     <div className="rounded-lg border border-emerald-300/20 bg-emerald-500/5 p-3">
-                      <p className="text-gray-400 text-xs">Checks OK</p>
+                      <p className="text-emerald-200 text-xs">Checks OK</p>
                       <p className="text-xl font-semibold text-emerald-200">{stats.pass}</p>
                     </div>
                     <div className="rounded-lg border border-rose-300/20 bg-rose-500/5 p-3">
@@ -575,7 +579,9 @@ export default function DashboardAuditSeoPage() {
                   <p className="text-xs uppercase tracking-wide text-gray-400">
                     {card.label}
                   </p>
-                  <p className="mt-2 text-lg font-semibold text-white">{card.value}</p>
+                  <p className={`mt-2 text-lg font-semibold ${okTextClass(card.value)}`}>
+                    {card.value}
+                  </p>
                   <p className="mt-2 text-sm text-gray-300">{card.detail}</p>
                 </div>
               ))}

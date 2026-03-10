@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const dashboardMenuItems = [
+  { href: "/", label: "Accueil" },
   { href: "/dashboard", label: "Surveillance" },
   { href: "/dashboard/audit-seo", label: "Audit SEO" },
 ];
@@ -16,8 +17,10 @@ export default function DashboardSuiteMenu() {
       <div className="flex flex-wrap items-center gap-2">
         {dashboardMenuItems.map((item) => {
           const isActive =
-            pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            item.href === "/"
+              ? pathname === "/"
+              : pathname === item.href ||
+                (item.href !== "/dashboard" && pathname.startsWith(item.href));
           return (
             <Link
               key={item.href}

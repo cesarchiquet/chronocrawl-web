@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { useSearchParams } from "next/navigation";
 import PublicChrome from "@/components/PublicChrome";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -58,11 +57,10 @@ const comparisonRows = [
 ];
 
 export default function TarifsPage() {
-  const searchParams = useSearchParams();
   const [session, setSession] = useState<Session | null>(null);
   const [checkoutError, setCheckoutError] = useState("");
-  const fromSignup = searchParams.get("from") === "signup";
-  const checkoutCancelled = searchParams.get("checkout") === "cancelled";
+  const [fromSignup, setFromSignup] = useState(false);
+  const [checkoutCancelled, setCheckoutCancelled] = useState(false);
 
   useEffect(() => {
     const hydrate = async () => {
@@ -82,6 +80,13 @@ export default function TarifsPage() {
       }
     );
     return () => listener.subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setFromSignup(params.get("from") === "signup");
+    setCheckoutCancelled(params.get("checkout") === "cancelled");
   }, []);
 
   const startCheckout = async (plan: "starter" | "pro" | "agency") => {

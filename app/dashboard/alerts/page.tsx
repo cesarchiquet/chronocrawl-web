@@ -33,7 +33,7 @@ type ChangeEvent = {
     priority_reason?: string;
     grouped_changes_count?: number;
   } | null;
-  détectéd_at: string | null;
+  detected_at: string | null;
   is_read: boolean | null;
 };
 
@@ -96,25 +96,25 @@ export default function AlertsHistoryPage() {
     async (userId: string, from: number, reset = false) => {
       const to = from + HISTORY_PAGE_SIZE - 1;
       const extendedSelect =
-        "id,field_key,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,metadata,détectéd_at,is_read";
+        "id,field_key,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,metadata,detected_at,is_read";
       const legacySelect =
-        "id,field_key,domain,severity,metadata,détectéd_at,is_read";
+        "id,field_key,domain,severity,metadata,detected_at,is_read";
 
       let data: unknown[] | null = null;
       const extendedRes = await supabase
-        .from("détectéd_changes")
+        .from("detected_changes")
         .select(extendedSelect)
         .eq("user_id", userId)
         .in("severity", ["medium", "high"])
-        .order("détectéd_at", { ascending: false })
+        .order("detected_at", { ascending: false })
         .range(from, to);
       if (extendedRes.error) {
         const legacyRes = await supabase
-          .from("détectéd_changes")
+          .from("detected_changes")
           .select(legacySelect)
           .eq("user_id", userId)
           .in("severity", ["medium", "high"])
-          .order("détectéd_at", { ascending: false })
+          .order("detected_at", { ascending: false })
           .range(from, to);
         data = legacyRes.data;
       } else {
@@ -202,7 +202,7 @@ export default function AlertsHistoryPage() {
       events.map((event) => event.metadata?.url).filter(Boolean)
     ).size;
     const highPriority = events.filter((event) => event.severity === "high").length;
-    const latestDétectédAt = events[0]?.détectéd_at || null;
+    const latestDetectedAt = events[0]?.detected_at || null;
     const groupedSequences = new Set(
       events.map((event) => event.change_group_id).filter(Boolean)
     ).size;
@@ -212,7 +212,7 @@ export default function AlertsHistoryPage() {
       unread,
       coveredUrls,
       highPriority,
-      latestDétectédAt,
+      latestDetectedAt,
       groupedSequences,
     };
   }, [events]);
@@ -245,12 +245,12 @@ export default function AlertsHistoryPage() {
       if (readFilter === "unread" && event.is_read) return false;
       if (readFilter === "read" && !event.is_read) return false;
       if (dateFilter !== "all") {
-        const détectédMs = event.détectéd_at ? Date.parse(event.détectéd_at) : NaN;
-        if (!Number.isFinite(détectédMs)) return false;
+        const detectedMs = event.detected_at ? Date.parse(event.detected_at) : NaN;
+        if (!Number.isFinite(detectedMs)) return false;
         if (dateFilter === "custom") {
-          if (fromMsCustom !== null && détectédMs < fromMsCustom) return false;
-          if (toMsCustom !== null && détectédMs > toMsCustom) return false;
-        } else if (fromMsPreset !== null && détectédMs < fromMsPreset) {
+          if (fromMsCustom !== null && detectedMs < fromMsCustom) return false;
+          if (toMsCustom !== null && detectedMs > toMsCustom) return false;
+        } else if (fromMsPreset !== null && detectedMs < fromMsPreset) {
           return false;
         }
       }
@@ -281,7 +281,7 @@ export default function AlertsHistoryPage() {
   const filteredTimeline = useMemo(() => {
     const buckets = new Map<string, ChangeEvent[]>();
     for (const event of filtered) {
-      const label = formatTimelineLabel(event.détectéd_at);
+      const label = formatTimelineLabel(event.detected_at);
       const current = buckets.get(label) || [];
       current.push(event);
       buckets.set(label, current);
@@ -309,16 +309,24 @@ export default function AlertsHistoryPage() {
     return "Priorité basse";
   };
 
-  const getPriorityClass = (score: number) => {
-    if (score >= 75) return "bg-red-500/15 text-red-200";
-    if (score >= 45) return "bg-amber-500/15 text-amber-200";
-    return "bg-emerald-500/15 text-emerald-200";
+  const getPriorityClass = (_score?: number) => {
+    void _score;
+    return "cc-badge-neutral";
   };
 
-  const getDomainClass = (domain: ChangeEvent["domain"]) => {
-    if (domain === "seo") return "bg-sky-500/15 text-sky-200";
-    if (domain === "cta") return "bg-violet-500/15 text-violet-200";
-    return "bg-emerald-500/15 text-emerald-200";
+  const getDomainClass = (_domain?: ChangeEvent["domain"]) => {
+    void _domain;
+    return "cc-badge-neutral";
+  };
+
+  const getSeverityClass = (_severity?: ChangeEvent["severity"]) => {
+    void _severity;
+    return "cc-badge-neutral";
+  };
+
+  const getReadStateClass = (_isRead?: boolean | null) => {
+    void _isRead;
+    return "cc-badge-neutral";
   };
 
   const getAlertCardClass = (event: ChangeEvent) => {
@@ -335,7 +343,7 @@ export default function AlertsHistoryPage() {
   const exportCsv = () => {
     const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`;
     const rows = filtered.map((event) => {
-      const détectédAt = event.détectéd_at || "";
+      const detectedAt = event.detected_at || "";
       const fieldKey = event.field_key || "";
       const domain = event.domain || "";
       const severity = event.severity || "";
@@ -354,7 +362,7 @@ export default function AlertsHistoryPage() {
       const beforeShort = event.metadata?.before_short || "";
       const afterShort = event.metadata?.after_short || "";
       return [
-        détectédAt,
+        detectedAt,
         fieldKey,
         domain,
         severity,
@@ -373,7 +381,7 @@ export default function AlertsHistoryPage() {
     });
 
     const header = [
-      "détectéd_at",
+      "detected_at",
       "field_key",
       "domain",
       "severity",
@@ -409,7 +417,7 @@ export default function AlertsHistoryPage() {
 
   if (loading) {
     return (
-      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
         <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-10">
           <div className="h-6 w-32 rounded bg-white/10 animate-pulse" />
           <div className="mt-4 h-10 w-72 rounded bg-white/10 animate-pulse" />
@@ -440,7 +448,7 @@ export default function AlertsHistoryPage() {
 
   if (!session) {
     return (
-      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
         <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-24 md:pt-28 pb-24 text-center">
           <h1 className="text-3xl font-bold">Historique d&apos;alertes</h1>
           <p className="mt-4 text-gray-300">
@@ -458,7 +466,7 @@ export default function AlertsHistoryPage() {
   }
 
   return (
-    <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
       <motion.section
         variants={fadeUp}
         initial="hidden"
@@ -520,8 +528,8 @@ export default function AlertsHistoryPage() {
           <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
             <p className="text-xs text-gray-400">Derniere alerte</p>
             <p className="mt-1 text-sm font-semibold text-gray-100">
-              {historyOverview.latestDétectédAt
-                ? formatAlertDateShort(historyOverview.latestDétectédAt)
+              {historyOverview.latestDetectedAt
+                ? formatAlertDateShort(historyOverview.latestDetectedAt)
                 : "Aucune"}
             </p>
           </div>
@@ -695,36 +703,38 @@ export default function AlertsHistoryPage() {
                 >
                   <div className="flex flex-wrap items-center gap-2 mb-2">
                     <span
-                      className={`text-[10px] uppercase px-2 py-1 rounded-full ${getDomainClass(event.domain)}`}
+                      className={`inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full ${getDomainClass(event.domain)}`}
                     >
                       {event.domain}
                     </span>
-                    <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
+                    <span
+                      className={`inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full ${getSeverityClass(event.severity)}`}
+                    >
                       {event.severity}
                     </span>
                     <span
-                      className={`text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
+                      className={`inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
                     >
                       {priorityLabel}
                     </span>
                     {event.change_group_id && (
-                      <span className="text-[10px] uppercase px-2 py-1 rounded-full cc-chip">
+                      <span
+                        className="inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full cc-badge-neutral"
+                      >
                         {event.is_group_root ? "Sequence" : "Groupe"} x
                         {event.metadata?.grouped_changes_count || 1}
                       </span>
                     )}
                     {Array.isArray(event.noise_flags) &&
                       event.noise_flags.length > 0 && (
-                        <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
+                        <span
+                          className="inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full cc-badge-neutral"
+                        >
                           Bruit filtre
                         </span>
                       )}
                     <span
-                      className={`text-[10px] uppercase px-2 py-1 rounded-full ${
-                        event.is_read
-                          ? "bg-emerald-500/15 text-emerald-200"
-                          : "bg-amber-500/15 text-amber-200"
-                      }`}
+                      className={`inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full ${getReadStateClass(event.is_read)}`}
                     >
                       {event.is_read ? "Lu" : "Nouveau"}
                     </span>
@@ -743,7 +753,7 @@ export default function AlertsHistoryPage() {
                   )}
                   <div className="mt-2 flex items-center justify-between gap-3">
                     <p className="text-xs text-gray-500">
-                      {formatAlertDateShort(event.détectéd_at)}
+                      {formatAlertDateShort(event.detected_at)}
                     </p>
                     <button
                       onClick={() =>
@@ -788,7 +798,7 @@ export default function AlertsHistoryPage() {
                       {getAlertChangeSummary(expandedAlert)}
                     </p>
                     <p className="mt-1 text-xs text-gray-400">
-                      {formatAlertDateShort(expandedAlert.détectéd_at)}
+                      {formatAlertDateShort(expandedAlert.detected_at)}
                     </p>
                   </div>
                   <button

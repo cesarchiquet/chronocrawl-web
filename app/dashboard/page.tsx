@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, type Variants } from "framer-motion";
-import { useSearchParams } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import {
   getAlertChangeKind,
@@ -57,7 +56,6 @@ function formatTimelineLabel(dateValue: string | null) {
 }
 
 export default function DashboardPage() {
-  const searchParams = useSearchParams();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [urls, setUrls] = useState<MonitoredUrl[]>([]);
@@ -150,14 +148,15 @@ export default function DashboardPage() {
   }, [session?.user, session?.user?.id, session?.user?.user_metadata?.subscription_status]);
 
   useEffect(() => {
-    const queryPrefill = searchParams.get("prefillUrl");
-    const onboarding = searchParams.get("onboarding") === "1";
-    const trialStarted = searchParams.get("trialStarted") === "1";
-    const planUpdated = searchParams.get("planUpdated") === "1";
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const queryPrefill = params.get("prefillUrl");
+    const onboarding = params.get("onboarding") === "1";
+    const trialStarted = params.get("trialStarted") === "1";
+    const planUpdated = params.get("planUpdated") === "1";
     const storedPrefill =
-      typeof window !== "undefined"
-        ? window.localStorage.getItem("chronocrawl:onboarding-first-url")
-        : null;
+      window.localStorage.getItem("chronocrawl:onboarding-first-url");
     const firstUrl = queryPrefill || storedPrefill || "";
 
     if (firstUrl && !newUrl) {
@@ -165,9 +164,7 @@ export default function DashboardPage() {
       setOnboardingMessage(
         "Première étape : vérifie l'URL pré-remplie, ajoute-la, puis lance ton premier scan."
       );
-      if (typeof window !== "undefined") {
-        window.localStorage.removeItem("chronocrawl:onboarding-first-url");
-      }
+      window.localStorage.removeItem("chronocrawl:onboarding-first-url");
     } else if (onboarding) {
       setOnboardingMessage(
         "Ajoute ta première URL concurrente pour lancer la surveillance."
@@ -181,7 +178,7 @@ export default function DashboardPage() {
       setBillingMessage("Plan mis à jour. Le dashboard est prêt.");
     }
 
-    if (typeof window !== "undefined" && onboarding) {
+    if (onboarding) {
       window.requestAnimationFrame(() => {
         document.getElementById("add-url-panel")?.scrollIntoView({
           behavior: "smooth",
@@ -189,7 +186,7 @@ export default function DashboardPage() {
         });
       });
     }
-    if (typeof window !== "undefined" && (onboarding || trialStarted || planUpdated)) {
+    if (onboarding || trialStarted || planUpdated) {
       const url = new URL(window.location.href);
       url.searchParams.delete("onboarding");
       url.searchParams.delete("prefillUrl");
@@ -197,7 +194,7 @@ export default function DashboardPage() {
       url.searchParams.delete("planUpdated");
       window.history.replaceState({}, "", url.toString());
     }
-  }, [newUrl, searchParams]);
+  }, [newUrl]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -228,9 +225,9 @@ export default function DashboardPage() {
     let from = 0;
     let useLegacySelect = false;
     const extendedSelect =
-      "id,monitored_url_id,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,field_key,metadata,détectéd_at,is_read";
+      "id,monitored_url_id,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,field_key,metadata,detected_at,is_read";
     const legacySelect =
-      "id,monitored_url_id,domain,severity,field_key,metadata,détectéd_at,is_read";
+      "id,monitored_url_id,domain,severity,field_key,metadata,detected_at,is_read";
 
     while (true) {
       const to = from + EVENTS_PAGE_SIZE - 1;
@@ -239,11 +236,11 @@ export default function DashboardPage() {
 
       if (!useLegacySelect) {
         const res = await supabase
-          .from("détectéd_changes")
+          .from("detected_changes")
           .select(extendedSelect)
           .eq("user_id", userId)
           .in("severity", ["medium", "high"])
-          .order("détectéd_at", { ascending: false })
+          .order("detected_at", { ascending: false })
           .range(from, to);
         data = res.data;
         error = res.error;
@@ -251,11 +248,11 @@ export default function DashboardPage() {
 
       if (useLegacySelect || error) {
         const legacyRes = await supabase
-          .from("détectéd_changes")
+          .from("detected_changes")
           .select(legacySelect)
           .eq("user_id", userId)
           .in("severity", ["medium", "high"])
-          .order("détectéd_at", { ascending: false })
+          .order("detected_at", { ascending: false })
           .range(from, to);
         data = legacyRes.data;
         error = legacyRes.error;
@@ -294,7 +291,7 @@ export default function DashboardPage() {
     };
 
     const ranked = eventsData.sort((a, b) => {
-        const dateDelta = (b.détectéd_at || "").localeCompare(a.détectéd_at || "");
+        const dateDelta = (b.detected_at || "").localeCompare(a.detected_at || "");
         if (dateDelta !== 0) return dateDelta;
         const domainDelta = domainRank[a.domain] - domainRank[b.domain];
         if (domainDelta !== 0) return domainDelta;
@@ -340,7 +337,7 @@ export default function DashboardPage() {
 
   const markAlertAsRead = async (id: string, isRead: boolean) => {
     const { error } = await supabase
-      .from("détectéd_changes")
+      .from("detected_changes")
       .update({ is_read: isRead })
       .eq("id", id);
 
@@ -354,7 +351,7 @@ export default function DashboardPage() {
   const markAllAsRead = async () => {
     if (!session?.user) return;
     const { error } = await supabase
-      .from("détectéd_changes")
+      .from("detected_changes")
       .update({ is_read: true })
       .eq("user_id", session.user.id)
       .or("is_read.eq.false,is_read.is.null");
@@ -665,63 +662,8 @@ export default function DashboardPage() {
     effectiveSubscriptionStatus === "trialing";
   const canAddUrl =
     (isBypass || hasActiveSubscription) && currentCount < limit;
-  const hasThreeUrls = currentCount >= 3;
   const hasFirstScan = urls.some((item) => !!item.last_checked_at);
-  const hasFirstAlert = events.length > 0;
   const showFirstScanGuide = currentCount > 0 && !hasFirstScan;
-  const latestScanAt = useMemo(() => {
-    const values = urls
-      .map((item) => item.last_checked_at)
-      .filter((value): value is string => !!value)
-      .sort((a, b) => b.localeCompare(a));
-    return values[0] || null;
-  }, [urls]);
-  const latestAlertAt = events[0]?.détectéd_at || null;
-  const activationSteps = [
-    { label: "Ajouter 3 URLs concurrentes", done: hasThreeUrls },
-    { label: "Lancer un premier scan", done: hasFirstScan },
-    { label: "Recevoir 1 alerte utile", done: hasFirstAlert },
-  ];
-  const activationDoneCount = activationSteps.filter((step) => step.done).length;
-  const activationProgress = Math.round(
-    (activationDoneCount / activationSteps.length) * 100
-  );
-  const missingUrlsCount = Math.max(0, 3 - currentCount);
-  const activationGuide = !hasThreeUrls
-    ? {
-        title: `Ajoute encore ${missingUrlsCount} URL${missingUrlsCount > 1 ? "s" : ""} pour lancer une veille exploitable`,
-        hint: "Avec au moins 3 URLs, tu commences a comparer des signaux recurrents plutot qu'un cas isole.",
-        ctaLabel: "Ajouter une URL",
-        ctaHref: "#add-url-panel",
-        ctaAction: null as null | "scan",
-        status: "En cours",
-      }
-    : !hasFirstScan
-      ? {
-          title: "Lance un premier scan pour initialiser la surveillance",
-          hint: "Le premier scan crée la base de comparaison qui servira aux prochaines alertes.",
-          ctaLabel: "Lancer le scan",
-          ctaHref: null as string | null,
-          ctaAction: "scan" as const,
-          status: "Prêt",
-        }
-      : !hasFirstAlert
-        ? {
-            title: "La surveillance tourne, il faut maintenant capter un premier signal",
-            hint: "Les alertes apparaissent des qu'un element SEO, CTA, pricing ou titre visible evolue.",
-            ctaLabel: "Relancer le scan",
-            ctaHref: null as string | null,
-            ctaAction: "scan" as const,
-            status: "Surveillance active",
-          }
-        : {
-            title: "La veille concurrentielle est active",
-            hint: "Tu peux maintenant lire les alertes recentes ou ouvrir l'historique complet.",
-            ctaLabel: "Voir l'historique",
-            ctaHref: "/dashboard/alerts",
-            ctaAction: null as null | "scan",
-            status: "Operationnel",
-          };
   const unreadCount = events.filter((item) => !item.is_read).length;
   const isStarterPlan = plan === "starter";
   const showProUpsell = hasActiveSubscription && isStarterPlan;
@@ -782,8 +724,8 @@ export default function DashboardPage() {
         return false;
       }
       if (fromMs !== null) {
-        const détectédMs = item.détectéd_at ? Date.parse(item.détectéd_at) : NaN;
-        if (!Number.isFinite(détectédMs) || détectédMs < fromMs) return false;
+        const detectedMs = item.detected_at ? Date.parse(item.detected_at) : NaN;
+        if (!Number.isFinite(detectedMs) || detectedMs < fromMs) return false;
       }
       return true;
     });
@@ -798,7 +740,7 @@ export default function DashboardPage() {
   const filteredEventsTimeline = useMemo(() => {
     const buckets = new Map<string, ChangeEvent[]>();
     for (const item of filteredEvents) {
-      const label = formatTimelineLabel(item.détectéd_at);
+      const label = formatTimelineLabel(item.detected_at);
       const current = buckets.get(label) || [];
       current.push(item);
       buckets.set(label, current);
@@ -808,10 +750,6 @@ export default function DashboardPage() {
       items,
     }));
   }, [filteredEvents]);
-  const filteredGroupedSequenceCount = useMemo(
-    () => new Set(filteredEvents.map((item) => item.change_group_id).filter(Boolean)).size,
-    [filteredEvents]
-  );
   const emptyStateMessage = useMemo(() => {
     const hasFilter =
       alertFilter !== "all" ||
@@ -858,16 +796,24 @@ export default function DashboardPage() {
     return "Priorité basse";
   };
 
-  const getPriorityClass = (score: number) => {
-    if (score >= 75) return "bg-red-500/15 text-red-200";
-    if (score >= 45) return "bg-amber-500/15 text-amber-200";
-    return "bg-emerald-500/15 text-emerald-200";
+  const getPriorityClass = (_score?: number) => {
+    void _score;
+    return "cc-badge-neutral";
   };
 
-  const getDomainClass = (domain: ChangeEvent["domain"]) => {
-    if (domain === "seo") return "bg-sky-500/15 text-sky-200";
-    if (domain === "pricing") return "bg-amber-500/15 text-amber-200";
-    return "cc-chip";
+  const getDomainClass = (_domain?: ChangeEvent["domain"]) => {
+    void _domain;
+    return "cc-badge-neutral";
+  };
+
+  const getSeverityClass = (_severity?: ChangeEvent["severity"]) => {
+    void _severity;
+    return "cc-badge-neutral";
+  };
+
+  const getReadStateClass = (_isRead?: boolean | null) => {
+    void _isRead;
+    return "cc-badge-neutral";
   };
 
   const getAlertCardClass = (item: ChangeEvent) => {
@@ -914,7 +860,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
         <section className="max-w-6xl mx-auto px-6 pt-20 pb-10">
           <div className="h-6 w-32 rounded bg-white/10 animate-pulse" />
           <div className="mt-4 h-12 w-3/4 rounded bg-white/10 animate-pulse" />
@@ -957,7 +903,7 @@ export default function DashboardPage() {
 
   if (!session) {
     return (
-      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
         <motion.section
           variants={fadeUp}
           initial="hidden"
@@ -982,7 +928,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
       <motion.section
         variants={fadeUp}
         initial="hidden"
@@ -1120,76 +1066,6 @@ export default function DashboardPage() {
               </a>
             </div>
           )}
-        </div>
-        <div className="mt-4 cc-panel-strong rounded-[24px] p-4">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div className="max-w-2xl">
-              <div className="flex items-center gap-3">
-                <p className="text-xs uppercase tracking-[0.18em] text-white/68">
-                  Mise en route
-                </p>
-                <span className="cc-chip rounded-full px-2 py-1 text-[11px] text-gray-300">
-                  {activationGuide.status}
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-gray-200">{activationGuide.title}</p>
-              <p className="mt-1 text-xs text-gray-400">{activationGuide.hint}</p>
-            </div>
-            <div className="flex shrink-0 items-center gap-2">
-              {activationGuide.ctaHref ? (
-                <a
-                  href={activationGuide.ctaHref}
-                  className="cc-button-secondary inline-flex items-center justify-center rounded-full px-3 py-2 text-xs"
-                >
-                  {activationGuide.ctaLabel}
-                </a>
-              ) : (
-                <button
-                  onClick={runAnalysis}
-                  disabled={(!hasActiveSubscription && !isBypass) || analysisRunning}
-                  className="cc-button-secondary inline-flex items-center justify-center rounded-full px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {analysisRunning ? "Scan en cours..." : activationGuide.ctaLabel}
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
-            <span className="cc-chip rounded-full px-2 py-1">
-              {activationDoneCount}/{activationSteps.length} etapes validees
-            </span>
-            <span className="cc-chip rounded-full px-2 py-1">
-              Dernier scan: {latestScanAt ? formatDateTimeFr(latestScanAt) : "aucun"}
-            </span>
-            <span className="cc-chip rounded-full px-2 py-1">
-              Derniere alerte: {latestAlertAt ? formatAlertDateShort(latestAlertAt) : "aucune"}
-            </span>
-          </div>
-          <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
-            <div
-              className="h-full bg-white/80"
-              style={{ width: `${activationProgress}%` }}
-            />
-          </div>
-          <div className="mt-3 grid gap-2">
-            {activationSteps.map((step) => (
-              <div
-                key={step.label}
-                className="flex items-center gap-2 text-xs text-gray-300"
-              >
-                <span
-                  className={`inline-flex h-4 w-4 items-center justify-center rounded-full border ${
-                    step.done
-                      ? "border-emerald-300/40 bg-emerald-500/15 text-emerald-200"
-                      : "border-white/20 text-gray-400"
-                  }`}
-                >
-                  {step.done ? "✓" : "•"}
-                </span>
-                <span>{step.label}</span>
-              </div>
-            ))}
-          </div>
         </div>
         {scanSuccessState && (
           <div className="cc-panel-strong mt-4 rounded-[24px] p-4">
@@ -1444,17 +1320,6 @@ export default function DashboardPage() {
               </button>
             </div>
           </div>
-          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] text-gray-300">
-            <span className="cc-chip rounded-full px-3 py-1">
-              {filteredEvents.length} alerte(s) visibles
-            </span>
-            <span className="cc-chip rounded-full px-3 py-1">
-              {filteredGroupedSequenceCount} sequence(s) groupee(s)
-            </span>
-            <span className="cc-chip rounded-full px-3 py-1">
-              Lecture rapide par journée
-            </span>
-          </div>
           <div className="flex items-center gap-2 mb-4">
             <button
               onClick={() => setAlertFilter("all")}
@@ -1574,29 +1439,31 @@ export default function DashboardPage() {
                         return (
                           <>
                             <div className="flex flex-wrap items-center gap-2 mb-2">
-                              <span className={`text-[10px] uppercase px-2 py-1 rounded-full ${getDomainClass(item.domain)}`}>
+                              <span
+                                className={`inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full ${getDomainClass(item.domain)}`}
+                              >
                                 {item.domain}
                               </span>
-                              <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
+                              <span
+                                className={`inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full ${getSeverityClass(item.severity)}`}
+                              >
                                 {item.severity}
                               </span>
                               <span
-                                className={`text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
+                                className={`inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
                               >
                                 {priorityLabel}
                               </span>
                               {item.change_group_id && (
-                                <span className="text-[10px] uppercase px-2 py-1 rounded-full cc-chip">
+                                <span
+                                  className="inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full cc-badge-neutral"
+                                >
                                   {item.is_group_root ? "Sequence" : "Groupe"} x
                                   {item.metadata?.grouped_changes_count || 1}
                                 </span>
                               )}
                               <span
-                                className={`text-[10px] uppercase px-2 py-1 rounded-full ${
-                                  item.is_read
-                                    ? "bg-emerald-500/15 text-emerald-200"
-                                    : "bg-amber-500/15 text-amber-200"
-                                }`}
+                                className={`inline-flex items-center border text-[10px] uppercase px-2 py-1 rounded-full ${getReadStateClass(item.is_read)}`}
                               >
                                 {item.is_read ? "Lu" : "Nouveau"}
                               </span>
@@ -1611,7 +1478,7 @@ export default function DashboardPage() {
                             )}
                             <div className="mt-2 flex items-center justify-between gap-3">
                               <p className="text-xs text-gray-500">
-                                {formatAlertDateShort(item.détectéd_at)}
+                                {formatAlertDateShort(item.detected_at)}
                               </p>
                               <div className="flex items-center gap-3">
                                 <button

@@ -53,7 +53,7 @@ export default function AlertDetailModal({ alert, onClose }: AlertDetailModalPro
                 {getAlertChangeSummary(alert)}
               </p>
               <p className="mt-1 text-xs text-gray-400">
-                {formatAlertDateShort(alert.détectéd_at)}
+                {formatAlertDateShort(alert.detected_at)}
               </p>
             </div>
             <button
