@@ -9,9 +9,12 @@ const manrope = Manrope({
   display: "swap",
 });
 const geistMono = GeistMono;
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
+  "https://chronocrawl.com";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://chronocrawl.com"),
+  metadataBase: new URL(siteUrl),
 
   title: {
     default: "Surveiller un site concurrent | ChronoCrawl",
@@ -20,19 +23,22 @@ export const metadata: Metadata = {
 
   description:
     "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
+  alternates: {
+    canonical: "/",
+  },
 
   openGraph: {
     title: "Surveiller un site concurrent | ChronoCrawl",
     description:
       "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
-    url: "https://chronocrawl.com",
+    url: siteUrl,
     siteName: "ChronoCrawl",
     images: [
       {
-        url: "/og-image.png",
+        url: "/opengraph-image",
         width: 1200,
         height: 630,
-        alt: "ChronoCrawl – Veille concurrentielle automatisée",
+        alt: "ChronoCrawl - Veille concurrentielle automatisée",
       },
     ],
     locale: "fr_FR",
@@ -44,7 +50,8 @@ export const metadata: Metadata = {
     title: "Surveiller un site concurrent | ChronoCrawl",
     description:
       "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
-    images: ["/og-image.png"],
+    images: ["/twitter-image"],
+    creator: "@chronocrawl",
   },
 
   robots: {
