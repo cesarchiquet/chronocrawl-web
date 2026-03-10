@@ -35,10 +35,10 @@ export const metadata: Metadata = {
     siteName: "ChronoCrawl",
     images: [
       {
-        url: "/opengraph-image",
+        url: "/social-preview.png",
         width: 1200,
         height: 630,
-        alt: "ChronoCrawl - Veille concurrentielle automatisée",
+        alt: "ChronoCrawl - Surveille tes concurrents automatiquement",
       },
     ],
     locale: "fr_FR",
@@ -50,7 +50,7 @@ export const metadata: Metadata = {
     title: "Surveiller un site concurrent | ChronoCrawl",
     description:
       "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
-    images: ["/twitter-image"],
+    images: ["/social-preview.png"],
     creator: "@chronocrawl",
   },
 
