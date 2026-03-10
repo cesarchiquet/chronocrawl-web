@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, type Variants } from "framer-motion";
+import { useSearchParams } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import {
+  getAlertChangeKind,
   getAlertChangeSummary,
+  getAlertFieldLabel,
 } from "@/lib/alertPresentation";
 import { formatAlertDateShort } from "@/lib/dateFormat";
 import {
@@ -33,13 +36,41 @@ const fadeUp: Variants = {
   },
 };
 
+function formatTimelineLabel(dateValue: string | null) {
+  if (!dateValue) return "Date inconnue";
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "Date inconnue";
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfTarget = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  ).getTime();
+  const diffDays = Math.round((startOfToday - startOfTarget) / 86400000);
+  if (diffDays === 0) return "Aujourd'hui";
+  if (diffDays === 1) return "Hier";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+  }).format(date);
+}
+
 export default function DashboardPage() {
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [urls, setUrls] = useState<MonitoredUrl[]>([]);
   const [events, setEvents] = useState<ChangeEvent[]>([]);
   const [newUrl, setNewUrl] = useState("");
   const [message, setMessage] = useState("");
+  const [onboardingMessage, setOnboardingMessage] = useState("");
+  const [scanSuccessState, setScanSuccessState] = useState<null | {
+    title: string;
+    detail: string;
+    ctaLabel: string;
+    ctaHref: string;
+  }>(null);
   const [billingMessage, setBillingMessage] = useState("");
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [analysisRunning, setAnalysisRunning] = useState(false);
@@ -119,6 +150,56 @@ export default function DashboardPage() {
   }, [session?.user, session?.user?.id, session?.user?.user_metadata?.subscription_status]);
 
   useEffect(() => {
+    const queryPrefill = searchParams.get("prefillUrl");
+    const onboarding = searchParams.get("onboarding") === "1";
+    const trialStarted = searchParams.get("trialStarted") === "1";
+    const planUpdated = searchParams.get("planUpdated") === "1";
+    const storedPrefill =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem("chronocrawl:onboarding-first-url")
+        : null;
+    const firstUrl = queryPrefill || storedPrefill || "";
+
+    if (firstUrl && !newUrl) {
+      setNewUrl(firstUrl);
+      setOnboardingMessage(
+        "Première étape : vérifie l'URL pré-remplie, ajoute-la, puis lance ton premier scan."
+      );
+      if (typeof window !== "undefined") {
+        window.localStorage.removeItem("chronocrawl:onboarding-first-url");
+      }
+    } else if (onboarding) {
+      setOnboardingMessage(
+        "Ajoute ta première URL concurrente pour lancer la surveillance."
+      );
+    }
+    if (trialStarted) {
+      setBillingMessage(
+        "Essai démarré. Tu peux maintenant ajouter ta première URL et lancer un scan."
+      );
+    } else if (planUpdated) {
+      setBillingMessage("Plan mis à jour. Le dashboard est prêt.");
+    }
+
+    if (typeof window !== "undefined" && onboarding) {
+      window.requestAnimationFrame(() => {
+        document.getElementById("add-url-panel")?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+      });
+    }
+    if (typeof window !== "undefined" && (onboarding || trialStarted || planUpdated)) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("onboarding");
+      url.searchParams.delete("prefillUrl");
+      url.searchParams.delete("trialStarted");
+      url.searchParams.delete("planUpdated");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [newUrl, searchParams]);
+
+  useEffect(() => {
     if (!session?.user?.id) return;
     const rawMeta = window.localStorage.getItem(
       `chronocrawl:url-meta:${session.user.id}`
@@ -147,9 +228,9 @@ export default function DashboardPage() {
     let from = 0;
     let useLegacySelect = false;
     const extendedSelect =
-      "id,monitored_url_id,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,field_key,metadata,detected_at,is_read";
+      "id,monitored_url_id,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,field_key,metadata,détectéd_at,is_read";
     const legacySelect =
-      "id,monitored_url_id,domain,severity,field_key,metadata,detected_at,is_read";
+      "id,monitored_url_id,domain,severity,field_key,metadata,détectéd_at,is_read";
 
     while (true) {
       const to = from + EVENTS_PAGE_SIZE - 1;
@@ -158,11 +239,11 @@ export default function DashboardPage() {
 
       if (!useLegacySelect) {
         const res = await supabase
-          .from("detected_changes")
+          .from("détectéd_changes")
           .select(extendedSelect)
           .eq("user_id", userId)
           .in("severity", ["medium", "high"])
-          .order("detected_at", { ascending: false })
+          .order("détectéd_at", { ascending: false })
           .range(from, to);
         data = res.data;
         error = res.error;
@@ -170,11 +251,11 @@ export default function DashboardPage() {
 
       if (useLegacySelect || error) {
         const legacyRes = await supabase
-          .from("detected_changes")
+          .from("détectéd_changes")
           .select(legacySelect)
           .eq("user_id", userId)
           .in("severity", ["medium", "high"])
-          .order("detected_at", { ascending: false })
+          .order("détectéd_at", { ascending: false })
           .range(from, to);
         data = legacyRes.data;
         error = legacyRes.error;
@@ -213,7 +294,7 @@ export default function DashboardPage() {
     };
 
     const ranked = eventsData.sort((a, b) => {
-        const dateDelta = (b.detected_at || "").localeCompare(a.detected_at || "");
+        const dateDelta = (b.détectéd_at || "").localeCompare(a.détectéd_at || "");
         if (dateDelta !== 0) return dateDelta;
         const domainDelta = domainRank[a.domain] - domainRank[b.domain];
         if (domainDelta !== 0) return domainDelta;
@@ -246,7 +327,7 @@ export default function DashboardPage() {
 
     if (error) {
       setAlertSettingsMessage(
-        "Preferences alertes indisponibles (verifie la migration SQL et recharge)."
+        "Preferences alertes indisponibles (vérifie la migration SQL et recharge)."
       );
       return;
     }
@@ -259,7 +340,7 @@ export default function DashboardPage() {
 
   const markAlertAsRead = async (id: string, isRead: boolean) => {
     const { error } = await supabase
-      .from("detected_changes")
+      .from("détectéd_changes")
       .update({ is_read: isRead })
       .eq("id", id);
 
@@ -273,7 +354,7 @@ export default function DashboardPage() {
   const markAllAsRead = async () => {
     if (!session?.user) return;
     const { error } = await supabase
-      .from("detected_changes")
+      .from("détectéd_changes")
       .update({ is_read: true })
       .eq("user_id", session.user.id)
       .or("is_read.eq.false,is_read.is.null");
@@ -413,8 +494,22 @@ export default function DashboardPage() {
       return;
     }
 
+    const isFirstUrlAdded = currentCount === 0;
     setNewUrl("");
     await loadData(session.user.id);
+    if (isFirstUrlAdded) {
+      setOnboardingMessage(
+        "Première URL ajoutee. Premier scan lance automatiquement pour créer la base de comparaison."
+      );
+      void runAnalysis();
+      return;
+    }
+    setOnboardingMessage(
+      "URL ajoutee. Etape suivante: lance le premier scan pour créer la base de comparaison."
+    );
+    window.requestAnimationFrame(() => {
+      document.getElementById("analyze-now-btn")?.focus();
+    });
   };
 
   const removeUrl = async (id: string) => {
@@ -426,7 +521,9 @@ export default function DashboardPage() {
 
   const runAnalysis = async () => {
     if (!session?.user?.id || !session?.access_token) return;
+    const isFirstScanRun = !hasFirstScan;
     setAnalysisMessage("");
+    setScanSuccessState(null);
     setAnalysisRunning(true);
 
     try {
@@ -455,7 +552,7 @@ export default function DashboardPage() {
 
         const data = await response.json();
         if (!response.ok) {
-          throw new Error(data?.error || "Analyse impossible.");
+          throw new Error(data?.error || "Scan impossible.");
         }
 
         totalChecked += Number(data?.checked || 0);
@@ -480,22 +577,48 @@ export default function DashboardPage() {
 
       const overflowNote =
         queuedRemaining > 0
-          ? ` File partiellement traitee (${queuedRemaining} URL(s) restantes). Relance l'analyse.`
+          ? ` File partiellement traitee (${queuedRemaining} URL(s) restantes). Relance le scan.`
           : "";
 
       const runHeadline =
         totalChanges === 0 && totalFailed === 0
-          ? "Analyse terminee: moteur actif, aucun nouveau changement detecte."
+          ? "Scan terminé: moteur actif, aucun nouveau changement détecté."
           : totalChecked === 0 && totalFailed > 0
-            ? "Analyse terminee: les URLs ont echoue pendant la verification."
-            : "Analyse terminee.";
+            ? "Scan terminé: les URLs ont echoue pendant la vérification."
+            : "Scan terminé.";
       setAnalysisMessage(
-        `${runHeadline} ${totalChecked} URL verifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalGrouped} evenement(s) groupe(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
+        `${runHeadline} ${totalChecked} URL vérifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalGrouped} evenement(s) groupe(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
       );
+      if (totalChecked > 0 && totalFailed === 0 && totalChanges === 0) {
+        setScanSuccessState({
+          title: isFirstScanRun
+            ? "Premier scan terminé"
+            : "Base de surveillance mise a jour",
+          detail:
+            isFirstScanRun
+              ? "Le premier scan est passe sans erreur. ChronoCrawl a maintenant une base de comparaison pour détectér les prochains changements."
+              : "Le scan s'est terminé sans erreur. La base de comparaison a ete rafraichie pour les prochains changements.",
+          ctaLabel: "Ajouter d'autres URLs",
+          ctaHref: "#add-url-panel",
+        });
+      }
+      if (totalChanges > 0) {
+        setScanSuccessState({
+          title: isFirstScanRun
+            ? "Premier signal utile détecté"
+            : "Nouveaux changements détectés",
+          detail:
+            totalChanges === 1
+              ? "Une alerte utile est remontee. Tu peux maintenant ouvrir le centre d'alertes pour revoir le changement."
+              : `${totalChanges} alertes utiles sont remontees. Ouvre le centre d'alertes pour revoir les changements détectés.`,
+          ctaLabel: "Ouvrir le centre d'alertes",
+          ctaHref: "#alerts-center",
+        });
+      }
       await loadData(session.user.id);
     } catch (error: unknown) {
       const details =
-        error instanceof Error ? error.message : "Erreur pendant l'analyse.";
+        error instanceof Error ? error.message : "Erreur pendant le scan.";
       setAnalysisMessage(details);
     } finally {
       setAnalysisRunning(false);
@@ -545,6 +668,15 @@ export default function DashboardPage() {
   const hasThreeUrls = currentCount >= 3;
   const hasFirstScan = urls.some((item) => !!item.last_checked_at);
   const hasFirstAlert = events.length > 0;
+  const showFirstScanGuide = currentCount > 0 && !hasFirstScan;
+  const latestScanAt = useMemo(() => {
+    const values = urls
+      .map((item) => item.last_checked_at)
+      .filter((value): value is string => !!value)
+      .sort((a, b) => b.localeCompare(a));
+    return values[0] || null;
+  }, [urls]);
+  const latestAlertAt = events[0]?.détectéd_at || null;
   const activationSteps = [
     { label: "Ajouter 3 URLs concurrentes", done: hasThreeUrls },
     { label: "Lancer un premier scan", done: hasFirstScan },
@@ -554,7 +686,45 @@ export default function DashboardPage() {
   const activationProgress = Math.round(
     (activationDoneCount / activationSteps.length) * 100
   );
+  const missingUrlsCount = Math.max(0, 3 - currentCount);
+  const activationGuide = !hasThreeUrls
+    ? {
+        title: `Ajoute encore ${missingUrlsCount} URL${missingUrlsCount > 1 ? "s" : ""} pour lancer une veille exploitable`,
+        hint: "Avec au moins 3 URLs, tu commences a comparer des signaux recurrents plutot qu'un cas isole.",
+        ctaLabel: "Ajouter une URL",
+        ctaHref: "#add-url-panel",
+        ctaAction: null as null | "scan",
+        status: "En cours",
+      }
+    : !hasFirstScan
+      ? {
+          title: "Lance un premier scan pour initialiser la surveillance",
+          hint: "Le premier scan crée la base de comparaison qui servira aux prochaines alertes.",
+          ctaLabel: "Lancer le scan",
+          ctaHref: null as string | null,
+          ctaAction: "scan" as const,
+          status: "Prêt",
+        }
+      : !hasFirstAlert
+        ? {
+            title: "La surveillance tourne, il faut maintenant capter un premier signal",
+            hint: "Les alertes apparaissent des qu'un element SEO, CTA, pricing ou titre visible evolue.",
+            ctaLabel: "Relancer le scan",
+            ctaHref: null as string | null,
+            ctaAction: "scan" as const,
+            status: "Surveillance active",
+          }
+        : {
+            title: "La veille concurrentielle est active",
+            hint: "Tu peux maintenant lire les alertes recentes ou ouvrir l'historique complet.",
+            ctaLabel: "Voir l'historique",
+            ctaHref: "/dashboard/alerts",
+            ctaAction: null as null | "scan",
+            status: "Operationnel",
+          };
   const unreadCount = events.filter((item) => !item.is_read).length;
+  const isStarterPlan = plan === "starter";
+  const showProUpsell = hasActiveSubscription && isStarterPlan;
   const alertUrls = useMemo(() => {
     const values = new Set<string>();
     for (const item of urls) {
@@ -612,8 +782,8 @@ export default function DashboardPage() {
         return false;
       }
       if (fromMs !== null) {
-        const detectedMs = item.detected_at ? Date.parse(item.detected_at) : NaN;
-        if (!Number.isFinite(detectedMs) || detectedMs < fromMs) return false;
+        const détectédMs = item.détectéd_at ? Date.parse(item.détectéd_at) : NaN;
+        if (!Number.isFinite(détectédMs) || détectédMs < fromMs) return false;
       }
       return true;
     });
@@ -625,6 +795,23 @@ export default function DashboardPage() {
     events,
     filterReferenceNow,
   ]);
+  const filteredEventsTimeline = useMemo(() => {
+    const buckets = new Map<string, ChangeEvent[]>();
+    for (const item of filteredEvents) {
+      const label = formatTimelineLabel(item.détectéd_at);
+      const current = buckets.get(label) || [];
+      current.push(item);
+      buckets.set(label, current);
+    }
+    return Array.from(buckets.entries()).map(([label, items]) => ({
+      label,
+      items,
+    }));
+  }, [filteredEvents]);
+  const filteredGroupedSequenceCount = useMemo(
+    () => new Set(filteredEvents.map((item) => item.change_group_id).filter(Boolean)).size,
+    [filteredEvents]
+  );
   const emptyStateMessage = useMemo(() => {
     const hasFilter =
       alertFilter !== "all" ||
@@ -634,8 +821,8 @@ export default function DashboardPage() {
 
     if (!hasFilter) {
       return {
-        title: "Aucun changement detecte pour le moment.",
-        hint: "Pour demarrer: ajoute au moins 1 URL puis lance \"Analyser maintenant\".",
+        title: "Aucun changement détecté pour le moment.",
+        hint: "Pour démarrer: ajoute au moins 1 URL puis lance un scan.",
       };
     }
 
@@ -644,7 +831,7 @@ export default function DashboardPage() {
     if (alertFilter === "read") active.push("Lues");
     if (alertDomainFilter !== "all") active.push(`Type ${alertDomainFilter.toUpperCase()}`);
     if (alertUrlFilter !== "all") active.push("URL specifique");
-    if (alertDateFilter !== "all") active.push(`Periode ${alertDateFilter}`);
+    if (alertDateFilter !== "all") active.push(`Période ${alertDateFilter}`);
 
     return {
       title: "Aucune alerte pour les filtres actuels.",
@@ -666,15 +853,28 @@ export default function DashboardPage() {
   };
 
   const getPriorityLabel = (score: number) => {
-    if (score >= 75) return "Haute";
-    if (score >= 45) return "Moyenne";
-    return "Basse";
+    if (score >= 75) return "Priorité haute";
+    if (score >= 45) return "Priorité moyenne";
+    return "Priorité basse";
   };
 
   const getPriorityClass = (score: number) => {
     if (score >= 75) return "bg-red-500/15 text-red-200";
     if (score >= 45) return "bg-amber-500/15 text-amber-200";
     return "bg-emerald-500/15 text-emerald-200";
+  };
+
+  const getDomainClass = (domain: ChangeEvent["domain"]) => {
+    if (domain === "seo") return "bg-sky-500/15 text-sky-200";
+    if (domain === "pricing") return "bg-amber-500/15 text-amber-200";
+    return "cc-chip";
+  };
+
+  const getAlertCardClass = (item: ChangeEvent) => {
+    if (item.is_read) return "cc-panel";
+    if (item.domain === "seo") return "border-sky-300/20 bg-sky-500/[0.06]";
+    if (item.domain === "pricing") return "border-amber-300/20 bg-amber-500/[0.06]";
+    return "border-white/12 bg-white/[0.04]";
   };
 
   const expandedAlert = useMemo(
@@ -714,7 +914,7 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
         <section className="max-w-6xl mx-auto px-6 pt-20 pb-10">
           <div className="h-6 w-32 rounded bg-white/10 animate-pulse" />
           <div className="mt-4 h-12 w-3/4 rounded bg-white/10 animate-pulse" />
@@ -728,7 +928,7 @@ export default function DashboardPage() {
           </div>
         </section>
         <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 rounded-xl border border-white/10 bg-white/5 p-6">
+          <div className="lg:col-span-2 cc-panel-strong rounded-[28px] p-6">
             <div className="h-6 w-40 rounded bg-white/10 animate-pulse" />
             <div className="mt-4 space-y-3">
               {Array.from({ length: 4 }).map((_, index) => (
@@ -739,7 +939,7 @@ export default function DashboardPage() {
               ))}
             </div>
           </div>
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+          <div className="cc-panel-strong rounded-[28px] p-6">
             <div className="h-6 w-36 rounded bg-white/10 animate-pulse" />
             <div className="mt-4 space-y-3">
               {Array.from({ length: 5 }).map((_, index) => (
@@ -757,7 +957,7 @@ export default function DashboardPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
         <motion.section
           variants={fadeUp}
           initial="hidden"
@@ -765,14 +965,14 @@ export default function DashboardPage() {
           className="max-w-xl mx-auto px-6 pt-28 pb-24 text-center"
         >
           <h1 className="text-3xl md:text-4xl font-bold">
-            Connecte‑toi pour accéder au dashboard
+            Connecté‑toi pour accéder au dashboard
           </h1>
           <p className="mt-4 text-gray-300">
             L’accès au dashboard est réservé aux utilisateurs connectés.
           </p>
           <a
             href="/login"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium mt-8"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-white bg-white text-black hover:bg-white/85 transition font-medium mt-8"
           >
             Se connecter
           </a>
@@ -782,56 +982,94 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+    <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
       <motion.section
         variants={fadeUp}
         initial="hidden"
         animate="visible"
-        className="max-w-6xl mx-auto px-6 pt-20 pb-16"
+        className="mx-auto max-w-[1320px] px-4 pt-12 pb-16 sm:px-6"
       >
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05)_0%,_rgba(10,10,10,0.98)_24%,_rgba(0,0,0,1)_88%)] px-6 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.42)] md:px-8">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-1/2 top-[-48%] h-[780px] w-[780px] -translate-x-1/2 rounded-full border border-white/[0.05]" />
+            <div className="absolute left-1/2 top-[-28%] h-[620px] w-[620px] -translate-x-1/2 rounded-full border border-white/[0.04]" />
+          </div>
+          <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div>
-            <p className="text-indigo-300 text-sm font-medium">Dashboard</p>
-            <h1 className="text-3xl md:text-4xl font-bold">
-              Veille concurrentielle en un coup d’œil
+            <p className="text-white/60 text-xs font-medium uppercase tracking-[0.18em]">Dashboard</p>
+            <h1 className="mt-2 text-4xl md:text-5xl font-bold leading-[0.96]">
+              Surveillance
+              <br />
+              concurrentielle active
             </h1>
-            <p className="mt-3 text-gray-300">
-              Suis tes URLs, détecte les changements et reçois des alertes en
-              temps réel.
+            <p className="mt-4 max-w-2xl text-gray-300">
+              Surveille tes URLs concurrentes, lance des scans et lis les alertes
+              utiles dans un seul dashboard.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={openBillingPortal}
-              className="px-6 py-3 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition"
+              className="cc-button-secondary rounded-full px-6 py-3 text-white"
             >
               Gérer l&apos;abonnement
             </button>
             <button
               onClick={() => supabase.auth.signOut()}
-              className="px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition"
+              className="cc-button-secondary rounded-full px-6 py-3"
             >
               Se déconnecter
             </button>
           </div>
+        </div>
         </div>
         <DashboardSuiteMenu />
         {billingMessage && (
           <p className="mt-3 text-sm text-amber-200">{billingMessage}</p>
         )}
         {effectiveSubscriptionStatus === "inactive" && (
-          <div className="mt-4 rounded-lg border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+          <div className="cc-panel-strong mt-4 rounded-[24px] p-4 text-sm text-amber-100">
             <p className="font-medium">Abonnement inactif</p>
             <p className="mt-1 text-amber-200">
-              Ton compte a ete retrograde sur STARTER. Choisis un abonnement actif pour relancer la surveillance.
+              Ton compte a ete rétrogradé sur STARTER. Choisis un abonnement actif pour relancer la surveillance.
             </p>
+            <div className="mt-3">
+              <a
+                href="/tarifs"
+                className="cc-button-secondary inline-flex rounded-full px-3 py-2 text-xs"
+              >
+                Reprendre l&apos;essai ou choisir un plan
+              </a>
+            </div>
+          </div>
+        )}
+        {showProUpsell && (
+          <div className="cc-panel-strong mt-4 rounded-[24px] p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-sm font-medium text-white/82">
+                  Passer a Pro pour accelerer la veille
+                </p>
+                <p className="mt-1 text-xs text-white/68">
+                  Le plan Pro débloque 50 URLs, un scan toutes les 60 minutes et
+                  30 jours d&apos;historique. C&apos;est le vrai niveau de travail
+                  pour une veille concurrentielle suivie.
+                </p>
+              </div>
+              <a
+                href="/tarifs"
+                className="cc-button-secondary inline-flex shrink-0 items-center justify-center rounded-full px-3 py-2 text-xs"
+              >
+                Voir pourquoi passer a Pro
+              </a>
+            </div>
           </div>
         )}
         <div className="mt-6 flex flex-wrap items-center gap-3 text-sm">
-          <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200">
+          <span className="cc-chip px-3 py-1 rounded-full text-gray-200">
             Plan: {plan.toUpperCase()}
           </span>
-          <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-gray-200">
+          <span className="cc-chip px-3 py-1 rounded-full text-gray-200">
             {currentCount}/{limit} URLs
           </span>
           {!hasActiveSubscription && !isBypass && (
@@ -840,12 +1078,12 @@ export default function DashboardPage() {
             </span>
           )}
           {isBypass && (
-            <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-400/30 text-indigo-200">
+            <span className="px-3 py-1 rounded-full cc-chip">
               Mode test activé
             </span>
           )}
         </div>
-        <div className="mt-3 rounded-lg border border-white/10 bg-white/5 p-3">
+        <div className="mt-3 cc-panel-strong rounded-[24px] p-4">
           <div className="flex items-center justify-between text-xs text-gray-300">
             <span>Capacite URLs du plan {plan.toUpperCase()}</span>
             <span>
@@ -870,29 +1108,66 @@ export default function DashboardPage() {
             />
           </div>
           {currentCount / Math.max(1, limit) >= 0.8 && (
-            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-indigo-300/30 bg-indigo-500/10 px-3 py-2">
-              <p className="text-xs text-indigo-100">
-                Tu approches la limite de ton plan. Upgrade recommande pour eviter un blocage.
+            <div className="cc-panel mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[16px] px-3 py-2">
+              <p className="text-xs text-white/78">
+                Tu approches la limite de ton plan. Passer a Pro evitera de bloquer de nouvelles URLs et gardera un rythme de scan plus confortable.
               </p>
-              <button
-                onClick={openBillingPortal}
-                className="rounded border border-indigo-300/40 px-2 py-1 text-xs text-indigo-100 hover:bg-indigo-500/20"
+              <a
+                href="/tarifs"
+                className="cc-button-secondary rounded-full px-2 py-1 text-xs"
               >
-                Upgrade
-              </button>
+                Voir les plans
+              </a>
             </div>
           )}
         </div>
-        <div className="mt-4 rounded-lg border border-white/10 bg-white/5 p-4">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm text-gray-200">Activation dashboard</p>
-            <span className="text-xs text-gray-300">
-              {activationDoneCount}/{activationSteps.length} etapes
+        <div className="mt-4 cc-panel-strong rounded-[24px] p-4">
+          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+            <div className="max-w-2xl">
+              <div className="flex items-center gap-3">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/68">
+                  Mise en route
+                </p>
+                <span className="cc-chip rounded-full px-2 py-1 text-[11px] text-gray-300">
+                  {activationGuide.status}
+                </span>
+              </div>
+              <p className="mt-2 text-sm text-gray-200">{activationGuide.title}</p>
+              <p className="mt-1 text-xs text-gray-400">{activationGuide.hint}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {activationGuide.ctaHref ? (
+                <a
+                  href={activationGuide.ctaHref}
+                  className="cc-button-secondary inline-flex items-center justify-center rounded-full px-3 py-2 text-xs"
+                >
+                  {activationGuide.ctaLabel}
+                </a>
+              ) : (
+                <button
+                  onClick={runAnalysis}
+                  disabled={(!hasActiveSubscription && !isBypass) || analysisRunning}
+                  className="cc-button-secondary inline-flex items-center justify-center rounded-full px-3 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {analysisRunning ? "Scan en cours..." : activationGuide.ctaLabel}
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
+            <span className="cc-chip rounded-full px-2 py-1">
+              {activationDoneCount}/{activationSteps.length} etapes validees
+            </span>
+            <span className="cc-chip rounded-full px-2 py-1">
+              Dernier scan: {latestScanAt ? formatDateTimeFr(latestScanAt) : "aucun"}
+            </span>
+            <span className="cc-chip rounded-full px-2 py-1">
+              Derniere alerte: {latestAlertAt ? formatAlertDateShort(latestAlertAt) : "aucune"}
             </span>
           </div>
-          <div className="mt-2 h-2 rounded-full bg-white/10 overflow-hidden">
+          <div className="mt-3 h-2 rounded-full bg-white/10 overflow-hidden">
             <div
-              className="h-full bg-indigo-400"
+              className="h-full bg-white/80"
               style={{ width: `${activationProgress}%` }}
             />
           </div>
@@ -916,19 +1191,48 @@ export default function DashboardPage() {
             ))}
           </div>
         </div>
+        {scanSuccessState && (
+          <div className="cc-panel-strong mt-4 rounded-[24px] p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-sm font-medium text-emerald-100">
+                  {scanSuccessState.title}
+                </p>
+                <p className="mt-1 text-xs text-emerald-50/90">
+                  {scanSuccessState.detail}
+                </p>
+              </div>
+              <a
+                href={scanSuccessState.ctaHref}
+                className="cc-button-secondary inline-flex shrink-0 items-center justify-center rounded-full px-3 py-2 text-xs"
+              >
+                {scanSuccessState.ctaLabel}
+              </a>
+            </div>
+          </div>
+        )}
       </motion.section>
 
-      <section className="max-w-6xl mx-auto px-6 pb-16 grid lg:grid-cols-3 gap-6 items-start">
-        <div className="lg:col-span-2 rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto">
+      <section className="mx-auto max-w-[1320px] px-4 pb-16 sm:px-6 grid lg:grid-cols-3 gap-6 items-start">
+        <div className="cc-panel-strong lg:col-span-2 rounded-[32px] p-4 md:p-6 lg:max-h-[620px] lg:overflow-y-auto">
           <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <h2 className="text-xl font-semibold">URLs surveillées</h2>
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-white/68">
+                Surveillance
+              </p>
+              <h2 className="mt-2 text-xl font-semibold">URLs surveillées</h2>
+              <p className="mt-1 text-sm text-gray-300">
+                Pilote les pages concurrentes actives, leur statut et ton prochain
+                scan depuis le même bloc.
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowOnlyFavorites((value) => !value)}
                 className={`text-xs px-2 py-1 rounded border ${
                   showOnlyFavorites
-                    ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
-                    : "border-white/15 text-gray-300 hover:bg-white/5"
+                    ? "cc-chip text-white"
+                    : "cc-button-secondary text-gray-300"
                 }`}
               >
                 Favoris
@@ -936,7 +1240,7 @@ export default function DashboardPage() {
               <select
                 value={urlTagFilter}
                 onChange={(event) => setUrlTagFilter(event.target.value)}
-                className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                className="cc-panel rounded-[12px] px-2 py-1 text-xs focus:outline-none"
               >
                 <option value="all">Tous les tags</option>
                 {availableUrlTags.map((tag) => (
@@ -947,34 +1251,69 @@ export default function DashboardPage() {
               </select>
             </div>
           </div>
-          <div id="add-url-panel" className="mb-4 rounded-lg border border-white/10 p-4">
-            <p className="text-gray-300 text-sm mb-3">
-              Ajoute une page concurrente à surveiller, puis lance une analyse.
-            </p>
+          <div id="add-url-panel" className="cc-panel mb-4 rounded-[24px] p-4">
+            <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-gray-400">
+                  Ajout rapide
+                </p>
+                <p className="mt-1 text-sm text-gray-300">
+                  Ajoute une page concurrente a surveiller, puis lance un scan.
+                </p>
+              </div>
+              <span className="cc-chip rounded-full px-3 py-1 text-[11px] text-gray-300">
+                Surveillance globale
+              </span>
+            </div>
+            {showFirstScanGuide && (
+              <div className="cc-panel-strong mb-3 rounded-[20px] p-3">
+                <p className="text-xs font-medium text-white/82">
+                  Premier scan recommande
+                </p>
+                <p className="mt-1 text-xs text-white/68">
+                  Tu as deja au moins une URL. Lance maintenant le premier scan pour
+                  créer la base de comparaison et débloquer les futures alertes.
+                </p>
+              </div>
+            )}
+            <div className="mb-3 flex flex-wrap items-center gap-2 text-[11px] text-gray-400">
+              <span className="cc-chip rounded-full px-2 py-1">
+                1. Ajouter une URL
+              </span>
+              <span className="cc-chip rounded-full px-2 py-1">
+                2. Lancer le scan
+              </span>
+              <span className="cc-chip rounded-full px-2 py-1">
+                3. Lire la première alerte
+              </span>
+            </div>
             <div className="mb-3">
               <button
                 id="analyze-now-btn"
                 onClick={runAnalysis}
-                className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cc-button-secondary px-4 py-2 rounded-full transition disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={(!hasActiveSubscription && !isBypass) || analysisRunning}
               >
-                {analysisRunning ? "Analyse en cours..." : "Analyser maintenant"}
+                {analysisRunning ? "Scan en cours..." : "Lancer un scan"}
               </button>
               {analysisMessage && (
-                <p className="text-indigo-200 text-sm mt-2">{analysisMessage}</p>
+                <p className="text-white/72 text-sm mt-2">{analysisMessage}</p>
+              )}
+              {onboardingMessage && (
+                <p className="text-emerald-200 text-sm mt-2">{onboardingMessage}</p>
               )}
             </div>
             <div className="flex flex-col md:flex-row gap-3">
               <input
                 type="url"
                 placeholder="https://site-concurrent.com/pricing"
-                className="flex-1 px-4 py-3 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                className="cc-panel flex-1 rounded-[18px] px-4 py-3 focus:outline-none"
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
               />
               <button
                 onClick={addUrl}
-                className="px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                className="cc-button-primary px-6 py-3 rounded-full font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={!canAddUrl}
               >
                 Ajouter
@@ -982,8 +1321,8 @@ export default function DashboardPage() {
             </div>
             {!hasActiveSubscription && !isBypass && (
               <p className="text-amber-200 text-sm mt-3">
-                Ajout bloque : ton abonnement n&apos;est pas encore actif.
-                Selectionne un plan depuis la landing, puis reviens ici.
+                Ajout bloqué : ton abonnement n&apos;est pas encore actif.
+                Sélectionne un plan depuis la landing, puis reviens ici.
               </p>
             )}
             {currentCount >= limit && (
@@ -1004,13 +1343,13 @@ export default function DashboardPage() {
               const statusInfo = getUrlStatusInfo(item.status);
               const meta = urlMeta[item.id] || {};
               return (
-              <div key={item.id} className="rounded-lg border border-white/10 p-4">
+              <div key={item.id} className="cc-panel rounded-[24px] p-4">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
                   <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="text-sm text-gray-300">{item.url}</p>
                     {meta.favorite && (
-                      <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-[10px] text-indigo-200">
+                      <span className="cc-chip rounded-full px-2 py-0.5 text-[10px]">
                         Favori
                       </span>
                     )}
@@ -1028,7 +1367,7 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setUrlFavorite(item.id, !meta.favorite)}
-                      className={`text-sm ${meta.favorite ? "text-indigo-200" : "text-gray-500"} hover:text-indigo-100`}
+                      className={`text-sm ${meta.favorite ? "text-white/82" : "text-gray-500"} hover:text-white`}
                       aria-label="Basculer favori"
                     >
                       ★
@@ -1036,7 +1375,7 @@ export default function DashboardPage() {
                     <select
                       value={meta.tag || ""}
                       onChange={(event) => setUrlTag(item.id, event.target.value)}
-                      className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                      className="cc-panel rounded-[12px] px-2 py-1 text-xs focus:outline-none"
                     >
                       <option value="">Sans tag</option>
                       <option value="Pricing">Pricing</option>
@@ -1071,35 +1410,58 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-xl bg-white/5 border border-white/10 p-6 max-h-[620px] overflow-y-auto">
+        <div
+          id="alerts-center"
+          className="cc-panel-strong rounded-[32px] p-4 md:p-6 lg:max-h-[620px] lg:overflow-y-auto"
+        >
           <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-            <h2 className="text-xl font-semibold">Centre d&apos;alertes</h2>
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-white/68">
+                Lecture des signaux
+              </p>
+              <h2 className="mt-2 text-xl font-semibold">Centre d&apos;alertes</h2>
+              <p className="mt-1 text-sm text-gray-300">
+                Lis les changements importants, ouvre le avant / après et reviens
+                vite sur les sequences les plus utiles.
+              </p>
+            </div>
             <div className="flex items-center gap-2">
               <a
                 href="/dashboard/alerts"
-                className="text-xs px-2 py-1 rounded border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition"
+                className="cc-button-secondary text-xs px-2 py-1 rounded-full"
               >
                 Historique
               </a>
-              <span className="text-xs px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
+              <span className="text-xs px-2 py-1 rounded-full cc-chip">
                 {unreadCount} non lu{unreadCount > 1 ? "s" : ""}
               </span>
               <button
                 onClick={markAllAsRead}
-                className="text-xs px-2 py-1 rounded border border-white/15 hover:bg-white/5 transition"
+                className="cc-button-secondary rounded-full px-2 py-1 text-xs"
                 disabled={unreadCount === 0}
               >
                 Tout marquer lu
               </button>
             </div>
           </div>
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px] text-gray-300">
+            <span className="cc-chip rounded-full px-3 py-1">
+              {filteredEvents.length} alerte(s) visibles
+            </span>
+            <span className="cc-chip rounded-full px-3 py-1">
+              {filteredGroupedSequenceCount} sequence(s) groupee(s)
+            </span>
+            <span className="cc-chip rounded-full px-3 py-1">
+              Lecture rapide par journée
+            </span>
+          </div>
           <div className="flex items-center gap-2 mb-4">
             <button
               onClick={() => setAlertFilter("all")}
               className={`text-xs px-2 py-1 rounded-full border transition ${
                 alertFilter === "all"
-                  ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
-                  : "border-white/15 text-gray-300 hover:bg-white/5"
+                  ? "cc-chip text-white"
+                  : "cc-button-secondary text-gray-300"
               }`}
             >
               Toutes
@@ -1108,8 +1470,8 @@ export default function DashboardPage() {
               onClick={() => setAlertFilter("unread")}
               className={`text-xs px-2 py-1 rounded-full border transition ${
                 alertFilter === "unread"
-                  ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
-                  : "border-white/15 text-gray-300 hover:bg-white/5"
+                  ? "cc-chip text-white"
+                  : "cc-button-secondary text-gray-300"
               }`}
             >
               Non lues
@@ -1118,8 +1480,8 @@ export default function DashboardPage() {
               onClick={() => setAlertFilter("read")}
               className={`text-xs px-2 py-1 rounded-full border transition ${
                 alertFilter === "read"
-                  ? "border-indigo-300/40 bg-indigo-500/15 text-indigo-100"
-                  : "border-white/15 text-gray-300 hover:bg-white/5"
+                  ? "cc-chip text-white"
+                  : "cc-button-secondary text-gray-300"
               }`}
             >
               Lues
@@ -1130,7 +1492,7 @@ export default function DashboardPage() {
             <select
               value={alertUrlFilter}
               onChange={(e) => setAlertUrlFilter(e.target.value)}
-              className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              className="cc-panel rounded-[12px] px-2 py-1 text-xs focus:outline-none"
             >
               <option value="all">Toutes les URLs</option>
               {alertUrls.map((url) => (
@@ -1152,7 +1514,7 @@ export default function DashboardPage() {
                   e.target.value as "all" | "seo" | "cta" | "pricing"
                 )
               }
-              className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              className="cc-panel rounded-[12px] px-2 py-1 text-xs focus:outline-none"
             >
               <option value="all">Tous</option>
               <option value="seo">SEO</option>
@@ -1161,13 +1523,13 @@ export default function DashboardPage() {
             </select>
           </div>
           <div className="flex flex-wrap items-center gap-2 mb-4">
-            <label className="text-xs text-gray-300">Periode</label>
+            <label className="text-xs text-gray-300">Période</label>
             <select
               value={alertDateFilter}
               onChange={(e) =>
                 setAlertDateFilter(e.target.value as "all" | "24h" | "7d" | "30d")
               }
-              className="text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              className="cc-panel rounded-[12px] px-2 py-1 text-xs focus:outline-none"
             >
               <option value="all">Tout</option>
               <option value="24h">24h</option>
@@ -1175,75 +1537,105 @@ export default function DashboardPage() {
               <option value="30d">30j</option>
             </select>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-5">
             {filteredEvents.length === 0 && (
-              <div className="rounded-lg border border-white/10 bg-white/5 p-3 text-sm text-gray-300">
+              <div className="cc-panel rounded-[20px] p-3 text-sm text-gray-300">
                 <p>{emptyStateMessage.title}</p>
                 <p className="mt-1 text-xs text-gray-400">
                   {emptyStateMessage.hint}
                 </p>
               </div>
             )}
-            {filteredEvents.map((item) => (
-              <div key={item.id} className="rounded-lg border border-white/10 p-4">
-                {(() => {
-                  const priorityScore = getPriorityScore(item);
-                  const priorityLabel = getPriorityLabel(priorityScore);
-                  const priorityClass = getPriorityClass(priorityScore);
-                  const changeSummary = getAlertChangeSummary(item);
-                  const isExpanded = expandedAlertId === item.id;
-                  return (
-                    <>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
-                    {item.domain}
-                  </span>
-                  <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
-                    {item.severity}
-                  </span>
-                  <span
-                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
-                  >
-                    Impact {priorityScore} - {priorityLabel}
-                  </span>
-                  <span
-                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${
-                      item.is_read
-                        ? "bg-emerald-500/15 text-emerald-200"
-                        : "bg-amber-500/15 text-amber-200"
-                    }`}
-                  >
-                    {item.is_read ? "lu" : "non lu"}
+            {filteredEventsTimeline.map((group) => (
+              <div key={group.label}>
+                <div className="mb-3 flex items-center gap-3">
+                  <p className="text-sm font-medium text-gray-100">{group.label}</p>
+                  <span className="cc-chip rounded-full px-2 py-1 text-[11px] text-gray-400">
+                    {group.items.length} alerte(s)
                   </span>
                 </div>
-                <p className="text-sm text-gray-200">{changeSummary}</p>
-                {item.metadata?.url && (
-                  <p className="text-xs text-gray-400 mt-1">{item.metadata.url}</p>
-                )}
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="text-xs text-gray-500">
-                    {formatAlertDateShort(item.detected_at)}
-                  </p>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() =>
-                        setExpandedAlertId(isExpanded ? null : item.id)
-                      }
-                      className="text-xs text-gray-300 hover:text-white"
+                <div className="space-y-4">
+                  {group.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className={`rounded-lg border p-4 transition ${getAlertCardClass(item)}`}
                     >
-                      {isExpanded ? "Masquer changement" : "Voir changement"}
-                    </button>
-                    <button
-                      onClick={() => markAlertAsRead(item.id, !item.is_read)}
-                      className="text-xs text-indigo-200 hover:text-indigo-100"
-                    >
-                      {item.is_read ? "Marquer non lu" : "Marquer lu"}
-                    </button>
-                  </div>
+                      {(() => {
+                        const priorityScore = getPriorityScore(item);
+                        const priorityLabel = getPriorityLabel(priorityScore);
+                        const priorityClass = getPriorityClass(priorityScore);
+                        const changeSummary = getAlertChangeSummary(item);
+                        const isExpanded = expandedAlertId === item.id;
+                        const priorityReason = item.metadata?.priority_reason;
+                        const quickMeta = [
+                          getAlertFieldLabel(item.field_key),
+                          getAlertChangeKind(item),
+                        ].join(" • ");
+                        return (
+                          <>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <span className={`text-[10px] uppercase px-2 py-1 rounded-full ${getDomainClass(item.domain)}`}>
+                                {item.domain}
+                              </span>
+                              <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
+                                {item.severity}
+                              </span>
+                              <span
+                                className={`text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
+                              >
+                                {priorityLabel}
+                              </span>
+                              {item.change_group_id && (
+                                <span className="text-[10px] uppercase px-2 py-1 rounded-full cc-chip">
+                                  {item.is_group_root ? "Sequence" : "Groupe"} x
+                                  {item.metadata?.grouped_changes_count || 1}
+                                </span>
+                              )}
+                              <span
+                                className={`text-[10px] uppercase px-2 py-1 rounded-full ${
+                                  item.is_read
+                                    ? "bg-emerald-500/15 text-emerald-200"
+                                    : "bg-amber-500/15 text-amber-200"
+                                }`}
+                              >
+                                {item.is_read ? "Lu" : "Nouveau"}
+                              </span>
+                            </div>
+                            <p className="text-sm font-medium text-gray-100">{changeSummary}</p>
+                            <p className="mt-1 text-[11px] text-gray-400">{quickMeta}</p>
+                            {priorityReason && (
+                              <p className="mt-1 text-xs text-gray-300">{priorityReason}</p>
+                            )}
+                            {item.metadata?.url && (
+                              <p className="text-xs text-gray-400 mt-2 break-all">{item.metadata.url}</p>
+                            )}
+                            <div className="mt-2 flex items-center justify-between gap-3">
+                              <p className="text-xs text-gray-500">
+                                {formatAlertDateShort(item.détectéd_at)}
+                              </p>
+                              <div className="flex items-center gap-3">
+                                <button
+                                  onClick={() =>
+                                    setExpandedAlertId(isExpanded ? null : item.id)
+                                  }
+                                  className="text-xs text-gray-300 hover:text-white"
+                                >
+                                  {isExpanded ? "Masquer changement" : "Voir changement"}
+                                </button>
+                                <button
+                                  onClick={() => markAlertAsRead(item.id, !item.is_read)}
+                                  className="text-xs text-white/70 hover:text-white"
+                                >
+                                  {item.is_read ? "Marquer non lu" : "Marquer lu"}
+                                </button>
+                              </div>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  ))}
                 </div>
-                    </>
-                  );
-                })()}
               </div>
             ))}
           </div>

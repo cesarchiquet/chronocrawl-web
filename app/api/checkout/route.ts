@@ -65,8 +65,19 @@ export async function POST(request: Request) {
 
   const payload = (await request.json().catch(() => ({}))) as {
     plan?: string;
+    successPath?: string;
+    cancelPath?: string;
   };
   const plan = payload.plan?.trim() as Plan | undefined;
+  const successPath =
+    typeof payload.successPath === "string" &&
+    payload.successPath.startsWith("/dashboard")
+      ? payload.successPath
+      : "/dashboard";
+  const cancelPath =
+    typeof payload.cancelPath === "string" && payload.cancelPath.startsWith("/")
+      ? payload.cancelPath
+      : "/#tarifs";
 
   if (!plan || !VALID_PLANS.includes(plan)) {
     return errorResponse("Plan invalide.", 400, "INVALID_PLAN");
@@ -140,8 +151,8 @@ export async function POST(request: Request) {
     client_reference_id: userId,
     metadata: { user_id: userId, plan },
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${origin}/dashboard`,
-    cancel_url: `${origin}/#tarifs`,
+    success_url: `${origin}${successPath}`,
+    cancel_url: `${origin}${cancelPath}`,
     ...(plan === "starter"
       ? {
           subscription_data: {

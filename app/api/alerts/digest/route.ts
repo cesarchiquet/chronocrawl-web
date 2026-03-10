@@ -46,9 +46,9 @@ function severitiesFromThreshold(threshold: "low" | "medium" | "high") {
 }
 
 function actionSuggestion(domain: ChangeRow["domain"]) {
-  if (domain === "pricing") return "Comparer les prix et ajuster la page offre.";
-  if (domain === "cta") return "Verifier le CTA cible et lancer un test rapide.";
-  return "Verifier les balises SEO critiques de la page cible.";
+  if (domain === "pricing") return "Comparer les prix, l'offre affichee et le message de valeur.";
+  if (domain === "cta") return "Verifier le CTA visible, sa promesse et sa place dans la page.";
+  return "Relire title, H1 et meta pour comprendre le nouvel angle SEO.";
 }
 
 export async function POST(request: Request) {
@@ -142,6 +142,9 @@ export async function POST(request: Request) {
 
     const highCount = rankedRows.filter((row) => row.severity === "high").length;
     const mediumCount = rows.filter((row) => row.severity === "medium").length;
+    const coveredUrls = new Set(
+      rows.map((row) => row.metadata?.url).filter(Boolean)
+    ).size;
     const domainCounts = rows.reduce<Record<string, number>>((acc, row) => {
       acc[row.domain] = (acc[row.domain] || 0) + 1;
       return acc;
@@ -170,23 +173,34 @@ export async function POST(request: Request) {
       const alertItems = rankedRows.slice(0, 17).map((row) => {
         const summary = row.metadata?.summary || `${row.domain} change`;
         const url = row.metadata?.url ? ` — ${row.metadata.url}` : "";
-        return `[${row.severity.toUpperCase()}][Conf ${row.confidence_score || 50}] ${summary}${url} | Action: ${actionSuggestion(row.domain)}`;
+        return `[${row.severity.toUpperCase()}] ${summary}${url} | Verification: ${actionSuggestion(row.domain)}`;
       });
       const items = [...headlineItems, ...alertItems];
+      const subject =
+        highCount > 0
+          ? `ChronoCrawl — ${highCount} alerte(s) prioritaire(s) aujourd'hui`
+          : "ChronoCrawl — Digest quotidien des alertes";
       const { html, text } = renderAlertEmail({
         title: "Digest quotidien des alertes",
-        intro: `Seuil applique: ${setting.min_email_severity.toUpperCase()}. Voici un resume orientee decision + les changements non lus.`,
+        intro: `Voici le resume des alertes non lues a revoir aujourd'hui. Seuil applique: ${setting.min_email_severity.toUpperCase()}.`,
         items,
         ctaUrl: "https://chronocrawl.com/dashboard",
-        ctaLabel: "Ouvrir le dashboard et agir",
+        ctaLabel: "Ouvrir le dashboard",
+        metaChips: [
+          `${rows.length} alertes non lues`,
+          `${coveredUrls} URL(s) couvertes`,
+          `${highCount} priorite(s) haute(s)`,
+        ],
+        highlightTitle: "Action a prendre aujourd'hui",
+        highlightBody: actionSuggestion(topDomain as ChangeRow["domain"]),
         footerNote:
-          "Tu peux modifier ce mode depuis le dashboard ChronoCrawl. Objectif: 1 action concrete aujourd'hui.",
+          "Tu peux modifier ce mode depuis le dashboard ChronoCrawl. Objectif: revenir vite sur les alertes qui meritent une verification.",
       });
 
       await resend.emails.send({
         from: "ChronoCrawl <hello@chronocrawl.com>",
         to: email,
-        subject: "ChronoCrawl — Digest quotidien des alertes",
+        subject,
         html,
         text,
       });

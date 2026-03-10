@@ -13,7 +13,6 @@ type PublicNavigationProps = {
 
 const links = [
   { href: "/fonctionnement", label: "Produit" },
-  { href: "/demo", label: "Premier pas" },
   { href: "/cas-d-usage", label: "Cas d'usage" },
   { href: "/tarifs", label: "Tarifs" },
   { href: "/faq", label: "FAQ" },
@@ -35,22 +34,22 @@ export default function PublicNavigation({
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-[#060a1bcc]/90 backdrop-blur">
-      <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3">
-        <Link href="/" className="text-sm font-semibold tracking-wide text-indigo-200">
+    <header className="sticky top-4 z-40 px-4">
+      <nav className="mx-auto flex w-full max-w-[1320px] items-center justify-between rounded-full border border-white/10 bg-[#050505d9] px-5 py-3 shadow-[0_14px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+        <Link href="/" className="text-sm font-semibold tracking-[0.12em] text-white">
           ChronoCrawl
         </Link>
 
-        <div className="hidden md:flex items-center gap-1 text-sm">
+        <div className="hidden md:flex items-center gap-1.5 text-sm">
           {links.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`rounded-md px-3 py-2 transition ${
-                isActive(item.href)
-                  ? "bg-indigo-500/20 text-indigo-100 border border-indigo-400/40"
+              className={`rounded-full px-4 py-2 transition ${
+                  isActive(item.href)
+                  ? "bg-white text-black border border-white"
                   : "text-gray-300 hover:bg-white/5 hover:text-white"
-              }`}
+                }`}
             >
               {item.label}
             </Link>
@@ -62,36 +61,36 @@ export default function PublicNavigation({
             <>
               <Link
                 href="/dashboard"
-                className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+                className="rounded-full border border-white bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/85"
               >
                 Dashboard
               </Link>
               <button
                 onClick={onOpenBillingPortal}
-                className="rounded-md px-3 py-2 text-sm text-gray-300 border border-white/15 hover:bg-white/5 hover:text-white"
+                className="rounded-full border border-white/10 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
               >
                 Abonnement
               </button>
               <button
                 onClick={onSignOut}
-                className="rounded-md px-3 py-2 text-sm text-gray-300 border border-white/15 hover:bg-white/5 hover:text-white"
+                className="rounded-full border border-white/10 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
               >
-                Deconnexion
+                Déconnexion
               </button>
             </>
           ) : (
             <>
               <Link
                 href="/login"
-                className="rounded-md px-3 py-2 text-sm text-gray-300 border border-white/15 hover:bg-white/5 hover:text-white"
+                className="rounded-full border border-white/10 px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white"
               >
                 Connexion
               </Link>
               <Link
                 href="/signup"
-                className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400"
+                className="rounded-full border border-white bg-white px-4 py-2 text-sm font-medium text-black hover:bg-white/85"
               >
-                Creer un compte
+                Créer un compte
               </Link>
             </>
           )}
@@ -99,7 +98,7 @@ export default function PublicNavigation({
 
         <button
           onClick={() => setMobileOpen((value) => !value)}
-          className="md:hidden rounded-md border border-white/15 px-2 py-1 text-sm text-gray-200 hover:bg-white/5"
+          className="md:hidden rounded-full border border-white/15 px-3 py-1.5 text-sm text-gray-200 hover:bg-white/5"
           aria-label="Menu"
         >
           {mobileOpen ? "✕" : "☰"}
@@ -107,18 +106,18 @@ export default function PublicNavigation({
       </nav>
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-white/10 bg-[#060a1bf0]">
-          <div className="mx-auto max-w-6xl px-5 py-3 flex flex-col gap-2">
+        <div className="mx-auto mt-3 max-w-[1320px] rounded-[28px] border border-white/10 bg-[#050505f2] p-4 shadow-[0_14px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl md:hidden">
+          <div className="flex flex-col gap-2">
             {links.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
-                className={`rounded-md px-3 py-2 text-sm transition ${
-                  isActive(item.href)
-                    ? "bg-indigo-500/20 text-indigo-100 border border-indigo-400/40"
+                className={`rounded-full px-4 py-2 text-sm transition ${
+                    isActive(item.href)
+                    ? "bg-white text-black border border-white"
                     : "text-gray-300 hover:bg-white/5 hover:text-white"
-                }`}
+                  }`}
               >
                 {item.label}
               </Link>
@@ -130,7 +129,7 @@ export default function PublicNavigation({
                   <Link
                     href="/dashboard"
                     onClick={() => setMobileOpen(false)}
-                    className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400 text-center"
+                    className="rounded-full border border-white bg-white px-4 py-2 text-center text-sm font-medium text-black hover:bg-white/85"
                   >
                     Dashboard
                   </Link>
@@ -139,18 +138,18 @@ export default function PublicNavigation({
                       setMobileOpen(false);
                       onOpenBillingPortal?.();
                     }}
-                    className="rounded-md px-3 py-2 text-sm text-gray-300 border border-white/15 hover:bg-white/5 hover:text-white text-left"
+                    className="rounded-full border border-white/10 px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
                   >
-                    Gerer l&apos;abonnement
+                    Gérer l&apos;abonnement
                   </button>
                   <button
                     onClick={() => {
                       setMobileOpen(false);
                       onSignOut?.();
                     }}
-                    className="rounded-md px-3 py-2 text-sm text-gray-300 border border-white/15 hover:bg-white/5 hover:text-white text-left"
+                    className="rounded-full border border-white/10 px-4 py-2 text-left text-sm text-gray-300 hover:bg-white/5 hover:text-white"
                   >
-                    Se deconnecter
+                    Se déconnecter
                   </button>
                 </>
               ) : (
@@ -158,16 +157,16 @@ export default function PublicNavigation({
                   <Link
                     href="/login"
                     onClick={() => setMobileOpen(false)}
-                    className="rounded-md px-3 py-2 text-sm text-gray-300 border border-white/15 hover:bg-white/5 hover:text-white text-center"
+                    className="rounded-full border border-white/10 px-4 py-2 text-center text-sm text-gray-300 hover:bg-white/5 hover:text-white"
                   >
                     Connexion
                   </Link>
                   <Link
                     href="/signup"
                     onClick={() => setMobileOpen(false)}
-                    className="rounded-md bg-indigo-500 px-3 py-2 text-sm font-medium text-white hover:bg-indigo-400 text-center"
+                    className="rounded-full border border-white bg-white px-4 py-2 text-center text-sm font-medium text-black hover:bg-white/85"
                   >
-                    Creer un compte
+                    Créer un compte
                   </Link>
                 </>
               )}

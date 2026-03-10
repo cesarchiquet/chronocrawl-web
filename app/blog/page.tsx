@@ -31,7 +31,7 @@ export default function BlogPage() {
         <div className="mt-12 grid gap-6">
           <Link
             href="/blog/guide-surveiller-site-concurrent"
-            className="block rounded-xl bg-white/5 border border-white/10 p-6 hover:bg-white/10 transition"
+            className="cc-panel-strong cc-hover-lift block rounded-[28px] p-6 transition"
           >
             <h2 className="text-xl font-semibold mb-2">
               Comment surveiller un site concurrent (guide simple)
@@ -43,7 +43,7 @@ export default function BlogPage() {
           </Link>
           <Link
             href="/fonctionnement"
-            className="block rounded-xl bg-white/5 border border-white/10 p-6 hover:bg-white/10 transition"
+            className="cc-panel-strong cc-hover-lift block rounded-[28px] p-6 transition"
           >
             <h2 className="text-xl font-semibold mb-2">Voir le fonctionnement complet</h2>
             <p className="text-gray-300 text-sm">

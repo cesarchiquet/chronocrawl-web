@@ -1,10 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { motion, type Variants } from "framer-motion";
 import { supabase } from "@/lib/supabaseClient";
 import type { Session } from "@supabase/supabase-js";
 import {
+  getAlertChangeKind,
   getAlertChangeSummary,
+  getAlertDomainLabel,
+  getAlertFieldLabel,
   getAlertImpactLabel,
   getAlertRecommendedAction,
 } from "@/lib/alertPresentation";
@@ -29,11 +33,41 @@ type ChangeEvent = {
     priority_reason?: string;
     grouped_changes_count?: number;
   } | null;
-  detected_at: string | null;
+  détectéd_at: string | null;
   is_read: boolean | null;
 };
 
 const HISTORY_PAGE_SIZE = 250;
+
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: "easeOut" },
+  },
+};
+
+function formatTimelineLabel(dateValue: string | null) {
+  if (!dateValue) return "Date inconnue";
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return "Date inconnue";
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfTarget = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  ).getTime();
+  const diffDays = Math.round((startOfToday - startOfTarget) / 86400000);
+  if (diffDays === 0) return "Aujourd'hui";
+  if (diffDays === 1) return "Hier";
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(date);
+}
 
 export default function AlertsHistoryPage() {
   const [session, setSession] = useState<Session | null>(null);
@@ -62,25 +96,25 @@ export default function AlertsHistoryPage() {
     async (userId: string, from: number, reset = false) => {
       const to = from + HISTORY_PAGE_SIZE - 1;
       const extendedSelect =
-        "id,field_key,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,metadata,detected_at,is_read";
+        "id,field_key,domain,severity,confidence_score,noise_flags,change_group_id,is_group_root,metadata,détectéd_at,is_read";
       const legacySelect =
-        "id,field_key,domain,severity,metadata,detected_at,is_read";
+        "id,field_key,domain,severity,metadata,détectéd_at,is_read";
 
       let data: unknown[] | null = null;
       const extendedRes = await supabase
-        .from("detected_changes")
+        .from("détectéd_changes")
         .select(extendedSelect)
         .eq("user_id", userId)
         .in("severity", ["medium", "high"])
-        .order("detected_at", { ascending: false })
+        .order("détectéd_at", { ascending: false })
         .range(from, to);
       if (extendedRes.error) {
         const legacyRes = await supabase
-          .from("detected_changes")
+          .from("détectéd_changes")
           .select(legacySelect)
           .eq("user_id", userId)
           .in("severity", ["medium", "high"])
-          .order("detected_at", { ascending: false })
+          .order("détectéd_at", { ascending: false })
           .range(from, to);
         data = legacyRes.data;
       } else {
@@ -162,6 +196,26 @@ export default function AlertsHistoryPage() {
     () => events.find((event) => event.id === expandedAlertId) || null,
     [events, expandedAlertId]
   );
+  const historyOverview = useMemo(() => {
+    const unread = events.filter((event) => !event.is_read).length;
+    const coveredUrls = new Set(
+      events.map((event) => event.metadata?.url).filter(Boolean)
+    ).size;
+    const highPriority = events.filter((event) => event.severity === "high").length;
+    const latestDétectédAt = events[0]?.détectéd_at || null;
+    const groupedSequences = new Set(
+      events.map((event) => event.change_group_id).filter(Boolean)
+    ).size;
+
+    return {
+      total: events.length,
+      unread,
+      coveredUrls,
+      highPriority,
+      latestDétectédAt,
+      groupedSequences,
+    };
+  }, [events]);
 
   const filtered = useMemo(() => {
     const now = nowReferenceMs;
@@ -191,12 +245,12 @@ export default function AlertsHistoryPage() {
       if (readFilter === "unread" && event.is_read) return false;
       if (readFilter === "read" && !event.is_read) return false;
       if (dateFilter !== "all") {
-        const detectedMs = event.detected_at ? Date.parse(event.detected_at) : NaN;
-        if (!Number.isFinite(detectedMs)) return false;
+        const détectédMs = event.détectéd_at ? Date.parse(event.détectéd_at) : NaN;
+        if (!Number.isFinite(détectédMs)) return false;
         if (dateFilter === "custom") {
-          if (fromMsCustom !== null && detectedMs < fromMsCustom) return false;
-          if (toMsCustom !== null && detectedMs > toMsCustom) return false;
-        } else if (fromMsPreset !== null && detectedMs < fromMsPreset) {
+          if (fromMsCustom !== null && détectédMs < fromMsCustom) return false;
+          if (toMsCustom !== null && détectédMs > toMsCustom) return false;
+        } else if (fromMsPreset !== null && détectédMs < fromMsPreset) {
           return false;
         }
       }
@@ -224,6 +278,19 @@ export default function AlertsHistoryPage() {
     severityFilter,
     urlFilter,
   ]);
+  const filteredTimeline = useMemo(() => {
+    const buckets = new Map<string, ChangeEvent[]>();
+    for (const event of filtered) {
+      const label = formatTimelineLabel(event.détectéd_at);
+      const current = buckets.get(label) || [];
+      current.push(event);
+      buckets.set(label, current);
+    }
+    return Array.from(buckets.entries()).map(([label, items]) => ({
+      label,
+      items,
+    }));
+  }, [filtered]);
 
   const getPriorityScore = (event: ChangeEvent) => {
     if (typeof event.confidence_score === "number" && Number.isFinite(event.confidence_score)) {
@@ -237,9 +304,9 @@ export default function AlertsHistoryPage() {
   };
 
   const getPriorityLabel = (score: number) => {
-    if (score >= 75) return "Haute";
-    if (score >= 45) return "Moyenne";
-    return "Basse";
+    if (score >= 75) return "Priorité haute";
+    if (score >= 45) return "Priorité moyenne";
+    return "Priorité basse";
   };
 
   const getPriorityClass = (score: number) => {
@@ -248,10 +315,27 @@ export default function AlertsHistoryPage() {
     return "bg-emerald-500/15 text-emerald-200";
   };
 
+  const getDomainClass = (domain: ChangeEvent["domain"]) => {
+    if (domain === "seo") return "bg-sky-500/15 text-sky-200";
+    if (domain === "cta") return "bg-violet-500/15 text-violet-200";
+    return "bg-emerald-500/15 text-emerald-200";
+  };
+
+  const getAlertCardClass = (event: ChangeEvent) => {
+    if (!event.is_read) {
+      return "border-white/12 bg-white/[0.04]";
+    }
+    if (event.domain === "seo") return "border-sky-400/15 bg-sky-500/[0.03]";
+    if (event.domain === "cta") {
+      return "border-violet-400/15 bg-violet-500/[0.03]";
+    }
+    return "border-emerald-400/15 bg-emerald-500/[0.03]";
+  };
+
   const exportCsv = () => {
     const escapeCsv = (value: string) => `"${value.replaceAll('"', '""')}"`;
     const rows = filtered.map((event) => {
-      const detectedAt = event.detected_at || "";
+      const détectédAt = event.détectéd_at || "";
       const fieldKey = event.field_key || "";
       const domain = event.domain || "";
       const severity = event.severity || "";
@@ -270,7 +354,7 @@ export default function AlertsHistoryPage() {
       const beforeShort = event.metadata?.before_short || "";
       const afterShort = event.metadata?.after_short || "";
       return [
-        detectedAt,
+        détectédAt,
         fieldKey,
         domain,
         severity,
@@ -289,7 +373,7 @@ export default function AlertsHistoryPage() {
     });
 
     const header = [
-      "detected_at",
+      "détectéd_at",
       "field_key",
       "domain",
       "severity",
@@ -325,13 +409,13 @@ export default function AlertsHistoryPage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
-        <section className="max-w-6xl mx-auto px-6 pt-20 pb-10">
+      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-16 md:pt-20 pb-10">
           <div className="h-6 w-32 rounded bg-white/10 animate-pulse" />
           <div className="mt-4 h-10 w-72 rounded bg-white/10 animate-pulse" />
         </section>
-        <section className="max-w-6xl mx-auto px-6 pb-24">
-          <div className="rounded-xl border border-white/10 bg-white/5 p-6">
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-24">
+          <div className="cc-panel-strong rounded-[28px] p-6">
             <div className="grid md:grid-cols-3 gap-3 mb-5">
               {Array.from({ length: 3 }).map((_, index) => (
                 <div
@@ -356,15 +440,15 @@ export default function AlertsHistoryPage() {
 
   if (!session) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
-        <section className="max-w-3xl mx-auto px-6 pt-28 pb-24 text-center">
+      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+        <section className="max-w-3xl mx-auto px-4 sm:px-6 pt-24 md:pt-28 pb-24 text-center">
           <h1 className="text-3xl font-bold">Historique d&apos;alertes</h1>
           <p className="mt-4 text-gray-300">
             Connecte-toi pour consulter l&apos;historique complet.
           </p>
           <a
             href="/login"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium mt-8"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-white bg-white text-black hover:bg-white/85 transition font-medium mt-8"
           >
             Se connecter
           </a>
@@ -374,33 +458,104 @@ export default function AlertsHistoryPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
-      <section className="max-w-6xl mx-auto px-6 pt-20 pb-10">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+      <motion.section
+        variants={fadeUp}
+        initial="hidden"
+        animate="visible"
+        className="mx-auto max-w-[1320px] px-4 pt-12 pb-10 sm:px-6"
+      >
+        <div className="relative overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05)_0%,_rgba(10,10,10,0.98)_24%,_rgba(0,0,0,1)_88%)] px-6 py-7 shadow-[0_24px_80px_rgba(0,0,0,0.42)] md:px-8">
+          <div className="pointer-events-none absolute inset-0">
+            <div className="absolute left-1/2 top-[-48%] h-[780px] w-[780px] -translate-x-1/2 rounded-full border border-white/[0.05]" />
+            <div className="absolute left-1/2 top-[-28%] h-[620px] w-[620px] -translate-x-1/2 rounded-full border border-white/[0.04]" />
+          </div>
+        <div className="relative flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-indigo-300 text-sm font-medium">Dashboard</p>
-            <h1 className="text-3xl md:text-4xl font-bold">Historique d&apos;alertes</h1>
+            <p className="text-white/60 text-xs font-medium uppercase tracking-[0.18em]">Dashboard</p>
+            <h1 className="mt-2 text-4xl md:text-5xl font-bold leading-[0.96]">Historique
+              <br />
+              des alertes</h1>
+            <p className="mt-3 max-w-2xl text-sm text-gray-300">
+              Retrouve toutes les alertes détectées, compare les changements dans le
+              temps et reviens rapidement sur les signaux les plus utiles.
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={exportCsv}
-              className="px-5 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition"
+              className="cc-button-secondary rounded-full px-5 py-2.5 text-white"
             >
               Export CSV
             </button>
             <a
               href="/dashboard"
-              className="px-5 py-2 rounded-lg border border-white/20 hover:bg-white/5 transition"
+              className="cc-button-secondary rounded-full px-5 py-2.5"
             >
               Retour dashboard
             </a>
           </div>
         </div>
+        </div>
         <DashboardSuiteMenu />
-      </section>
+        <div className="mt-6 grid gap-3 md:grid-cols-4">
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs text-gray-400">Alertes archivees</p>
+            <p className="mt-1 text-lg font-semibold text-gray-100">
+              {historyOverview.total}
+            </p>
+          </div>
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs text-gray-400">Non lues</p>
+            <p className="mt-1 text-lg font-semibold text-white/78">
+              {historyOverview.unread}
+            </p>
+          </div>
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs text-gray-400">URLs couvertes</p>
+            <p className="mt-1 text-lg font-semibold text-gray-100">
+              {historyOverview.coveredUrls}
+            </p>
+          </div>
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4">
+            <p className="text-xs text-gray-400">Derniere alerte</p>
+            <p className="mt-1 text-sm font-semibold text-gray-100">
+              {historyOverview.latestDétectédAt
+                ? formatAlertDateShort(historyOverview.latestDétectédAt)
+                : "Aucune"}
+            </p>
+          </div>
+          <div className="rounded-[28px] border border-white/10 bg-white/[0.03] p-4 md:col-span-2 lg:col-span-1">
+            <p className="text-xs text-gray-400">Sequences groupees</p>
+            <p className="mt-1 text-lg font-semibold text-gray-100">
+              {historyOverview.groupedSequences}
+            </p>
+          </div>
+        </div>
+      </motion.section>
 
-      <section className="max-w-6xl mx-auto px-6 pb-24">
-        <div className="rounded-xl bg-white/5 border border-white/10 p-6">
+      <motion.section
+        variants={fadeUp}
+        initial="hidden"
+        animate="visible"
+        transition={{ delay: 0.06 }}
+        className="mx-auto max-w-[1320px] px-4 pb-24 sm:px-6"
+      >
+        <div className="rounded-[32px] bg-white/[0.03] border border-white/10 p-4 md:p-6">
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            <span className="cc-chip rounded-full px-3 py-1 text-[11px]">
+              Vue archive
+            </span>
+            <span className="rounded-full border border-red-300/20 bg-red-500/10 px-3 py-1 text-[11px] text-red-100">
+              {historyOverview.highPriority} priorité haute
+            </span>
+            <span className="cc-chip rounded-full px-3 py-1 text-[11px]">
+              Compare facilement l&apos;avant / après sur chaque changement
+            </span>
+            <span className="cc-chip rounded-full px-3 py-1 text-[11px]">
+              Lecture par journée et par sequence
+            </span>
+          </div>
           <div className="grid md:grid-cols-3 gap-3 mb-3">
             <label className="text-sm text-gray-300 flex flex-col gap-2">
               Sévérité
@@ -411,7 +566,7 @@ export default function AlertsHistoryPage() {
                     e.target.value as "all" | "medium" | "high"
                   )
                 }
-                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
               >
                 <option value="all">Toutes</option>
                 <option value="medium">Medium</option>
@@ -423,7 +578,7 @@ export default function AlertsHistoryPage() {
               <select
                 value={urlFilter}
                 onChange={(e) => setUrlFilter(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
               >
                 <option value="all">Toutes les URLs</option>
                 {availableUrls.map((url) => (
@@ -440,7 +595,7 @@ export default function AlertsHistoryPage() {
                 onChange={(e) =>
                   setReadFilter(e.target.value as "all" | "unread" | "read")
                 }
-                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
               >
                 <option value="all">Tous</option>
                 <option value="unread">Non lus</option>
@@ -450,7 +605,7 @@ export default function AlertsHistoryPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-3 mb-5">
             <label className="text-sm text-gray-300 flex flex-col gap-2">
-              Periode
+              Période
               <select
                 value={dateFilter}
                 onChange={(e) =>
@@ -458,7 +613,7 @@ export default function AlertsHistoryPage() {
                     e.target.value as "all" | "24h" | "7d" | "30d" | "custom"
                   )
                 }
-                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
               >
                 <option value="all">Tout</option>
                 <option value="24h">24h</option>
@@ -473,8 +628,8 @@ export default function AlertsHistoryPage() {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="URL, resume, domaine..."
-                className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                placeholder="URL, résumé, domaine..."
+                className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
               />
             </label>
             <div className="text-sm text-gray-300 flex items-end">
@@ -489,7 +644,7 @@ export default function AlertsHistoryPage() {
                   type="date"
                   value={dateFrom}
                   onChange={(e) => setDateFrom(e.target.value)}
-                  className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                  className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
                 />
               </label>
               <label className="text-sm text-gray-300 flex flex-col gap-2">
@@ -498,79 +653,113 @@ export default function AlertsHistoryPage() {
                   type="date"
                   value={dateTo}
                   onChange={(e) => setDateTo(e.target.value)}
-                  className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+                  className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
                 />
               </label>
             </div>
           )}
-          <div className="space-y-3 max-h-[680px] overflow-y-auto pr-1">
+          <div className="space-y-6 lg:max-h-[680px] lg:overflow-y-auto lg:pr-1">
             {filtered.length === 0 && (
-              <p className="text-gray-400 text-sm">Aucune alerte pour ces filtres.</p>
+              <div className="cc-panel rounded-[20px] p-4">
+                <p className="text-sm text-gray-200">Aucune alerte pour ces filtres.</p>
+                <p className="mt-1 text-xs text-gray-400">
+                  Élargis la période, retire un filtre ou recharge plus d&apos;historique.
+                </p>
+              </div>
             )}
-            {filtered.map((event) => {
+            {filteredTimeline.map((group) => (
+              <div key={group.label}>
+                <div className="mb-3 flex items-center gap-3">
+                  <p className="text-sm font-medium text-gray-100">{group.label}</p>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-gray-400">
+                    {group.items.length} alerte(s)
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {group.items.map((event) => {
               const score = getPriorityScore(event);
               const priorityLabel = getPriorityLabel(score);
               const priorityClass = getPriorityClass(score);
               const changeSummary = getAlertChangeSummary(event);
               const isExpanded = expandedAlertId === event.id;
+              const priorityReason = event.metadata?.priority_reason;
+              const quickMeta = [
+                getAlertFieldLabel(event.field_key),
+                getAlertChangeKind(event),
+              ].join(" • ");
 
               return (
                 <div
                   key={event.id}
-                  className="rounded-lg border border-white/10 p-4 bg-white/[0.02]"
+                  className={`rounded-lg border p-4 transition ${getAlertCardClass(event)}`}
                 >
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/20 text-indigo-200">
-                    {event.domain}
-                  </span>
-                  <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
-                    {event.severity}
-                  </span>
-                  <span
-                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
-                  >
-                    Impact {score} - {priorityLabel}
-                  </span>
-                  {event.change_group_id && (
-                    <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-indigo-500/15 text-indigo-200">
-                      Groupe x{event.metadata?.grouped_changes_count || 1}
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <span
+                      className={`text-[10px] uppercase px-2 py-1 rounded-full ${getDomainClass(event.domain)}`}
+                    >
+                      {event.domain}
                     </span>
-                  )}
-                  {Array.isArray(event.noise_flags) && event.noise_flags.length > 0 && (
                     <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
-                      Bruit filtre
+                      {event.severity}
                     </span>
+                    <span
+                      className={`text-[10px] uppercase px-2 py-1 rounded-full ${priorityClass}`}
+                    >
+                      {priorityLabel}
+                    </span>
+                    {event.change_group_id && (
+                      <span className="text-[10px] uppercase px-2 py-1 rounded-full cc-chip">
+                        {event.is_group_root ? "Sequence" : "Groupe"} x
+                        {event.metadata?.grouped_changes_count || 1}
+                      </span>
+                    )}
+                    {Array.isArray(event.noise_flags) &&
+                      event.noise_flags.length > 0 && (
+                        <span className="text-[10px] uppercase px-2 py-1 rounded-full bg-white/10 text-gray-200">
+                          Bruit filtre
+                        </span>
+                      )}
+                    <span
+                      className={`text-[10px] uppercase px-2 py-1 rounded-full ${
+                        event.is_read
+                          ? "bg-emerald-500/15 text-emerald-200"
+                          : "bg-amber-500/15 text-amber-200"
+                      }`}
+                    >
+                      {event.is_read ? "Lu" : "Nouveau"}
+                    </span>
+                  </div>
+                  <p className="text-sm font-medium text-gray-100">
+                    {changeSummary}
+                  </p>
+                  <p className="mt-1 text-[11px] text-gray-400">{quickMeta}</p>
+                  {priorityReason && (
+                    <p className="mt-1 text-xs text-gray-300">{priorityReason}</p>
                   )}
-                  <span
-                    className={`text-[10px] uppercase px-2 py-1 rounded-full ${
-                      event.is_read
-                        ? "bg-emerald-500/15 text-emerald-200"
-                        : "bg-amber-500/15 text-amber-200"
-                    }`}
-                  >
-                    {event.is_read ? "lu" : "non lu"}
-                  </span>
+                  {event.metadata?.url && (
+                    <p className="text-xs text-gray-400 mt-2 break-all">
+                      {event.metadata.url}
+                    </p>
+                  )}
+                  <div className="mt-2 flex items-center justify-between gap-3">
+                    <p className="text-xs text-gray-500">
+                      {formatAlertDateShort(event.détectéd_at)}
+                    </p>
+                    <button
+                      onClick={() =>
+                        setExpandedAlertId(isExpanded ? null : event.id)
+                      }
+                      className="text-xs text-gray-300 hover:text-white"
+                    >
+                      {isExpanded ? "Masquer changement" : "Voir changement"}
+                    </button>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-200">{changeSummary}</p>
-                {event.metadata?.url && (
-                  <p className="text-xs text-gray-400 mt-1 break-all">
-                    {event.metadata.url}
-                  </p>
-                )}
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <p className="text-xs text-gray-500">
-                    {formatAlertDateShort(event.detected_at)}
-                  </p>
-                  <button
-                    onClick={() => setExpandedAlertId(isExpanded ? null : event.id)}
-                    className="text-xs text-gray-300 hover:text-white"
-                  >
-                    {isExpanded ? "Masquer changement" : "Voir changement"}
-                  </button>
+              );
+                  })}
                 </div>
               </div>
-              );
-            })}
+            ))}
           </div>
           {expandedAlert && (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -580,42 +769,63 @@ export default function AlertsHistoryPage() {
                 onClick={() => setExpandedAlertId(null)}
               />
               <div className="relative w-full max-w-2xl rounded-xl border border-white/10 bg-[#0b1025] p-5">
+                {(() => {
+                  const quickFacts = [
+                    { label: "Type", value: getAlertDomainLabel(expandedAlert.domain) },
+                    { label: "Element", value: getAlertFieldLabel(expandedAlert.field_key) },
+                    { label: "Variation", value: getAlertChangeKind(expandedAlert) },
+                    { label: "Source", value: expandedAlert.metadata?.url || "URL indisponible" },
+                  ];
+
+                  return (
+                    <>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs text-indigo-200 uppercase">
-                      {expandedAlert.domain} - {expandedAlert.severity}
+                    <p className="text-xs text-white/68 uppercase">
+                      Observation concurrente - {expandedAlert.domain} - {expandedAlert.severity}
                     </p>
                     <p className="mt-1 text-sm text-gray-100">
                       {getAlertChangeSummary(expandedAlert)}
                     </p>
                     <p className="mt-1 text-xs text-gray-400">
-                      {formatAlertDateShort(expandedAlert.detected_at)}
+                      {formatAlertDateShort(expandedAlert.détectéd_at)}
                     </p>
                   </div>
                   <button
                     onClick={() => setExpandedAlertId(null)}
-                    className="text-xs px-2 py-1 rounded border border-white/20 text-gray-200 hover:bg-white/5"
+                    className="cc-button-secondary rounded-full px-2 py-1 text-xs"
                   >
                     Fermer
                   </button>
                 </div>
                 <p className="mt-3 text-xs text-gray-300">
-                  <span className="text-gray-400">Impact:</span>{" "}
+                  <span className="text-gray-400">Ce que cela peut signaler :</span>{" "}
                   {getAlertImpactLabel(expandedAlert)}
                 </p>
                 <p className="mt-1 text-xs text-gray-300">
-                  <span className="text-gray-400">Action:</span>{" "}
+                  <span className="text-gray-400">Vérification utile :</span>{" "}
                   {getAlertRecommendedAction(expandedAlert)}
                 </p>
+                <div className="mt-4 grid gap-2 md:grid-cols-4 text-[11px]">
+                  {quickFacts.map((item) => (
+                    <div
+                      key={item.label}
+                      className="cc-panel rounded-[18px] p-3"
+                    >
+                      <p className="text-gray-400">{item.label}</p>
+                      <p className="mt-1 break-words text-gray-100">{item.value}</p>
+                    </div>
+                  ))}
+                </div>
                 <div className="mt-4 grid grid-cols-1 gap-3 text-xs">
-                  <div className="rounded-md border border-white/10 bg-black/20 p-3">
-                    <p className="text-gray-400 mb-1">Avant</p>
+                  <div className="rounded-md border border-amber-300/20 bg-amber-500/[0.05] p-3">
+                    <p className="text-gray-400 mb-1">Etat precedent</p>
                     <p className="text-gray-200">
                       {expandedAlert.metadata?.before_short || "non disponible"}
                     </p>
                   </div>
-                  <div className="rounded-md border border-white/10 bg-black/20 p-3">
-                    <p className="text-gray-400 mb-1">Apres</p>
+                  <div className="rounded-md border border-emerald-300/20 bg-emerald-500/[0.05] p-3">
+                    <p className="text-gray-400 mb-1">Etat observe</p>
                     <p className="text-gray-200">
                       {expandedAlert.metadata?.after_short || "non disponible"}
                     </p>
@@ -623,8 +833,11 @@ export default function AlertsHistoryPage() {
                 </div>
                 <p className="mt-3 text-[11px] text-gray-400">
                   {expandedAlert.metadata?.priority_reason ||
-                    "Priorite calculee automatiquement."}
+                    "Priorité estimee selon le type de changement observe."}
                 </p>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -633,14 +846,14 @@ export default function AlertsHistoryPage() {
               <button
                 onClick={loadMore}
                 disabled={loadingMore}
-                className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-4 py-2 rounded-lg border border-white/10 text-white hover:bg-white/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loadingMore ? "Chargement..." : "Charger plus"}
               </button>
             </div>
           )}
         </div>
-      </section>
+      </motion.section>
     </main>
   );
 }

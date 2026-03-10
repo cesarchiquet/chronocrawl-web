@@ -1,9 +1,13 @@
 import type { Metadata } from "next";
-import { GeistSans } from "geist/font/sans";
+import { Manrope } from "next/font/google";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
-const geistSans = GeistSans;
+const manrope = Manrope({
+  subsets: ["latin"],
+  variable: "--font-manrope",
+  display: "swap",
+});
 const geistMono = GeistMono;
 
 export const metadata: Metadata = {
@@ -102,7 +106,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${manrope.variable} ${geistMono.variable} antialiased`}
       >
         {children}
       </body>

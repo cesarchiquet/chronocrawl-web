@@ -48,18 +48,18 @@ export default function FonctionnementPage() {
           ].map((item) => (
             <div
               key={item.title}
-              className="rounded-xl bg-white/5 border border-white/10 p-6"
+              className="cc-panel-strong cc-hover-lift rounded-[28px] p-6"
             >
               <h2 className="text-xl font-semibold mb-2">{item.title}</h2>
               <p className="text-gray-300 text-sm">{item.text}</p>
             </div>
           ))}
-          <div className="rounded-xl bg-white/5 border border-white/10 p-6">
-            <h2 className="text-xl font-semibold mb-2">Securite et donnees</h2>
+          <div className="cc-panel-strong cc-hover-lift rounded-[28px] p-6">
+            <h2 className="text-xl font-semibold mb-2">Sécurité et données</h2>
             <p className="text-gray-300 text-sm">
-              Chaque compte n&apos;accede qu&apos;a ses propres donnees (RLS),
-              les sessions API sont verifiees par token et la facturation est
-              geree via Stripe.
+              Chaque compte n&apos;accède qu&apos;a ses propres données (RLS),
+              les sessions API sont vérifiees par token et la facturation est
+              gérée via Stripe.
             </p>
           </div>
         </div>
@@ -67,13 +67,13 @@ export default function FonctionnementPage() {
         <div className="mt-12 flex flex-wrap items-center justify-center gap-3">
           <Link
             href="/signup"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+            className="cc-button-primary inline-flex items-center justify-center rounded-full px-6 py-3 font-medium"
           >
             Commencer gratuitement
           </Link>
           <Link
             href="/dashboard"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition font-medium"
+            className="cc-button-secondary inline-flex items-center justify-center rounded-full px-6 py-3 font-medium"
           >
             Ouvrir le dashboard
           </Link>

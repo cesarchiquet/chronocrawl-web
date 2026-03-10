@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion } from "framer-motion";
+import { usePathname } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
 import PublicFooter from "@/components/PublicFooter";
 import PublicNavigation from "@/components/PublicNavigation";
@@ -12,6 +14,7 @@ type PublicChromeProps = {
 
 export default function PublicChrome({ children }: PublicChromeProps) {
   const [session, setSession] = useState<Session | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const hydrateSession = async () => {
@@ -53,7 +56,7 @@ export default function PublicChrome({ children }: PublicChromeProps) {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#050816] via-[#0b1025] to-[#050816] text-white">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
       <PublicNavigation
         session={session}
         onOpenBillingPortal={() => {
@@ -63,7 +66,14 @@ export default function PublicChrome({ children }: PublicChromeProps) {
           void supabase.auth.signOut();
         }}
       />
-      {children}
+      <motion.div
+        key={pathname}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: "easeOut" }}
+      >
+        {children}
+      </motion.div>
       <PublicFooter />
     </main>
   );

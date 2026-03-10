@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import { useSearchParams } from "next/navigation";
 import PublicChrome from "@/components/PublicChrome";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -9,52 +10,59 @@ const plans = [
   {
     name: "Starter",
     price: "12 EUR/mois",
-    desc: "7 jours d'essai gratuit, ideal pour demarrer.",
-    fit: "Pour freelance ou petite equipe",
+    desc: "Pour lancer une veille concurrentielle simple et propre.",
+    fit: "Pour fréelance ou petite équipe",
     details: [
-      "10 URLs surveillees",
-      "Frequence toutes les 6h",
+      "10 URLs surveillées",
+      "Fréquence toutes les 6h",
       "Alertes email",
       "Historique 7 jours",
+      "Audit SEO concurrent inclus",
     ],
   },
   {
     name: "Pro",
     price: "29 EUR/mois",
-    desc: "Le meilleur equilibre.",
+    desc: "Le meilleur niveau pour suivre des concurrents en continu.",
     fit: "Pour SaaS et e-commerce en croissance",
     details: [
-      "50 URLs surveillees",
-      "Frequence toutes les 60 min",
+      "50 URLs surveillées",
+      "Fréquence toutes les 60 min",
       "Alertes email + Slack",
       "Historique 30 jours",
+      "Audit SEO concurrent inclus",
     ],
     highlight: true,
   },
   {
     name: "Agency",
     price: "79 EUR/mois",
-    desc: "Pour les equipes.",
+    desc: "Pour piloter plusieurs marques ou plusieurs clients.",
     fit: "Pour agences multi-clients",
     details: [
-      "200 URLs surveillees",
-      "Frequence toutes les 15 min",
+      "200 URLs surveillées",
+      "Fréquence toutes les 15 min",
       "Alertes email + Slack + Webhook",
       "Historique 90 jours",
+      "Audit SEO concurrent inclus",
     ],
   },
 ];
 
 const comparisonRows = [
-  { label: "URLs surveillees", starter: "10", pro: "50", agency: "200" },
-  { label: "Frequence max", starter: "Toutes les 6h", pro: "Toutes les 60 min", agency: "Toutes les 15 min" },
+  { label: "URLs surveillées", starter: "10", pro: "50", agency: "200" },
+  { label: "Fréquence max", starter: "Toutes les 6h", pro: "Toutes les 60 min", agency: "Toutes les 15 min" },
   { label: "Canaux d'alerte", starter: "Email", pro: "Email + Slack", agency: "Email + Slack + Webhook" },
   { label: "Historique", starter: "7 jours", pro: "30 jours", agency: "90 jours" },
+  { label: "Audit SEO concurrent", starter: "Inclus", pro: "Inclus", agency: "Inclus" },
 ];
 
 export default function TarifsPage() {
+  const searchParams = useSearchParams();
   const [session, setSession] = useState<Session | null>(null);
   const [checkoutError, setCheckoutError] = useState("");
+  const fromSignup = searchParams.get("from") === "signup";
+  const checkoutCancelled = searchParams.get("checkout") === "cancelled";
 
   useEffect(() => {
     const hydrate = async () => {
@@ -86,7 +94,14 @@ export default function TarifsPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({
+          plan,
+          successPath:
+            plan === "starter"
+              ? "/dashboard?trialStarted=1&onboarding=1"
+              : "/dashboard?planUpdated=1",
+          cancelPath: "/tarifs?checkout=cancelled",
+        }),
       });
       const data = await response.json();
       if (!response.ok || !data?.url) {
@@ -102,27 +117,206 @@ export default function TarifsPage() {
 
   return (
     <PublicChrome>
-      <section className="max-w-6xl mx-auto px-6 pt-16 pb-24">
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 pt-12 md:pt-16 pb-24">
         <h1 className="text-4xl md:text-5xl font-bold text-center">Tarifs ChronoCrawl</h1>
         <p className="mt-5 text-center text-gray-300 max-w-2xl mx-auto">
-          Cette page detaille les offres. La landing conserve un resume pour aller vite,
-          et cette section sert de reference claire pour comparer les plans.
+          ChronoCrawl repose aujourd&apos;hui sur un produit clair :
+          `Surveillance`, `Centre d&apos;alertes`, `Historique alertes` et
+          `Audit SEO concurrent`. Cette page montre simplement quelle capacite tu
+          obtiens selon ton volume.
         </p>
+        {fromSignup && (
+          <div className="mt-6 rounded-xl border border-emerald-300/25 bg-emerald-500/10 p-4 text-left">
+            <p className="text-sm font-medium text-emerald-100">
+              Ton compte est prêt
+            </p>
+            <p className="mt-1 text-sm text-emerald-50/90">
+              Prochaine etape: démarrer l&apos;essai pour ouvrir la surveillance,
+              ajouter ta première URL et accèder au dashboard complet.
+            </p>
+          </div>
+        )}
+        {checkoutCancelled && (
+          <div className="mt-6 rounded-xl border border-amber-300/25 bg-amber-500/10 p-4 text-left">
+            <p className="text-sm font-medium text-amber-100">
+              Checkout interrompu
+            </p>
+            <p className="mt-1 text-sm text-amber-50/90">
+              Tu peux reprendre ici sans perdre le fil. Le plus simple pour démarrer reste l&apos;essai 7 jours.
+            </p>
+          </div>
+        )}
+
+        <div className="mt-8 grid gap-3 md:grid-cols-4">
+          {[
+            { label: "Module coeur", value: "Surveillance d'URLs" },
+            { label: "Lecture alertes", value: "SEO / CTA / Pricing" },
+            { label: "Module inclus", value: "Audit SEO concurrent" },
+            { label: "Positionnement", value: "Simple, actionnable, francophone" },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="cc-panel-strong cc-hover-lift rounded-[26px] p-4"
+            >
+              <p className="text-xs text-gray-400">{item.label}</p>
+              <p className="mt-1 text-sm font-medium text-gray-100">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 cc-shell rounded-[28px] p-5">
+          <p className="text-sm text-white/72">
+            Logique recommandee : commence par l&apos;essai pour valider le flux,
+            puis passe a `Pro` des que tu veux une veille concurrentielle suivie
+            avec plus d&apos;URLs, plus de scans et plus d&apos;historique.
+          </p>
+        </div>
+        <div className="mt-6 grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
+          <div className="cc-panel-strong rounded-[32px] p-6">
+            <p className="text-xs uppercase tracking-[0.18em] text-white/68">
+              Parcours recommande
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold">
+              Starter pour valider, Pro pour travailler sérieusement
+            </h2>
+            <p className="mt-3 text-sm text-gray-300">
+              Le vrai saut de valeur se fait entre l&apos;essai ou `Starter` et `Pro`.
+              `Starter` sert a vérifier le flux complet. `Pro` devient le bon niveau
+              des que la veille fait partie du quotidien.
+            </p>
+            <div className="mt-5 space-y-3">
+              {[
+                {
+                  step: "01",
+                  title: "Valider le flux",
+                  text: "Ajouter des URLs, lancer les premiers scans et confirmer que les alertes remontent bien les bons signaux.",
+                },
+                {
+                  step: "02",
+                  title: "Mesurer le besoin réel",
+                  text: "Quand les URLs augmentent et que tu veux un rythme plus serre, Starter devient vite limite.",
+                },
+                {
+                  step: "03",
+                  title: "Passer a Pro",
+                  text: "Plus de volume, un scan toutes les 60 minutes et 30 jours d'historique: c'est le vrai niveau de travail.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.step}
+                  className="cc-panel rounded-[22px] p-4"
+                >
+                  <p className="text-xs text-white/68">Etape {item.step}</p>
+                  <p className="mt-1 text-sm font-medium text-gray-100">
+                    {item.title}
+                  </p>
+                  <p className="mt-2 text-sm text-gray-300">{item.text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="cc-shell rounded-[32px] p-6">
+            <p className="text-xs uppercase tracking-[0.18em] text-white/68">
+              Ce qui change vraiment quand tu passes a Pro
+            </p>
+            <div className="mt-5 grid gap-3 md:grid-cols-2">
+              {[
+                {
+                  label: "Volume",
+                  starter: "10 URLs pour tester",
+                  pro: "50 URLs pour une veille deja large",
+                },
+                {
+                  label: "Rythme",
+                  starter: "Toutes les 6 h",
+                  pro: "Toutes les 60 min",
+                },
+                {
+                  label: "Historique",
+                  starter: "7 jours",
+                  pro: "30 jours",
+                },
+                {
+                  label: "Usage réel",
+                  starter: "Validation du produit",
+                  pro: "Pilotage continu",
+                },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="cc-panel-strong cc-hover-lift rounded-[26px] p-4"
+                >
+                  <p className="text-xs text-gray-400">{item.label}</p>
+                  <div className="mt-3 grid gap-2 text-sm">
+                    <div className="cc-panel rounded-[20px] p-3">
+                      <p className="text-[11px] uppercase tracking-wide text-gray-400">
+                        Starter
+                      </p>
+                      <p className="mt-1 text-gray-200">{item.starter}</p>
+                    </div>
+                    <div className="cc-panel-strong rounded-[20px] p-3">
+                      <p className="text-[11px] uppercase tracking-wide text-white/68">
+                        Pro
+                      </p>
+                      <p className="mt-1 text-gray-100">{item.pro}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {[
+            {
+              title: "Essai 7 jours",
+              text: "Le plus simple pour tester le flux complet avant d'installer ChronoCrawl dans ton quotidien.",
+            },
+            {
+              title: "Paiement sécurisé",
+              text: "Le checkout passe par Stripe. Tu peux annuler a tout moment depuis le dashboard.",
+            },
+            {
+              title: "Retour direct au dashboard",
+              text: "Après validation, tu reviens directement dans le dashboard pour ajouter ta première URL ou reprendre la veille.",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="cc-panel-strong cc-hover-lift rounded-[26px] p-4"
+            >
+              <p className="text-sm font-medium text-gray-100">{item.title}</p>
+              <p className="mt-1 text-xs text-gray-300">{item.text}</p>
+            </div>
+          ))}
+        </div>
 
         <div className="mt-10 grid md:grid-cols-3 gap-6">
           {plans.map((plan) => (
             <article
               key={plan.name}
-              className={`rounded-2xl border p-6 ${
+              className={`rounded-2xl border p-5 md:p-6 ${
                 plan.highlight
-                  ? "bg-indigo-500/10 border-indigo-400/40"
-                  : "bg-white/5 border-white/10"
+                  ? "cc-panel-strong"
+                  : "cc-panel"
               }`}
             >
               <h2 className="text-xl font-semibold">{plan.name}</h2>
               <p className="mt-2 text-3xl font-bold">{plan.price}</p>
               <p className="mt-2 text-sm text-gray-300">{plan.desc}</p>
-              <p className="mt-2 text-xs text-indigo-200">{plan.fit}</p>
+              <p className="mt-2 text-xs text-white/68">{plan.fit}</p>
+              <div className="mt-4 cc-panel rounded-[20px] p-3">
+                <p className="text-[11px] uppercase tracking-wide text-gray-400">
+                  Ce que tu achetes vraiment
+                </p>
+                <p className="mt-1 text-sm text-gray-200">
+                  {plan.name === "Starter"
+                    ? "Le point d'entree pour valider le produit sur un petit volume et confirmer que la veille te convient."
+                    : plan.name === "Pro"
+                      ? "Le bon équilibre pour suivre sérieusement plusieurs concurrents avec un vrai rythme de travail."
+                      : "Le niveau équipe pour piloter plusieurs marques ou plusieurs clients dans la même interface."}
+                </p>
+              </div>
               <ul className="mt-4 space-y-2 text-sm text-gray-300">
                 {plan.details.map((detail) => (
                   <li key={detail}>• {detail}</li>
@@ -141,12 +335,12 @@ export default function TarifsPage() {
                   }
                   className={`mt-6 inline-flex w-full items-center justify-center rounded-lg px-4 py-3 font-medium transition ${
                     plan.highlight
-                      ? "bg-indigo-500 hover:bg-indigo-400 text-white"
-                      : "border border-white/20 hover:bg-white/5"
+                      ? "cc-button-primary"
+                      : "cc-button-secondary"
                   }`}
                 >
                   {plan.name === "Starter"
-                    ? "Demarrer l'essai"
+                    ? "Démarrer l'essai"
                     : plan.name === "Pro"
                       ? "Passer a Pro"
                       : "Passer a Agency"}
@@ -156,12 +350,12 @@ export default function TarifsPage() {
                   href="/signup"
                   className={`mt-6 inline-flex w-full items-center justify-center rounded-lg px-4 py-3 font-medium transition ${
                     plan.highlight
-                      ? "bg-indigo-500 hover:bg-indigo-400 text-white"
-                      : "border border-white/20 hover:bg-white/5"
+                      ? "cc-button-primary"
+                      : "cc-button-secondary"
                   }`}
                 >
                   {plan.name === "Starter"
-                    ? "Demarrer l'essai"
+                    ? "Démarrer l'essai"
                     : plan.name === "Pro"
                       ? "Passer a Pro"
                       : "Passer a Agency"}
@@ -171,7 +365,7 @@ export default function TarifsPage() {
           ))}
         </div>
 
-        <div className="mt-8 rounded-xl border border-white/10 bg-white/5 p-4 overflow-x-auto">
+        <div className="mt-8 cc-panel-strong cc-hover-lift rounded-[26px] p-4 overflow-x-auto">
           <p className="text-sm font-medium text-gray-100 mb-3">
             Comparatif rapide des plans
           </p>
@@ -203,42 +397,42 @@ export default function TarifsPage() {
           </p>
         ) : (
           <p className="mt-8 text-center text-xs text-gray-400">
-            Tu peux comparer ici, puis creer ton compte pour souscrire.
+            Tu peux comparer ici, puis créer ton compte pour souscrire.
           </p>
         )}
-        <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
+        <div className="mt-6 cc-panel-strong cc-hover-lift rounded-[26px] p-4">
           <p className="text-sm font-medium text-gray-100">Besoin d&apos;aide pour choisir ?</p>
           <p className="mt-1 text-xs text-gray-300">
-            Si tu demarres: Starter. Si tu veux un rythme horaire: Pro. Si tu geres plusieurs marques: Agency.
+            Si tu veux valider le produit: Starter. Si tu veux un rythme business propre: Pro. Si tu geres plusieurs comptes: Agency.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <a
-              href="/demo?tour=1"
-              className="rounded-md border border-white/20 px-3 py-2 text-xs text-gray-200 hover:bg-white/5 transition"
+              href="/dashboard"
+              className="cc-button-secondary rounded-full px-4 py-2 text-xs"
             >
-              Voir la demo rapide
+              Ouvrir le dashboard
             </a>
             <a
               href="/faq"
-              className="rounded-md border border-white/20 px-3 py-2 text-xs text-gray-200 hover:bg-white/5 transition"
+              className="cc-button-secondary rounded-full px-4 py-2 text-xs"
             >
               Lire la FAQ
             </a>
           </div>
         </div>
-        <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4">
-          <p className="text-sm font-medium text-gray-100">Questions frequentes avant abonnement</p>
+        <div className="mt-6 cc-panel-strong cc-hover-lift rounded-[26px] p-4">
+          <p className="text-sm font-medium text-gray-100">Questions fréquentes avant abonnement</p>
           <div className="mt-3 grid gap-3 md:grid-cols-3 text-xs text-gray-300">
-            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-              <p className="text-indigo-200 font-medium">Paiement</p>
-              <p className="mt-1">Paiement securise via Stripe. Facture disponible depuis le portail abonnement.</p>
+            <div className="cc-panel rounded-[20px] p-3">
+              <p className="text-white/68 font-medium">Paiement</p>
+              <p className="mt-1">Paiement sécurisé via Stripe. Facture disponible depuis le portail abonnement.</p>
             </div>
-            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-              <p className="text-indigo-200 font-medium">Resiliation</p>
+            <div className="cc-panel rounded-[20px] p-3">
+              <p className="text-white/68 font-medium">Résiliation</p>
               <p className="mt-1">Tu peux annuler a tout moment. Aucun engagement longue duree impose.</p>
             </div>
-            <div className="rounded-lg border border-white/10 bg-black/20 p-3">
-              <p className="text-indigo-200 font-medium">Support</p>
+            <div className="cc-panel rounded-[20px] p-3">
+              <p className="text-white/68 font-medium">Support</p>
               <p className="mt-1">Besoin d&apos;aide pour choisir ? Contact direct depuis la page contact.</p>
             </div>
           </div>

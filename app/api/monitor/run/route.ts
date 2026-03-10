@@ -80,6 +80,13 @@ type UrlRunDiagnostic = {
   note?: string;
 };
 
+type InstantAlertItem = {
+  summary: string;
+  url: string;
+  domain: "seo" | "pricing" | "cta";
+  severity: "medium" | "high";
+};
+
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
@@ -138,6 +145,16 @@ function extractCssSelectorSignal(html: string, selector: string) {
     return tagMatch[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   }
   return "";
+}
+
+function actionSuggestion(domain: "seo" | "pricing" | "cta") {
+  if (domain === "pricing") {
+    return "Comparer les prix, l'offre affichee et le message de valeur.";
+  }
+  if (domain === "cta") {
+    return "Verifier le CTA visible, sa promesse et sa place dans la page.";
+  }
+  return "Relire title, H1 et meta pour comprendre le nouvel angle SEO.";
 }
 
 function evaluateMonitorRuleSignals(params: {
@@ -469,7 +486,7 @@ export async function POST(request: Request) {
   let grouped = 0;
   let highConfidence = 0;
   const failed: string[] = [];
-  const highSeverityAlerts: string[] = [];
+  const highSeverityAlerts: InstantAlertItem[] = [];
   const diagnostics: UrlRunDiagnostic[] = [];
   const userEmail = userData.user.email || "";
 
@@ -732,7 +749,12 @@ export async function POST(request: Request) {
               severityAtLeast(row.severity, alertSettings.min_email_severity)
             ) {
               const summary = (row.metadata.summary as string) || row.field_key;
-              highSeverityAlerts.push(`${summary} sur ${item.url}`);
+              highSeverityAlerts.push({
+                summary,
+                url: item.url,
+                domain: row.domain,
+                severity: row.severity,
+              });
             }
           }
         } else {
@@ -823,19 +845,48 @@ export async function POST(request: Request) {
     highSeverityAlerts.length > 0
   ) {
     try {
-      const uniqueAlerts = Array.from(new Set(highSeverityAlerts)).slice(0, 12);
+      const dedupedAlerts = Array.from(
+        new Map(
+          highSeverityAlerts.map((item) => [
+            `${item.domain}:${item.summary}:${item.url}`,
+            item,
+          ])
+        ).values()
+      ).slice(0, 12);
+      const highCount = dedupedAlerts.filter((item) => item.severity === "high").length;
+      const coveredUrls = new Set(dedupedAlerts.map((item) => item.url)).size;
+      const domainCounts = dedupedAlerts.reduce<Record<string, number>>((acc, item) => {
+        acc[item.domain] = (acc[item.domain] || 0) + 1;
+        return acc;
+      }, {});
+      const topDomain =
+        Object.entries(domainCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "seo";
+      const uniqueAlerts = dedupedAlerts.map((item) => {
+        return `[${item.severity.toUpperCase()}] ${item.summary} - ${item.url} | Verification: ${actionSuggestion(item.domain)}`;
+      });
+      const subject =
+        highCount > 0
+          ? `ChronoCrawl — ${highCount} alerte(s) prioritaire(s) detectee(s)`
+          : "ChronoCrawl — Alertes detectees";
       const { html, text } = renderAlertEmail({
         title: "Alertes detectees",
-        intro: `Voici les changements detectes lors de la derniere analyse (seuil: ${alertSettings.min_email_severity.toUpperCase()}).`,
+        intro: `Voici les alertes detectees lors du dernier scan. Seuil applique: ${alertSettings.min_email_severity.toUpperCase()}.`,
         items: uniqueAlerts,
         ctaUrl: "https://chronocrawl.com/dashboard",
         ctaLabel: "Ouvrir le dashboard",
+        metaChips: [
+          `${dedupedAlerts.length} alerte(s) remontee(s)`,
+          `${coveredUrls} URL(s) concernee(s)`,
+          `${highCount} priorite(s) haute(s)`,
+        ],
+        highlightTitle: "Action conseilee maintenant",
+        highlightBody: actionSuggestion(topDomain as "seo" | "pricing" | "cta"),
         footerNote: "Tu recois cet email car les alertes instantanees sont actives sur ton compte.",
       });
       await resend.emails.send({
         from: "ChronoCrawl <hello@chronocrawl.com>",
         to: userEmail,
-        subject: "ChronoCrawl — Alertes detectees",
+        subject,
         html,
         text,
       });

@@ -60,16 +60,4 @@ export type UrlMeta = {
   tag?: string;
 };
 
-export type AlertFilterPreset = {
-  alertFilter: "all" | "unread" | "read";
-  alertUrlFilter: string;
-  alertSeverityFilter: "all" | "medium" | "high";
-  alertDateFilter: "all" | "24h" | "7d" | "30d";
-  alertSearchQuery: string;
-};
-
 export const EVENTS_PAGE_SIZE = 1000;
-export const ANALYSIS_SEVERITY_LEVELS: Array<ChangeEvent["severity"]> = [
-  "medium",
-  "high",
-];

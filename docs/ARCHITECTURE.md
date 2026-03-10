@@ -10,18 +10,29 @@
 ## High-level modules
 
 - `app/`
-  - Route pages (`/`, `/dashboard`, `/tarifs`, ...)
+  - Route pages (`/`, `/dashboard`, `/dashboard/audit-seo`, `/dashboard/alerts`, `/tarifs`, ...)
   - API routes (`/api/*`)
 - `components/`
   - Shared UI chrome (navigation/footer)
 - `features/`
   - Domain-oriented UI/data extraction from pages
-  - Current: `features/landing`
+  - Current: `features/landing`, `features/dashboard`
 - `lib/`
   - External clients + auth helpers + logger
   - Monitor pipeline helpers (`monitorDiff`, `monitorFetch`, `monitorDedupe`, `monitorRun*`)
 - `db/`
   - SQL migrations executed in Supabase
+
+## Active product surface
+
+- `Surveillance`
+  - monitored URLs
+  - alert center
+  - alert history
+- `Audit SEO`
+  - structured competitor page audit
+- Removed from active path
+  - dashboard `Pricing` module
 
 ## Data flow
 

@@ -16,44 +16,127 @@ type AlertInput = {
   } | null;
 };
 
+export function getAlertDomainLabel(domain: AlertDomain): string {
+  if (domain === "seo") return "SEO";
+  if (domain === "cta") return "CTA";
+  return "Pricing";
+}
+
+export function getAlertFieldLabel(fieldKey?: string): string {
+  switch (fieldKey) {
+    case "title":
+      return "Title";
+    case "meta_description":
+      return "Meta description";
+    case "h1":
+      return "H1";
+    case "canonical_url":
+      return "Canonical";
+    case "robots_directive":
+      return "Directive robots";
+    case "pricing_json":
+      return "Bloc pricing";
+    case "cta_json":
+      return "Bloc CTA";
+    case "headlines_json":
+      return "Titres visibles";
+    default:
+      if (fieldKey?.startsWith("rule:")) return "Bloc surveille";
+      return "Element observe";
+  }
+}
+
+export function getAlertChangeKind(alert: AlertInput): string {
+  const beforeValue = (alert.metadata?.before_short || "").trim().toLowerCase();
+  const afterValue = (alert.metadata?.after_short || "").trim().toLowerCase();
+  const beforeMissing = !beforeValue || beforeValue === "vide" || beforeValue === "non disponible";
+  const afterMissing = !afterValue || afterValue === "vide" || afterValue === "non disponible";
+
+  if (beforeMissing && !afterMissing) return "Ajout";
+  if (!beforeMissing && afterMissing) return "Suppression";
+  return "Mise a jour";
+}
+
+function normalizeGeneratedSummary(summary: string) {
+  return summary
+    .replace(/^\[(seo|cta|pricing|rule)\]\s*/i, "")
+    .replace(/\s+modifie$/i, " mis a jour")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getFieldDrivenSummary(alert: AlertInput): string | null {
+  switch (alert.field_key) {
+    case "title":
+      return "Title SEO mis a jour sur la page surveillee";
+    case "meta_description":
+      return "Meta description mise a jour sur la page surveillee";
+    case "h1":
+      return "H1 principal mis a jour sur la page surveillee";
+    case "canonical_url":
+      return "Canonical modifiee sur la page surveillee";
+    case "robots_directive":
+      return "Directive robots modifiee sur la page surveillee";
+    case "pricing_json":
+      return alert.severity === "high"
+        ? "Mouvement pricing important detecte"
+        : "Evolution pricing detectee";
+    case "cta_json":
+      return alert.severity === "high"
+        ? "CTA principal modifie sur la page surveillee"
+        : "Ajustement de CTA detecte";
+    case "headlines_json":
+      return alert.severity === "high"
+        ? "Rotation marquee des titres detectee"
+        : "Titres visibles mis a jour";
+    default:
+      if (alert.field_key?.startsWith("rule:")) {
+        return "Bloc surveille mis a jour";
+      }
+      return null;
+  }
+}
+
 export function getAlertChangeSummary(alert: AlertInput): string {
-  if (alert.metadata?.summary) return alert.metadata.summary;
+  const fieldDriven = getFieldDrivenSummary(alert);
+  if (fieldDriven) return fieldDriven;
+  if (alert.metadata?.summary) return normalizeGeneratedSummary(alert.metadata.summary);
   if (alert.field_key) return `${alert.domain.toUpperCase()} - ${alert.field_key}`;
-  return "Changement detecte";
+  return "Changement detecte sur la page surveillee";
 }
 
 export function getAlertImpactLabel(alert: AlertInput): string {
   if (alert.domain === "pricing") {
     return alert.severity === "high"
-      ? "Risque direct sur la competitivite prix."
-      : "Signal prix a suivre rapidement.";
+      ? "Le concurrent ajuste probablement son ancrage prix ou son offre."
+      : "Le pricing bouge sur cette page et merite une comparaison rapide.";
   }
   if (alert.domain === "cta") {
     return alert.severity === "high"
-      ? "Impact potentiel sur la conversion."
-      : "Evolution du parcours de conversion.";
+      ? "Le concurrent teste un levier de conversion plus visible."
+      : "Le parcours de conversion evolue sur cette page.";
   }
   if (alert.domain === "seo") {
     return alert.severity === "high"
-      ? "Impact potentiel sur la visibilite SEO."
-      : "Signal SEO a surveiller.";
+      ? "Signal structurel pouvant modifier la visibilite de cette page."
+      : "Signal SEO utile pour suivre l'angle editorial de cette page.";
   }
   return alert.severity === "high"
-    ? "Impact probable sur le message commercial."
-    : "Evolution contenu a monitorer.";
+    ? "Le message commercial semble avoir evolue."
+    : "Evolution de contenu a suivre.";
 }
 
 export function getAlertRecommendedAction(alert: AlertInput): string {
   if (alert.domain === "pricing") {
-    return "Verifier le positionnement prix et ajuster l'offre si necessaire.";
+    return "Comparer les montants, l'offre affichee et le message de valeur.";
   }
   if (alert.domain === "cta") {
-    return "Comparer l'appel a l'action et valider la reponse commerciale.";
+    return "Verifier le nouveau CTA, sa promesse et sa place dans la page.";
   }
   if (alert.domain === "seo") {
-    return "Controler title/H1/meta et prioriser les pages a fort trafic.";
+    return "Relire title, H1 et meta pour comprendre le nouvel angle SEO.";
   }
-  return "Valider le changement et planifier une mise a jour de contenu.";
+  return "Verifier le changement observe et son objectif probable.";
 }
 
 export function getAlertConfidence(

@@ -32,13 +32,13 @@ export default function ContactPage() {
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <a
             href="mailto:hello@chronocrawl.com?subject=Contact%20ChronoCrawl"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+            className="cc-button-primary inline-flex items-center justify-center rounded-full px-6 py-3 font-medium"
           >
             hello@chronocrawl.com
           </a>
           <Link
             href="/signup"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-white/20 hover:bg-white/5 transition font-medium"
+            className="cc-button-secondary inline-flex items-center justify-center rounded-full px-6 py-3 font-medium"
           >
             Créer un compte
           </Link>

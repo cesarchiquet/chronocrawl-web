@@ -54,6 +54,7 @@ Run SQL scripts in order from `db/`:
 5. `005_monitor_jobs_queue.sql`
 6. `006_monitor_run_logs.sql`
 7. `007_detected_changes_perf_indexes.sql`
+8. `008_monitor_rules_and_confidence.sql`
 
 ## Current cleanup status
 
@@ -64,3 +65,9 @@ V1 + V2 + V3 cleanup:
 - Dashboard shared types/utils moved to `features/dashboard/*`
 - Monitor diff/fetch/dedupe/request parsing extracted into `lib/monitor*`
 - Architecture and contribution docs added for onboarding
+
+## Active product modules
+
+- `Surveillance`: monitored URLs, alert center, alert history
+- `Audit SEO`: competitor page audit with structured observations
+- `Pricing` dashboard module removed from the active product path

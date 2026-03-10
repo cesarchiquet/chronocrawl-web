@@ -95,7 +95,7 @@ export default function GuideSurveillerSiteConcurrent() {
           </p>
           <Link
             href="/signup"
-            className="inline-flex items-center justify-center px-6 py-3 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition font-medium"
+            className="inline-flex items-center justify-center px-6 py-3 rounded-lg border border-white bg-white text-black hover:bg-white/85 transition font-medium"
           >
             Créer un compte ChronoCrawl
           </Link>

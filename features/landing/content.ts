@@ -4,27 +4,27 @@ export const OFFER_ROTATION_MS = 7500;
 export const proofSlides = [
   {
     key: "urls",
-    badge: "Photo 1",
-    title: "Toutes vos URLs au meme endroit",
-    detail: "Vous voyez en un coup d'oeil quelles pages sont bien surveillees.",
+    badge: "Vue 1",
+    title: "Toutes les URLs surveillées au même endroit",
+    detail: "Le dashboard regroupe les pages concurrentes actives, leur statut et leur dernier passage.",
   },
   {
     key: "alerts",
-    badge: "Photo 2",
-    title: "Les alertes importantes ressortent",
-    detail: "Le centre d'alertes vous montre quoi traiter maintenant en priorite.",
+    badge: "Vue 2",
+    title: "Le centre d'alertes montre uniquement l'essentiel",
+    detail: "Tu lis vite les changements SEO, CTA et pricing sans te noyer dans une interface lourde.",
   },
   {
-    key: "setup",
-    badge: "Photo 3",
-    title: "Configuration simple en 2 minutes",
-    detail: "Vous reglez vos alertes et vous lancez la surveillance sans complexite.",
+    key: "audit",
+    badge: "Vue 3",
+    title: "L'audit SEO concurrent se lit comme un rapport",
+    detail: "Fiche concurrente, cadre de confiance et lecture executive pour comprendre une page sans jargon inutile.",
   },
 ] as const;
 
 export const impactMetrics = [
   { label: "Temps economise / semaine", value: "6h" },
-  { label: "Chang. critiques detectes", value: "94%" },
+  { label: "Chang. critiques détectés", value: "94%" },
   { label: "Delai moyen de reaction", value: "< 60 min" },
 ] as const;
 
@@ -32,8 +32,8 @@ export const compactOffers = [
   {
     name: "Starter",
     price: "12 EUR/mois",
-    desc: "7 jours d'essai gratuit, ideal pour demarrer.",
-    fit: "Freelance ou petite equipe",
+    desc: "7 jours d'essai gratuit, idéal pour démarrer.",
+    fit: "Fréelance ou petite équipe",
     why: "Parfait pour lancer une veille concurrentielle propre sans complexite technique.",
     features: ["10 URLs", "Toutes les 6h", "Alertes email"],
   },
@@ -49,9 +49,9 @@ export const compactOffers = [
   {
     name: "Agency",
     price: "79 EUR/mois",
-    desc: "Pour les equipes multi-clients.",
+    desc: "Pour les équipes multi-clients.",
     fit: "Agence",
-    why: "Concu pour les equipes qui pilotent plusieurs comptes et ont besoin d'un suivi intensif.",
+    why: "Conçu pour les équipes qui pilotent plusieurs comptes et ont besoin d'un suivi intensif.",
     features: ["200 URLs", "Toutes les 15 min", "Webhook"],
   },
 ] as const;

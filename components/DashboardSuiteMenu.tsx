@@ -12,7 +12,7 @@ export default function DashboardSuiteMenu() {
   const pathname = usePathname();
 
   return (
-    <nav className="mt-6 rounded-xl border border-white/10 bg-white/5 p-2">
+    <nav className="mt-6 rounded-xl border border-white/10 bg-white/[0.03] p-2">
       <div className="flex flex-wrap items-center gap-2">
         {dashboardMenuItems.map((item) => {
           const isActive =
@@ -24,7 +24,7 @@ export default function DashboardSuiteMenu() {
               href={item.href}
               className={`rounded-lg px-3 py-2 text-sm transition ${
                 isActive
-                  ? "bg-indigo-500/20 text-indigo-100 border border-indigo-300/30"
+                  ? "bg-white text-black border border-white"
                   : "text-gray-300 border border-transparent hover:bg-white/5 hover:text-white"
               }`}
             >

@@ -31,7 +31,7 @@ export default function DashboardControlPanels({
 }: DashboardControlPanelsProps) {
   return (
     <section className="max-w-6xl mx-auto px-6 pb-24">
-      <div className="rounded-xl bg-white/5 border border-white/10 p-6 mb-6">
+      <div className="cc-panel-strong mb-6 rounded-[28px] p-6">
         <div className="mb-4 flex items-center gap-2">
           <h2 className="text-xl font-semibold">Preferences d&apos;alertes</h2>
           <span className="relative inline-flex items-center group">
@@ -42,10 +42,10 @@ export default function DashboardControlPanels({
             >
               i
             </button>
-            <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-md border border-white/10 bg-[#0b1025] p-2 text-[11px] text-gray-200 shadow-lg group-hover:block group-focus-within:block">
-              <span className="block">- Mode email: instant envoie chaque alerte, daily envoie un digest, off coupe les emails.</span>
-              <span className="block mt-1">- Seuil email: niveau minimal envoye (HIGH uniquement, ou MEDIUM/HIGH).</span>
-              <span className="block mt-1">- Heure digest: heure locale (0-23) a laquelle le recap quotidien est envoye.</span>
+            <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-[18px] border border-white/10 bg-[#050505] p-3 text-[11px] text-gray-200 shadow-[0_18px_40px_rgba(0,0,0,0.45)] group-hover:block group-focus-within:block">
+              <span className="block">- Mode email : `Instant` envoie chaque alerte prioritaire, `Digest quotidien` envoie un recap lisible, `Aucun email` coupe les envois.</span>
+              <span className="block mt-1">- Seuil email : niveau minimal envoye (`HIGH` uniquement, ou `MEDIUM/HIGH`).</span>
+              <span className="block mt-1">- Heure digest : heure locale (0-23) a laquelle le recap quotidien est envoye.</span>
             </span>
           </span>
         </div>
@@ -57,7 +57,7 @@ export default function DashboardControlPanels({
               onChange={(e) =>
                 onEmailModeChange(e.target.value as "instant" | "daily" | "off")
               }
-              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
             >
               <option value="instant">Instant</option>
               <option value="daily">Digest quotidien</option>
@@ -73,7 +73,7 @@ export default function DashboardControlPanels({
                   e.target.value as "medium" | "high"
                 )
               }
-              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
             >
               <option value="medium">Medium</option>
               <option value="high">High</option>
@@ -87,23 +87,23 @@ export default function DashboardControlPanels({
               max={23}
               value={digestHour}
               onChange={(e) => onDigestHourChange(Number(e.target.value || 0))}
-              className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 focus:outline-none focus:border-indigo-400"
+              className="cc-panel rounded-[18px] px-3 py-2 focus:outline-none"
             />
           </label>
           <div className="flex flex-col gap-2 justify-end">
             <button
               onClick={onSaveAlertSettings}
               disabled={savingAlertSettings}
-              className="px-4 py-2 rounded-lg bg-indigo-500 hover:bg-indigo-400 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="cc-button-primary rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {savingAlertSettings ? "Sauvegarde..." : "Sauvegarder"}
             </button>
             <button
               onClick={onRunDailyDigestNow}
               disabled={runningDigest}
-              className="px-4 py-2 rounded-lg border border-indigo-300/30 text-indigo-200 hover:bg-indigo-500/10 transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="cc-button-secondary rounded-full px-4 py-2 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {runningDigest ? "Digest..." : "Tester digest"}
+              {runningDigest ? "Digest..." : "Recevoir un digest test"}
             </button>
           </div>
         </div>

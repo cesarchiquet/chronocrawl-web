@@ -5,6 +5,9 @@ type AlertEmailParams = {
   ctaUrl: string;
   ctaLabel: string;
   footerNote?: string;
+  metaChips?: string[];
+  highlightTitle?: string;
+  highlightBody?: string;
 };
 
 function escapeHtml(value: string) {
@@ -18,10 +21,17 @@ function escapeHtml(value: string) {
 
 export function renderAlertEmail(params: AlertEmailParams) {
   const safeItems = params.items.map((entry) => escapeHtml(entry));
+  const safeMetaChips = (params.metaChips || []).map((entry) => escapeHtml(entry));
   const listHtml = safeItems
     .map(
       (entry) =>
         `<li style="margin:0 0 8px 0;padding:10px 12px;border:1px solid #e5e7eb;border-radius:8px;background:#f9fafb;">${entry}</li>`
+    )
+    .join("");
+  const metaHtml = safeMetaChips
+    .map(
+      (entry) =>
+        `<span style="display:inline-block;margin:0 8px 8px 0;padding:6px 10px;border:1px solid #c7d2fe;border-radius:999px;background:#eef2ff;color:#3730a3;font-size:12px;">${entry}</span>`
     )
     .join("");
 
@@ -34,6 +44,31 @@ export function renderAlertEmail(params: AlertEmailParams) {
       </div>
       <div style="padding:22px 24px;">
         <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#1f2937;">${escapeHtml(params.intro)}</p>
+        ${
+          metaHtml
+            ? `<div style="margin:0 0 14px 0;">${metaHtml}</div>`
+            : ""
+        }
+        ${
+          params.highlightTitle || params.highlightBody
+            ? `<div style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #c7d2fe;border-radius:10px;background:#eef2ff;">
+                ${
+                  params.highlightTitle
+                    ? `<p style="margin:0 0 6px 0;font-size:12px;line-height:1.4;color:#4338ca;text-transform:uppercase;letter-spacing:.04em;">${escapeHtml(
+                        params.highlightTitle
+                      )}</p>`
+                    : ""
+                }
+                ${
+                  params.highlightBody
+                    ? `<p style="margin:0;font-size:14px;line-height:1.6;color:#1e1b4b;">${escapeHtml(
+                        params.highlightBody
+                      )}</p>`
+                    : ""
+                }
+              </div>`
+            : ""
+        }
         <ul style="margin:0;padding:0;list-style:none;">${listHtml}</ul>
         <div style="margin-top:18px;">
           <a href="${escapeHtml(
@@ -58,6 +93,14 @@ export function renderAlertEmail(params: AlertEmailParams) {
     "",
     params.intro,
     "",
+    ...(safeMetaChips.length > 0 ? [safeMetaChips.join(" | "), ""] : []),
+    ...(params.highlightTitle || params.highlightBody
+      ? [
+          params.highlightTitle ? params.highlightTitle : "",
+          params.highlightBody ? params.highlightBody : "",
+          "",
+        ].filter(Boolean)
+      : []),
     ...safeItems.map((entry, index) => `${index + 1}. ${entry}`),
     "",
     `${params.ctaLabel}: ${params.ctaUrl}`,
@@ -68,4 +111,3 @@ export function renderAlertEmail(params: AlertEmailParams) {
 
   return { html, text };
 }
-
