@@ -44,7 +44,7 @@ describe("monitorDiff", () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.some((row) => row.field_key === "title")).toBe(true);
     const titleRow = rows.find((row) => row.field_key === "title");
-    expect(titleRow?.metadata.summary).toMatch("SEO");
+    expect(titleRow?.metadata.summary).toBe("Title SEO mis a jour");
     expect(typeof titleRow?.confidence_score).toBe("number");
   });
 
@@ -94,6 +94,56 @@ describe("monitorDiff", () => {
     const headlineRow = rows.find((row) => row.field_key === "headlines_json");
     expect(headlineRow).toBeTruthy();
     expect(headlineRow?.domain).toBe("seo");
+  });
+
+  it("ignores CTA reordering without real content change", () => {
+    const before = makeSnapshot({
+      cta_json: ["Essai gratuit", "Demander une demo"],
+    });
+    const after = makeSnapshot({
+      id: "snap-new",
+      cta_json: ["Demander une demo", "Essai gratuit"],
+    });
+
+    const rows = buildDiffRows({
+      userId: "user-1",
+      monitoredUrlId: "url-1",
+      monitoredUrl: "https://concurrent.com",
+      before,
+      after,
+    });
+
+    expect(rows.some((row) => row.field_key === "cta_json")).toBe(false);
+  });
+
+  it("ignores headlines reordering without rotation", () => {
+    const before = makeSnapshot({
+      raw_extract: {
+        headlines: [
+          "Titre A de demonstration tres detaille",
+          "Titre B de demonstration tres detaille",
+        ],
+      },
+    });
+    const after = makeSnapshot({
+      id: "snap-new",
+      raw_extract: {
+        headlines: [
+          "Titre B de demonstration tres detaille",
+          "Titre A de demonstration tres detaille",
+        ],
+      },
+    });
+
+    const rows = buildDiffRows({
+      userId: "user-1",
+      monitoredUrlId: "url-1",
+      monitoredUrl: "https://concurrent.com/news",
+      before,
+      after,
+    });
+
+    expect(rows.some((row) => row.field_key === "headlines_json")).toBe(false);
   });
 
   it("keeps rows unchanged in dynamic noise filter", () => {
@@ -197,5 +247,55 @@ describe("monitorDiff", () => {
     });
 
     expect(filtered.filtered).toBeGreaterThanOrEqual(1);
+  });
+
+  it("filters a single dynamic headline rotation in noisy contexts", () => {
+    const filtered = filterDynamicNoiseRows({
+      dynamicNoiseScore: 12,
+      rows: [
+        {
+          user_id: "u",
+          monitored_url_id: "m",
+          snapshot_before_id: "a",
+          snapshot_after_id: "b",
+          domain: "seo",
+          field_key: "headlines_json",
+          before_value: '["titre a", "titre b"]',
+          after_value: '["titre a", "titre c"]',
+          severity: "medium",
+          confidence_score: 54,
+          noise_flags: [],
+          metadata: {},
+        },
+      ],
+    });
+
+    expect(filtered.filtered).toBe(1);
+    expect(filtered.kept).toHaveLength(0);
+  });
+
+  it("keeps strong headline rotations in noisy contexts", () => {
+    const filtered = filterDynamicNoiseRows({
+      dynamicNoiseScore: 12,
+      rows: [
+        {
+          user_id: "u",
+          monitored_url_id: "m",
+          snapshot_before_id: "a",
+          snapshot_after_id: "b",
+          domain: "seo",
+          field_key: "headlines_json",
+          before_value: '["titre a", "titre b", "titre c"]',
+          after_value: '["titre d", "titre e", "titre f"]',
+          severity: "high",
+          confidence_score: 78,
+          noise_flags: [],
+          metadata: {},
+        },
+      ],
+    });
+
+    expect(filtered.filtered).toBe(0);
+    expect(filtered.kept).toHaveLength(1);
   });
 });

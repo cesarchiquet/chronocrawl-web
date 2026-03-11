@@ -13,6 +13,7 @@ type AlertInput = {
     before_short?: string;
     after_short?: string;
     priority_reason?: string;
+    grouped_fields_summary?: string;
   } | null;
 };
 
@@ -98,6 +99,9 @@ function getFieldDrivenSummary(alert: AlertInput): string | null {
 }
 
 export function getAlertChangeSummary(alert: AlertInput): string {
+  if (alert.metadata?.grouped_fields_summary && alert.metadata?.summary) {
+    return normalizeGeneratedSummary(alert.metadata.summary);
+  }
   const fieldDriven = getFieldDrivenSummary(alert);
   if (fieldDriven) return fieldDriven;
   if (alert.metadata?.summary) return normalizeGeneratedSummary(alert.metadata.summary);
@@ -106,20 +110,30 @@ export function getAlertChangeSummary(alert: AlertInput): string {
 }
 
 export function getAlertImpactLabel(alert: AlertInput): string {
+  if (alert.metadata?.grouped_fields_summary) {
+    if (alert.domain === "seo") {
+      return "Le concurrent ajuste plusieurs signaux SEO sur la meme page.";
+    }
+    if (alert.domain === "pricing") {
+      return "Le concurrent fait evoluer plusieurs elements de son offre ou de son pricing.";
+    }
+    return "Le concurrent modifie plusieurs leviers de conversion sur la meme page.";
+  }
+
   if (alert.domain === "pricing") {
     return alert.severity === "high"
-      ? "Le concurrent ajuste probablement son ancrage prix ou son offre."
-      : "Le pricing bouge sur cette page et merite une comparaison rapide.";
+      ? "Le concurrent ajuste clairement son positionnement prix ou son offre."
+      : "Le positionnement prix evolue sur cette page.";
   }
   if (alert.domain === "cta") {
     return alert.severity === "high"
-      ? "Le concurrent teste un levier de conversion plus visible."
+      ? "Le concurrent pousse un levier de conversion plus visible."
       : "Le parcours de conversion evolue sur cette page.";
   }
   if (alert.domain === "seo") {
     return alert.severity === "high"
-      ? "Signal structurel pouvant modifier la visibilite de cette page."
-      : "Signal SEO utile pour suivre l'angle editorial de cette page.";
+      ? "La page concurrente change son angle SEO de facon structurelle."
+      : "Le concurrent ajuste son angle SEO sur cette page.";
   }
   return alert.severity === "high"
     ? "Le message commercial semble avoir evolue."
@@ -127,14 +141,18 @@ export function getAlertImpactLabel(alert: AlertInput): string {
 }
 
 export function getAlertRecommendedAction(alert: AlertInput): string {
+  if (alert.metadata?.grouped_fields_summary) {
+    return `Ouvrir le detail puis relire en priorite: ${alert.metadata.grouped_fields_summary}.`;
+  }
+
   if (alert.domain === "pricing") {
-    return "Comparer les montants, l'offre affichee et le message de valeur.";
+    return "Comparer les montants, l'offre affichee et la promesse de valeur.";
   }
   if (alert.domain === "cta") {
     return "Verifier le nouveau CTA, sa promesse et sa place dans la page.";
   }
   if (alert.domain === "seo") {
-    return "Relire title, H1 et meta pour comprendre le nouvel angle SEO.";
+    return "Relire le signal SEO modifie pour comprendre le nouvel angle de la page.";
   }
   return "Verifier le changement observe et son objectif probable.";
 }

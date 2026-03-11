@@ -54,6 +54,52 @@ function normalizeJson(input: unknown) {
   return JSON.stringify(input ?? {});
 }
 
+function serializeFieldValue(input: unknown) {
+  if (typeof input === "string") return input;
+  if (Array.isArray(input)) return JSON.stringify(input);
+  if (input && typeof input === "object") return JSON.stringify(input);
+  return asText(input);
+}
+
+function normalizeComparableJson(input: unknown): string {
+  if (Array.isArray(input)) {
+    return JSON.stringify(
+      input
+        .map((item) => asText(item).trim().toLowerCase())
+        .filter(Boolean)
+        .sort()
+    );
+  }
+
+  if (input && typeof input === "object") {
+    return JSON.stringify(sortObjectDeep(input as Record<string, unknown>));
+  }
+
+  return normalizeJson(input);
+}
+
+function sortObjectDeep(input: Record<string, unknown>): Record<string, unknown> {
+  return Object.keys(input)
+    .sort()
+    .reduce<Record<string, unknown>>((acc, key) => {
+      const value = input[key];
+      if (Array.isArray(value)) {
+        acc[key] = value.map((item) =>
+          item && typeof item === "object" && !Array.isArray(item)
+            ? sortObjectDeep(item as Record<string, unknown>)
+            : item
+        );
+        return acc;
+      }
+      if (value && typeof value === "object") {
+        acc[key] = sortObjectDeep(value as Record<string, unknown>);
+        return acc;
+      }
+      acc[key] = value;
+      return acc;
+    }, {});
+}
+
 function shortValue(input: unknown, max = 140) {
   const value = asText(input);
   if (!value) return "vide";
@@ -102,6 +148,19 @@ function parseNumericValues(value: string) {
     .filter((num) => Number.isFinite(num));
 }
 
+function symmetricDifferenceCount(valuesA: string[], valuesB: string[]) {
+  const setA = new Set(valuesA);
+  const setB = new Set(valuesB);
+  let delta = 0;
+  for (const item of setA) {
+    if (!setB.has(item)) delta += 1;
+  }
+  for (const item of setB) {
+    if (!setA.has(item)) delta += 1;
+  }
+  return delta;
+}
+
 function fieldLabel(fieldKey: string) {
   const labels: Record<string, string> = {
     title: "Title",
@@ -123,6 +182,59 @@ function domainLabel(domain: ChangeRow["domain"]) {
     cta: "CTA",
   };
   return labels[domain];
+}
+
+function changeSummary(params: {
+  domain: ChangeRow["domain"];
+  fieldKey: string;
+  severity: MonitorSeverity;
+}) {
+  const { domain, fieldKey, severity } = params;
+
+  switch (fieldKey) {
+    case "title":
+      return "Title SEO mis a jour";
+    case "meta_description":
+      return "Meta description mise a jour";
+    case "h1":
+      return "H1 principal mis a jour";
+    case "canonical_url":
+      return "Canonical modifiee";
+    case "robots_directive":
+      return "Directive robots modifiee";
+    case "pricing_json":
+      return severity === "high"
+        ? "Mouvement pricing important detecte"
+        : "Evolution pricing detectee";
+    case "cta_json":
+      return severity === "high"
+        ? "CTA principal modifie"
+        : "Ajustement de CTA detecte";
+    case "headlines_json":
+      return severity === "high"
+        ? "Rotation marquee des titres detectee"
+        : "Titres visibles mis a jour";
+    default:
+      return `[${domainLabel(domain)}] ${fieldLabel(fieldKey)} modifie`;
+  }
+}
+
+function hasMeaningfulFieldChange(params: {
+  fieldKey: string;
+  beforeValue: unknown;
+  afterValue: unknown;
+}) {
+  const { fieldKey, beforeValue, afterValue } = params;
+
+  if (fieldKey === "pricing_json") {
+    return normalizeComparableJson(beforeValue) !== normalizeComparableJson(afterValue);
+  }
+
+  if (fieldKey === "cta_json" || fieldKey === "headlines_json") {
+    return normalizeComparableJson(beforeValue) !== normalizeComparableJson(afterValue);
+  }
+
+  return asText(beforeValue) !== asText(afterValue);
 }
 
 export function severityAtLeast(
@@ -244,6 +356,7 @@ function computeSeverity(params: {
     const beforeCtas = parseStringArray(beforeValue);
     const afterCtas = parseStringArray(afterValue);
     const ctaKeywords = ["essai", "demo", "contact", "acheter", "devis", "signup"];
+    const delta = symmetricDifferenceCount(beforeCtas, afterCtas);
 
     const beforeImportant = beforeCtas.some((cta) =>
       ctaKeywords.some((keyword) => cta.includes(keyword))
@@ -260,12 +373,28 @@ function computeSeverity(params: {
       };
     }
 
+    if (delta >= 4) {
+      return {
+        severity: "high" as const,
+        score: 78,
+        reason: "Refonte marquee des CTA visibles.",
+      };
+    }
+
     const countDelta = Math.abs(beforeCtas.length - afterCtas.length);
     if (countDelta >= 2) {
       return {
         severity: "medium" as const,
         score: 60,
         reason: "Variation notable du volume de CTA.",
+      };
+    }
+
+    if (delta <= 1) {
+      return {
+        severity: "medium" as const,
+        score: 48,
+        reason: "Ajustement leger d'un CTA visible.",
       };
     }
 
@@ -279,15 +408,7 @@ function computeSeverity(params: {
   if (fieldKey === "headlines_json") {
     const beforeHeadlines = parseStringArray(beforeValue);
     const afterHeadlines = parseStringArray(afterValue);
-    const beforeSet = new Set(beforeHeadlines);
-    const afterSet = new Set(afterHeadlines);
-    let delta = 0;
-    for (const item of beforeSet) {
-      if (!afterSet.has(item)) delta += 1;
-    }
-    for (const item of afterSet) {
-      if (!beforeSet.has(item)) delta += 1;
-    }
+    const delta = symmetricDifferenceCount(beforeHeadlines, afterHeadlines);
 
     if (
       (beforeHeadlines.length === 0 && afterHeadlines.length > 0) ||
@@ -304,6 +425,13 @@ function computeSeverity(params: {
         severity: "high" as const,
         score: 78,
         reason: "Rotation forte des headlines detectee.",
+      };
+    }
+    if (delta <= 1) {
+      return {
+        severity: "medium" as const,
+        score: 54,
+        reason: "Ajustement leger des titres visibles.",
       };
     }
     return {
@@ -365,9 +493,9 @@ export function buildDiffRows(params: {
     beforeValue: unknown,
     afterValue: unknown
   ) => {
-    const beforeText = asText(beforeValue);
-    const afterText = asText(afterValue);
-    if (beforeText === afterText) return;
+    if (!hasMeaningfulFieldChange({ fieldKey, beforeValue, afterValue })) return;
+    const beforeText = serializeFieldValue(beforeValue);
+    const afterText = serializeFieldValue(afterValue);
     const computed = computeSeverity({
       fieldKey,
       beforeValue: beforeText,
@@ -387,7 +515,11 @@ export function buildDiffRows(params: {
       noise_flags: [],
       metadata: {
         url: monitoredUrl,
-        summary: `[${domainLabel(domain)}] ${fieldLabel(fieldKey)} modifie`,
+        summary: changeSummary({
+          domain,
+          fieldKey,
+          severity: computed.severity,
+        }),
         before_short: shortValue(beforeText),
         after_short: shortValue(afterText),
         priority_score: computed.score,
@@ -404,11 +536,11 @@ export function buildDiffRows(params: {
   push(
     "seo",
     "headlines_json",
-    normalizeJson(extractHeadlines(before)),
-    normalizeJson(extractHeadlines(after))
+    extractHeadlines(before),
+    extractHeadlines(after)
   );
-  push("pricing", "pricing_json", normalizeJson(before.pricing_json), normalizeJson(after.pricing_json));
-  push("cta", "cta_json", normalizeJson(before.cta_json), normalizeJson(after.cta_json));
+  push("pricing", "pricing_json", before.pricing_json, after.pricing_json);
+  push("cta", "cta_json", before.cta_json, after.cta_json);
   return rows;
 }
 
@@ -508,10 +640,14 @@ export function filterDynamicNoiseRows(params: {
     };
 
     const shouldFilter =
-      nextRow.severity === "medium" &&
-      !protectedSeoFields.has(nextRow.field_key) &&
-      (noiseFlags.has("dynamic_noise_high") || noiseFlags.has("volatile_token")) &&
-      nextRow.confidence_score < 55;
+      (nextRow.severity === "medium" &&
+        !protectedSeoFields.has(nextRow.field_key) &&
+        (noiseFlags.has("dynamic_noise_high") || noiseFlags.has("volatile_token")) &&
+        nextRow.confidence_score < 55) ||
+      shouldFilterLowSignalDynamicChange({
+        row: nextRow,
+        dynamicNoiseScore,
+      });
 
     if (shouldFilter) {
       filtered += 1;
@@ -522,4 +658,37 @@ export function filterDynamicNoiseRows(params: {
   }
 
   return { kept, filtered };
+}
+
+function shouldFilterLowSignalDynamicChange(params: {
+  row: ChangeRow;
+  dynamicNoiseScore: number;
+}) {
+  const { row, dynamicNoiseScore } = params;
+  if (row.severity !== "medium") return false;
+  if (dynamicNoiseScore < 10) return false;
+
+  if (row.field_key === "headlines_json") {
+    const delta = symmetricDifferenceCount(
+      parseStringArray(asText(row.before_value)),
+      parseStringArray(asText(row.after_value))
+    );
+    return delta <= 2;
+  }
+
+  if (row.field_key === "cta_json") {
+    const delta = symmetricDifferenceCount(
+      parseStringArray(asText(row.before_value)),
+      parseStringArray(asText(row.after_value))
+    );
+    return delta <= 1;
+  }
+
+  if (row.field_key === "pricing_json") {
+    const beforeNums = parseNumericValues(asText(row.before_value));
+    const afterNums = parseNumericValues(asText(row.after_value));
+    return beforeNums.length === 0 && afterNums.length === 0 && row.confidence_score < 72;
+  }
+
+  return false;
 }

@@ -1,6 +1,37 @@
 import crypto from "node:crypto";
 import type { ChangeRow } from "./monitorDiff";
 
+function fieldLabel(fieldKey: string) {
+  const labels: Record<string, string> = {
+    title: "Title",
+    meta_description: "Meta description",
+    h1: "H1",
+    canonical_url: "Canonical",
+    robots_directive: "Robots",
+    pricing_json: "Pricing",
+    cta_json: "CTA",
+    headlines_json: "Titres visibles",
+  };
+  if (fieldKey.startsWith("rule:")) return "Bloc surveillé";
+  return labels[fieldKey] || fieldKey;
+}
+
+function domainSummary(domain: ChangeRow["domain"], count: number) {
+  if (domain === "seo") {
+    return count > 1
+      ? `${count} changements SEO détectés sur la page`
+      : "Changement SEO détecté sur la page";
+  }
+  if (domain === "pricing") {
+    return count > 1
+      ? `${count} changements pricing détectés sur la page`
+      : "Changement pricing détecté sur la page";
+  }
+  return count > 1
+    ? `${count} changements CTA détectés sur la page`
+    : "Changement CTA détecté sur la page";
+}
+
 export function groupRowsByDomain(rows: ChangeRow[]): ChangeRow[] {
   if (rows.length <= 1) {
     return rows.map((row) => ({
@@ -35,6 +66,12 @@ export function groupRowsByDomain(rows: ChangeRow[]): ChangeRow[] {
       const bScore = typeof b.metadata?.priority_score === "number" ? (b.metadata.priority_score as number) : b.confidence_score;
       return bScore - aScore;
     });
+    const groupedFieldLabels = sorted.map((row) => fieldLabel(row.field_key));
+    const groupedFieldSummary = groupedFieldLabels.slice(0, 3).join(", ");
+    const groupedReason =
+      groupedFieldLabels.length > 3
+        ? `${groupedFieldSummary} et ${groupedFieldLabels.length - 3} autre(s) signal(aux).`
+        : groupedFieldSummary;
 
     sorted.forEach((row, index) => {
       grouped.push({
@@ -44,6 +81,12 @@ export function groupRowsByDomain(rows: ChangeRow[]): ChangeRow[] {
         metadata: {
           ...row.metadata,
           grouped_changes_count: sorted.length,
+          grouped_fields_summary: groupedReason,
+          summary: index === 0 ? domainSummary(row.domain, sorted.length) : row.metadata.summary,
+          priority_reason:
+            index === 0
+              ? `Changements regroupés sur: ${groupedReason}`
+              : row.metadata.priority_reason,
         },
       });
     });

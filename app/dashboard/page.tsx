@@ -63,12 +63,6 @@ export default function DashboardPage() {
   const [newUrl, setNewUrl] = useState("");
   const [message, setMessage] = useState("");
   const [onboardingMessage, setOnboardingMessage] = useState("");
-  const [scanSuccessState, setScanSuccessState] = useState<null | {
-    title: string;
-    detail: string;
-    ctaLabel: string;
-    ctaHref: string;
-  }>(null);
   const [billingMessage, setBillingMessage] = useState("");
   const [analysisMessage, setAnalysisMessage] = useState("");
   const [analysisRunning, setAnalysisRunning] = useState(false);
@@ -518,9 +512,7 @@ export default function DashboardPage() {
 
   const runAnalysis = async () => {
     if (!session?.user?.id || !session?.access_token) return;
-    const isFirstScanRun = !hasFirstScan;
     setAnalysisMessage("");
-    setScanSuccessState(null);
     setAnalysisRunning(true);
 
     try {
@@ -586,32 +578,6 @@ export default function DashboardPage() {
       setAnalysisMessage(
         `${runHeadline} ${totalChecked} URL vérifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalGrouped} evenement(s) groupe(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
       );
-      if (totalChecked > 0 && totalFailed === 0 && totalChanges === 0) {
-        setScanSuccessState({
-          title: isFirstScanRun
-            ? "Premier scan terminé"
-            : "Base de surveillance mise a jour",
-          detail:
-            isFirstScanRun
-              ? "Le premier scan est passe sans erreur. ChronoCrawl a maintenant une base de comparaison pour détectér les prochains changements."
-              : "Le scan s'est terminé sans erreur. La base de comparaison a ete rafraichie pour les prochains changements.",
-          ctaLabel: "Ajouter d'autres URLs",
-          ctaHref: "#add-url-panel",
-        });
-      }
-      if (totalChanges > 0) {
-        setScanSuccessState({
-          title: isFirstScanRun
-            ? "Premier signal utile détecté"
-            : "Nouveaux changements détectés",
-          detail:
-            totalChanges === 1
-              ? "Une alerte utile est remontee. Tu peux maintenant ouvrir le centre d'alertes pour revoir le changement."
-              : `${totalChanges} alertes utiles sont remontees. Ouvre le centre d'alertes pour revoir les changements détectés.`,
-          ctaLabel: "Ouvrir le centre d'alertes",
-          ctaHref: "#alerts-center",
-        });
-      }
       await loadData(session.user.id);
     } catch (error: unknown) {
       const details =
@@ -715,6 +681,7 @@ export default function DashboardPage() {
             ? filterReferenceNow - 30 * 24 * 60 * 60 * 1000
             : null;
     return events.filter((item) => {
+      if (item.change_group_id && item.is_group_root === false) return false;
       if (alertFilter === "unread" && item.is_read) return false;
       if (alertFilter === "read" && !item.is_read) return false;
       if (alertDomainFilter !== "all" && item.domain !== alertDomainFilter) {
@@ -1067,26 +1034,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-        {scanSuccessState && (
-          <div className="cc-panel-strong mt-4 rounded-[24px] p-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="max-w-2xl">
-                <p className="text-sm font-medium text-emerald-100">
-                  {scanSuccessState.title}
-                </p>
-                <p className="mt-1 text-xs text-emerald-50/90">
-                  {scanSuccessState.detail}
-                </p>
-              </div>
-              <a
-                href={scanSuccessState.ctaHref}
-                className="cc-button-secondary inline-flex shrink-0 items-center justify-center rounded-full px-3 py-2 text-xs"
-              >
-                {scanSuccessState.ctaLabel}
-              </a>
-            </div>
-          </div>
-        )}
       </motion.section>
 
       <section className="mx-auto max-w-[1320px] px-4 pb-16 sm:px-6 grid lg:grid-cols-3 gap-6 items-start">

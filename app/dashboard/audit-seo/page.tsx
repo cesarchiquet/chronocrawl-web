@@ -27,6 +27,14 @@ type AuditPayload = {
   ctaSignals: number;
   checks: AuditCheck[];
   recommendations: string[];
+  insights?: {
+    seoAngle: { value: string; detail: string };
+    searchPackaging: { value: string; detail: string };
+    conversionPressure: { value: string; detail: string };
+    offerVisibility: { value: string; detail: string };
+    contentPattern: { value: string; detail: string };
+    socialPackaging: { value: string; detail: string };
+  };
   metrics?: {
     wordCount: number;
     h1Count: number;
@@ -248,42 +256,38 @@ export default function DashboardAuditSeoPage() {
   const executiveCards = useMemo(() => {
     if (!result || !stats) return [];
 
+    const insights = result.insights;
+
     return [
       {
         label: "Angle SEO visible",
-        value: result.title ? "Present" : "Peu structure",
-        detail: result.title
-          ? "Le title est détecté et donne un axe editorial clair."
-          : "Le title n'apparait pas dans les signaux publics observés.",
+        value: insights?.seoAngle.value || (result.title ? "Present" : "Peu structure"),
+        detail:
+          insights?.seoAngle.detail ||
+          (result.title
+            ? "Le title est détecté et donne un axe editorial clair."
+            : "Le title n'apparait pas dans les signaux publics observés."),
+      },
+      {
+        label: "Habillage recherche",
+        value: insights?.searchPackaging.value || "Lecture en cours",
+        detail:
+          insights?.searchPackaging.detail ||
+          "Lecture des signaux title, meta et canonical sur la page observee.",
       },
       {
         label: "Pression conversion",
-        value:
-          result.ctaSignals > 4
-            ? "Active"
-            : result.ctaSignals > 0
-              ? "Moderee"
-              : "Faible",
+        value: insights?.conversionPressure.value || "Lecture en cours",
         detail:
-          result.ctaSignals > 0
-            ? `${result.ctaSignals} CTA détectés sur la page observee.`
-            : "Aucun signal CTA vraiment visible dans le HTML observe.",
+          insights?.conversionPressure.detail ||
+          "Lecture des CTA detectables sur la page observee.",
       },
       {
         label: "Lecture offre / pricing",
-        value: result.pricingSignals > 0 ? "Visible" : "Discret",
+        value: insights?.offerVisibility.value || "Lecture en cours",
         detail:
-          result.pricingSignals > 0
-            ? `${result.pricingSignals} signal pricing détecté sur la page.`
-            : "Aucun bloc pricing clair n'est ressorti sur cette page.",
-      },
-      {
-        label: "Stabilite structurelle",
-        value: `${stats.pass}/${result.checks.length} checks OK`,
-        detail:
-          stats.fail === 0
-            ? "La structure observee ressort propre sur les vérifications disponibles."
-            : `${stats.fail} point(s) a surveiller sur les vérifications observees.`,
+          insights?.offerVisibility.detail ||
+          "Lecture des signaux pricing exposes sur la page observee.",
       },
     ];
   }, [result, stats]);
@@ -314,6 +318,27 @@ export default function DashboardAuditSeoPage() {
       {
         label: "Pricing",
         value: `${result.pricingSignals}`,
+      },
+    ];
+  }, [result]);
+
+  const strategicReadCards = useMemo(() => {
+    if (!result?.insights) return [];
+    return [
+      {
+        label: "Structure SERP",
+        value: result.insights.searchPackaging.value,
+        detail: result.insights.searchPackaging.detail,
+      },
+      {
+        label: "Lecture contenu",
+        value: result.insights.contentPattern.value,
+        detail: result.insights.contentPattern.detail,
+      },
+      {
+        label: "Partage social",
+        value: result.insights.socialPackaging.value,
+        detail: result.insights.socialPackaging.detail,
       },
     ];
   }, [result]);
@@ -586,6 +611,25 @@ export default function DashboardAuditSeoPage() {
                 </div>
               ))}
             </div>
+
+            {strategicReadCards.length > 0 && (
+              <div className="grid gap-4 md:grid-cols-3">
+                {strategicReadCards.map((card) => (
+                  <div
+                    key={card.label}
+                    className="cc-panel rounded-[24px] p-5"
+                  >
+                    <p className="text-xs uppercase tracking-wide text-gray-400">
+                      {card.label}
+                    </p>
+                    <p className={`mt-2 text-base font-semibold ${okTextClass(card.value)}`}>
+                      {card.value}
+                    </p>
+                    <p className="mt-2 text-sm text-gray-300">{card.detail}</p>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="cc-panel-strong rounded-[28px] p-6">
               <h2 className="text-xl font-semibold">Priorités observees</h2>

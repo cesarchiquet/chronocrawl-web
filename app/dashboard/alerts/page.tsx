@@ -7,35 +7,12 @@ import type { Session } from "@supabase/supabase-js";
 import {
   getAlertChangeKind,
   getAlertChangeSummary,
-  getAlertDomainLabel,
   getAlertFieldLabel,
-  getAlertImpactLabel,
-  getAlertRecommendedAction,
 } from "@/lib/alertPresentation";
 import { formatAlertDateShort } from "@/lib/dateFormat";
 import DashboardSuiteMenu from "@/components/DashboardSuiteMenu";
-
-type ChangeEvent = {
-  id: string;
-  field_key?: string;
-  domain: "seo" | "pricing" | "cta";
-  severity: "medium" | "high";
-  confidence_score?: number | null;
-  noise_flags?: string[] | null;
-  change_group_id?: string | null;
-  is_group_root?: boolean | null;
-  metadata: {
-    summary?: string;
-    url?: string;
-    before_short?: string;
-    after_short?: string;
-    priority_score?: number;
-    priority_reason?: string;
-    grouped_changes_count?: number;
-  } | null;
-  detected_at: string | null;
-  is_read: boolean | null;
-};
+import AlertDetailModal from "@/features/dashboard/components/AlertDetailModal";
+import type { ChangeEvent } from "@/features/dashboard/types";
 
 const HISTORY_PAGE_SIZE = 250;
 
@@ -236,6 +213,7 @@ export default function AlertsHistoryPage() {
     const query = searchQuery.trim().toLowerCase();
 
     return events.filter((event) => {
+      if (event.change_group_id && event.is_group_root === false) return false;
       if (severityFilter !== "all" && event.severity !== severityFilter) {
         return false;
       }
@@ -330,14 +308,10 @@ export default function AlertsHistoryPage() {
   };
 
   const getAlertCardClass = (event: ChangeEvent) => {
-    if (!event.is_read) {
-      return "border-white/12 bg-white/[0.04]";
-    }
-    if (event.domain === "seo") return "border-sky-400/15 bg-sky-500/[0.03]";
-    if (event.domain === "cta") {
-      return "border-violet-400/15 bg-violet-500/[0.03]";
-    }
-    return "border-emerald-400/15 bg-emerald-500/[0.03]";
+    if (event.is_read) return "cc-panel";
+    if (event.domain === "seo") return "border-sky-300/20 bg-sky-500/[0.06]";
+    if (event.domain === "pricing") return "border-amber-300/20 bg-amber-500/[0.06]";
+    return "border-white/12 bg-white/[0.04]";
   };
 
   const exportCsv = () => {
@@ -772,84 +746,10 @@ export default function AlertsHistoryPage() {
             ))}
           </div>
           {expandedAlert && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-              <button
-                aria-label="Fermer"
-                className="absolute inset-0 bg-black/70"
-                onClick={() => setExpandedAlertId(null)}
-              />
-              <div className="relative w-full max-w-2xl rounded-xl border border-white/10 bg-[#0b1025] p-5">
-                {(() => {
-                  const quickFacts = [
-                    { label: "Type", value: getAlertDomainLabel(expandedAlert.domain) },
-                    { label: "Element", value: getAlertFieldLabel(expandedAlert.field_key) },
-                    { label: "Variation", value: getAlertChangeKind(expandedAlert) },
-                    { label: "Source", value: expandedAlert.metadata?.url || "URL indisponible" },
-                  ];
-
-                  return (
-                    <>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs text-white/68 uppercase">
-                      Observation concurrente - {expandedAlert.domain} - {expandedAlert.severity}
-                    </p>
-                    <p className="mt-1 text-sm text-gray-100">
-                      {getAlertChangeSummary(expandedAlert)}
-                    </p>
-                    <p className="mt-1 text-xs text-gray-400">
-                      {formatAlertDateShort(expandedAlert.detected_at)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setExpandedAlertId(null)}
-                    className="cc-button-secondary rounded-full px-2 py-1 text-xs"
-                  >
-                    Fermer
-                  </button>
-                </div>
-                <p className="mt-3 text-xs text-gray-300">
-                  <span className="text-gray-400">Ce que cela peut signaler :</span>{" "}
-                  {getAlertImpactLabel(expandedAlert)}
-                </p>
-                <p className="mt-1 text-xs text-gray-300">
-                  <span className="text-gray-400">Vérification utile :</span>{" "}
-                  {getAlertRecommendedAction(expandedAlert)}
-                </p>
-                <div className="mt-4 grid gap-2 md:grid-cols-4 text-[11px]">
-                  {quickFacts.map((item) => (
-                    <div
-                      key={item.label}
-                      className="cc-panel rounded-[18px] p-3"
-                    >
-                      <p className="text-gray-400">{item.label}</p>
-                      <p className="mt-1 break-words text-gray-100">{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-4 grid grid-cols-1 gap-3 text-xs">
-                  <div className="rounded-md border border-amber-300/20 bg-amber-500/[0.05] p-3">
-                    <p className="text-gray-400 mb-1">Etat precedent</p>
-                    <p className="text-gray-200">
-                      {expandedAlert.metadata?.before_short || "non disponible"}
-                    </p>
-                  </div>
-                  <div className="rounded-md border border-emerald-300/20 bg-emerald-500/[0.05] p-3">
-                    <p className="text-gray-400 mb-1">Etat observe</p>
-                    <p className="text-gray-200">
-                      {expandedAlert.metadata?.after_short || "non disponible"}
-                    </p>
-                  </div>
-                </div>
-                <p className="mt-3 text-[11px] text-gray-400">
-                  {expandedAlert.metadata?.priority_reason ||
-                    "Priorité estimee selon le type de changement observe."}
-                </p>
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
+            <AlertDetailModal
+              alert={expandedAlert}
+              onClose={() => setExpandedAlertId(null)}
+            />
           )}
           {hasMore && (
             <div className="mt-5 flex justify-center">

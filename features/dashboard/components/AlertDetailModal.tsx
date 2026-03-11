@@ -26,6 +26,7 @@ export default function AlertDetailModal({ alert, onClose }: AlertDetailModalPro
   const priorityNote =
     alert.metadata?.priority_reason ||
     "Priorité estimee selon le type de changement observe.";
+  const groupedFieldsSummary = alert.metadata?.grouped_fields_summary;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -121,6 +122,14 @@ export default function AlertDetailModal({ alert, onClose }: AlertDetailModalPro
             </p>
             <p className="mt-2 text-sm text-gray-300">{priorityNote}</p>
           </div>
+          {groupedFieldsSummary && (alert.metadata?.grouped_changes_count || 0) > 1 && (
+            <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-wide text-gray-400">
+                Signaux inclus
+              </p>
+              <p className="mt-2 text-sm text-gray-300">{groupedFieldsSummary}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>

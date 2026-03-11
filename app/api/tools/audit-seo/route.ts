@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUserFromRequest } from "@/lib/routeAuth";
 import { fetchPageHtml } from "@/lib/monitorFetch";
 import { extractSignalsFromHtml } from "@/lib/monitorSignals";
+import { buildAuditInsights } from "@/lib/auditSeoInsights";
 
 type CheckStatus = "pass" | "fail";
 
@@ -109,6 +110,18 @@ export async function POST(request: Request) {
   const wordCount = textContent ? textContent.split(/\s+/).filter(Boolean).length : 0;
   const hasJsonLd = /<script[^>]*type=["']application\/ld\+json["'][^>]*>/i.test(html);
   const titleLooksBrandOnly = titleLength > 0 && signals.title.split(/[|\-–]/).length < 2;
+  const hasOpenGraph = Boolean(ogTitle && ogDescription && ogImage);
+  const insights = buildAuditInsights({
+    title: signals.title || null,
+    metaDescription: signals.metaDescription || null,
+    canonicalUrl: signals.canonicalUrl || null,
+    ctaSignals: ctas,
+    pricingSignals: prices,
+    wordCount,
+    h2Count,
+    hasOpenGraph,
+    hasTwitterCard: Boolean(twitterCard),
+  });
 
   const checks: AuditCheck[] = [
     {
@@ -205,9 +218,9 @@ export async function POST(request: Request) {
     {
       id: "open_graph",
       label: "Partage social (Open Graph)",
-      status: ogTitle && ogDescription && ogImage ? "pass" : "fail",
+      status: hasOpenGraph ? "pass" : "fail",
       details:
-        ogTitle && ogDescription && ogImage
+        hasOpenGraph
           ? "og:title, og:description et og:image detectes."
           : "Balises Open Graph incompletes ou absentes.",
       weight: 0.9,
@@ -297,6 +310,7 @@ export async function POST(request: Request) {
       ctaSignals: ctas,
       checks,
       recommendations,
+      insights,
       metrics: {
         wordCount,
         h1Count,

@@ -24,6 +24,7 @@ export type ChangeEvent = {
     priority_score?: number;
     priority_reason?: string;
     grouped_changes_count?: number;
+    grouped_fields_summary?: string;
   } | null;
   detected_at: string | null;
   is_read: boolean | null;
