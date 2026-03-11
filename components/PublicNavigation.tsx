@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
+import DashboardDesktopNotice from "@/components/DashboardDesktopNotice";
 
 type PublicNavigationProps = {
   session?: Session | null;
@@ -39,6 +40,8 @@ export default function PublicNavigation({
 }: PublicNavigationProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showDashboardMobileNotice, setShowDashboardMobileNotice] =
+    useState(false);
 
   const isActive = (href: string) => {
     const cleanHref = href.split("?")[0];
@@ -150,13 +153,15 @@ export default function PublicNavigation({
             <div className="mt-1 flex flex-col gap-2 border-t border-white/10 pt-3">
               {session ? (
                 <>
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setMobileOpen(false)}
+                  <button
+                    onClick={() => {
+                      setMobileOpen(false);
+                      setShowDashboardMobileNotice(true);
+                    }}
                     className="rounded-full border border-white bg-white px-4 py-2 text-center text-sm font-medium text-black hover:bg-white/85"
                   >
                     Dashboard
-                  </Link>
+                  </button>
                   <button
                     onClick={() => {
                       setMobileOpen(false);
@@ -198,6 +203,15 @@ export default function PublicNavigation({
           </div>
         </div>
       )}
+
+      {showDashboardMobileNotice ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 backdrop-blur-sm md:hidden">
+          <DashboardDesktopNotice
+            compact
+            onClose={() => setShowDashboardMobileNotice(false)}
+          />
+        </div>
+      ) : null}
     </header>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import type { Session } from "@supabase/supabase-js";
 import {
   blogCategories,
   blogPosts,
@@ -10,6 +11,7 @@ import {
   categoryLabels,
   type BlogCategory,
 } from "@/features/blog/data";
+import { supabase } from "@/lib/supabaseClient";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", {
@@ -71,7 +73,30 @@ function ArticleCard({
 }
 
 export default function BlogIndex() {
+  const [session, setSession] = useState<Session | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<"all" | BlogCategory>("all");
+
+  useEffect(() => {
+    const hydrate = async () => {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) {
+        setSession(refreshed.session);
+        return;
+      }
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+    };
+
+    hydrate();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, currentSession) => {
+        setSession(currentSession);
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   const visiblePosts = useMemo(() => {
     return blogPosts.filter((post) => {
@@ -240,25 +265,27 @@ export default function BlogIndex() {
         </div>
       </section>
 
-      <section className="mt-8 cc-panel-strong rounded-[32px] px-6 py-10 text-center sm:px-8">
-        <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-white/56">
-          Prêt à surveiller tes concurrents ?
-        </span>
-        <h2 className="mx-auto mt-6 max-w-3xl text-3xl font-semibold tracking-[-0.06em] text-white sm:text-4xl">
-          Ajoute ta première URL et vois les vrais changements remonter dans ChronoCrawl.
-        </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/62">
-          Le blog te donne la méthode. Le produit te donne la surveillance, les alertes et l&apos;audit concurrent dans la même interface.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="/signup?from=blog&intent=surveillance" className="cc-button-primary rounded-full px-6 py-3 text-sm font-semibold">
-            Commencer l&apos;essai gratuit
-          </Link>
-          <Link href="/tarifs?from=blog" className="cc-button-secondary rounded-full px-6 py-3 text-sm font-semibold">
-            Voir les tarifs
-          </Link>
-        </div>
-      </section>
+      {!session?.user ? (
+        <section className="mt-8 cc-panel-strong rounded-[32px] px-6 py-10 text-center sm:px-8">
+          <span className="inline-flex rounded-full border border-white/10 bg-white/5 px-4 py-2 text-[11px] font-medium uppercase tracking-[0.16em] text-white/56">
+            Prêt à surveiller tes concurrents ?
+          </span>
+          <h2 className="mx-auto mt-6 max-w-3xl text-3xl font-semibold tracking-[-0.06em] text-white sm:text-4xl">
+            Ajoute ta première URL et vois les vrais changements remonter dans ChronoCrawl.
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/62">
+            Le blog te donne la méthode. Le produit te donne la surveillance, les alertes et l&apos;audit concurrent dans la même interface.
+          </p>
+          <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/signup?from=blog&intent=surveillance" className="cc-button-primary rounded-full px-6 py-3 text-sm font-semibold">
+              Commencer l&apos;essai gratuit
+            </Link>
+            <Link href="/tarifs?from=blog" className="cc-button-secondary rounded-full px-6 py-3 text-sm font-semibold">
+              Voir les tarifs
+            </Link>
+          </div>
+        </section>
+      ) : null}
     </motion.div>
   );
 }

@@ -1,7 +1,10 @@
 "use client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { motion, type Variants } from "framer-motion";
+import type { Session } from "@supabase/supabase-js";
 import PublicChrome from "@/components/PublicChrome";
+import { supabase } from "@/lib/supabaseClient";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -13,6 +16,30 @@ const fadeUp: Variants = {
 };
 
 export default function ContactPage() {
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    const hydrate = async () => {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) {
+        setSession(refreshed.session);
+        return;
+      }
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+    };
+
+    hydrate();
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_event, currentSession) => {
+        setSession(currentSession);
+      }
+    );
+
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
   return (
     <PublicChrome>
       <motion.section
@@ -36,12 +63,14 @@ export default function ContactPage() {
           >
             hello@chronocrawl.com
           </a>
-          <Link
-            href="/signup"
-            className="cc-button-secondary inline-flex items-center justify-center rounded-full px-6 py-3 font-medium"
-          >
-            Créer un compte
-          </Link>
+          {!session?.user ? (
+            <Link
+              href="/signup"
+              className="cc-button-secondary inline-flex items-center justify-center rounded-full px-6 py-3 font-medium"
+            >
+              Créer un compte
+            </Link>
+          ) : null}
         </div>
       </motion.section>
     </PublicChrome>

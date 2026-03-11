@@ -169,138 +169,19 @@ export default function TarifsPage() {
           ))}
         </div>
 
-        <div className="mt-6 cc-shell rounded-[28px] p-5">
+        <div className="mt-6 cc-shell cc-hover-lift rounded-[28px] p-5">
           <p className="text-sm text-white/72">
             Logique recommandee : commence par l&apos;essai pour valider le flux,
             puis passe a `Pro` des que tu veux une veille concurrentielle suivie
             avec plus d&apos;URLs, plus de scans et plus d&apos;historique.
           </p>
         </div>
-        <div className="mt-6 grid gap-4 lg:grid-cols-[0.92fr_1.08fr]">
-          <div className="cc-panel-strong rounded-[32px] p-6">
-            <p className="text-xs uppercase tracking-[0.18em] text-white/68">
-              Parcours recommande
-            </p>
-            <h2 className="mt-2 text-2xl font-semibold">
-              Starter pour valider, Pro pour travailler sérieusement
-            </h2>
-            <p className="mt-3 text-sm text-gray-300">
-              Le vrai saut de valeur se fait entre l&apos;essai ou `Starter` et `Pro`.
-              `Starter` sert a vérifier le flux complet. `Pro` devient le bon niveau
-              des que la veille fait partie du quotidien.
-            </p>
-            <div className="mt-5 space-y-3">
-              {[
-                {
-                  step: "01",
-                  title: "Valider le flux",
-                  text: "Ajouter des URLs, lancer les premiers scans et confirmer que les alertes remontent bien les bons signaux.",
-                },
-                {
-                  step: "02",
-                  title: "Mesurer le besoin réel",
-                  text: "Quand les URLs augmentent et que tu veux un rythme plus serre, Starter devient vite limite.",
-                },
-                {
-                  step: "03",
-                  title: "Passer a Pro",
-                  text: "Plus de volume, un scan toutes les 60 minutes et 30 jours d'historique: c'est le vrai niveau de travail.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.step}
-                  className="cc-panel rounded-[22px] p-4"
-                >
-                  <p className="text-xs text-white/68">Etape {item.step}</p>
-                  <p className="mt-1 text-sm font-medium text-gray-100">
-                    {item.title}
-                  </p>
-                  <p className="mt-2 text-sm text-gray-300">{item.text}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-          <div className="cc-shell rounded-[32px] p-6">
-            <p className="text-xs uppercase tracking-[0.18em] text-white/68">
-              Ce qui change vraiment quand tu passes a Pro
-            </p>
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {[
-                {
-                  label: "Volume",
-                  starter: "10 URLs pour tester",
-                  pro: "50 URLs pour une veille deja large",
-                },
-                {
-                  label: "Rythme",
-                  starter: "Toutes les 6 h",
-                  pro: "Toutes les 60 min",
-                },
-                {
-                  label: "Historique",
-                  starter: "7 jours",
-                  pro: "30 jours",
-                },
-                {
-                  label: "Usage réel",
-                  starter: "Validation du produit",
-                  pro: "Pilotage continu",
-                },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="cc-panel-strong cc-hover-lift rounded-[26px] p-4"
-                >
-                  <p className="text-xs text-gray-400">{item.label}</p>
-                  <div className="mt-3 grid gap-2 text-sm">
-                    <div className="cc-panel rounded-[20px] p-3">
-                      <p className="text-[11px] uppercase tracking-wide text-gray-400">
-                        Starter
-                      </p>
-                      <p className="mt-1 text-gray-200">{item.starter}</p>
-                    </div>
-                    <div className="cc-panel-strong rounded-[20px] p-3">
-                      <p className="text-[11px] uppercase tracking-wide text-white/68">
-                        Pro
-                      </p>
-                      <p className="mt-1 text-gray-100">{item.pro}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {[
-            {
-              title: "Essai 7 jours",
-              text: "Le plus simple pour tester le flux complet avant d'installer ChronoCrawl dans ton quotidien.",
-            },
-            {
-              title: "Paiement sécurisé",
-              text: "Le checkout passe par Stripe. Tu peux annuler a tout moment depuis le dashboard.",
-            },
-            {
-              title: "Retour direct au dashboard",
-              text: "Après validation, tu reviens directement dans le dashboard pour ajouter ta première URL ou reprendre la veille.",
-            },
-          ].map((item) => (
-            <div
-              key={item.title}
-              className="cc-panel-strong cc-hover-lift rounded-[26px] p-4"
-            >
-              <p className="text-sm font-medium text-gray-100">{item.title}</p>
-              <p className="mt-1 text-xs text-gray-300">{item.text}</p>
-            </div>
-          ))}
-        </div>
 
-        <div className="mt-10 grid md:grid-cols-3 gap-6">
+        <div className="mt-8 grid md:grid-cols-3 gap-6">
           {plans.map((plan) => (
             <article
               key={plan.name}
-              className={`rounded-2xl border p-5 md:p-6 ${
+              className={`cc-hover-lift rounded-2xl border p-5 md:p-6 ${
                 plan.highlight
                   ? "cc-panel-strong"
                   : "cc-panel"
@@ -396,6 +277,75 @@ export default function TarifsPage() {
           </table>
         </div>
 
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {[
+            {
+              title: "Essai 7 jours",
+              text: "Le plus simple pour tester le flux complet avant d'installer ChronoCrawl dans ton quotidien.",
+            },
+            {
+              title: "Paiement sécurisé",
+              text: "Le checkout passe par Stripe. Tu peux annuler a tout moment depuis le dashboard.",
+            },
+            {
+              title: "Retour direct au dashboard",
+              text: "Après validation, tu reviens directement dans le dashboard pour ajouter ta première URL ou reprendre la veille.",
+            },
+          ].map((item) => (
+            <div
+              key={item.title}
+              className="cc-panel-strong cc-hover-lift rounded-[26px] p-4"
+            >
+              <p className="text-sm font-medium text-gray-100">{item.title}</p>
+              <p className="mt-1 text-xs text-gray-300">{item.text}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-6 cc-panel-strong cc-hover-lift rounded-[32px] p-6">
+          <p className="text-xs uppercase tracking-[0.18em] text-white/68">
+            Parcours recommande
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold">
+            Starter pour valider, Pro pour travailler sérieusement
+          </h2>
+          <p className="mt-3 text-sm text-gray-300">
+            Le vrai saut de valeur se fait entre l&apos;essai ou `Starter` et `Pro`.
+            `Starter` sert a vérifier le flux complet. `Pro` devient le bon niveau
+            des que la veille fait partie du quotidien.
+          </p>
+          <div className="mt-5 space-y-3">
+            {[
+              {
+                step: "01",
+                title: "Valider le flux",
+                text: "Ajouter des URLs, lancer les premiers scans et confirmer que les alertes remontent bien les bons signaux.",
+              },
+              {
+                step: "02",
+                title: "Mesurer le besoin réel",
+                text: "Quand les URLs augmentent et que tu veux un rythme plus serre, Starter devient vite limite.",
+              },
+              {
+                step: "03",
+                title: "Passer a Pro",
+                text: "Plus de volume, un scan toutes les 60 minutes et 30 jours d'historique: c'est le vrai niveau de travail.",
+              },
+            ].map((item) => (
+              <div
+                key={item.step}
+                className="cc-panel cc-hover-lift rounded-[22px] p-4"
+              >
+                <p className="text-xs text-white/68">Etape {item.step}</p>
+                <p className="mt-1 text-sm font-medium text-gray-100">
+                  {item.title}
+                </p>
+                <p className="mt-2 text-sm text-gray-300">{item.text}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {session ? (
           <p className="mt-8 text-center text-xs text-gray-400">
             Tu es connecte. Tu peux souscrire directement depuis cette page.
@@ -428,15 +378,15 @@ export default function TarifsPage() {
         <div className="mt-6 cc-panel-strong cc-hover-lift rounded-[26px] p-4">
           <p className="text-sm font-medium text-gray-100">Questions fréquentes avant abonnement</p>
           <div className="mt-3 grid gap-3 md:grid-cols-3 text-xs text-gray-300">
-            <div className="cc-panel rounded-[20px] p-3">
+            <div className="cc-panel cc-hover-lift rounded-[20px] p-3">
               <p className="text-white/68 font-medium">Paiement</p>
               <p className="mt-1">Paiement sécurisé via Stripe. Facture disponible depuis le portail abonnement.</p>
             </div>
-            <div className="cc-panel rounded-[20px] p-3">
+            <div className="cc-panel cc-hover-lift rounded-[20px] p-3">
               <p className="text-white/68 font-medium">Résiliation</p>
               <p className="mt-1">Tu peux annuler a tout moment. Aucun engagement longue duree impose.</p>
             </div>
-            <div className="cc-panel rounded-[20px] p-3">
+            <div className="cc-panel cc-hover-lift rounded-[20px] p-3">
               <p className="text-white/68 font-medium">Support</p>
               <p className="mt-1">Besoin d&apos;aide pour choisir ? Contact direct depuis la page contact.</p>
             </div>

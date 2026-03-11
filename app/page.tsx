@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion, Variants } from "framer-motion";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -7,9 +8,6 @@ import type { Session } from "@supabase/supabase-js";
 import PublicNavigation from "@/components/PublicNavigation";
 import PublicFooter from "@/components/PublicFooter";
 import DemoVideoModal from "@/features/landing/components/DemoVideoModal";
-import {
-  impactMetrics,
-} from "@/features/landing/content";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 20 },
@@ -276,12 +274,12 @@ export default function Home() {
 
             <div className="mt-10 flex flex-wrap justify-center items-start gap-3">
               {session?.user ? (
-                <button
-                  onClick={() => startCheckout("starter")}
+                <Link
+                  href="/dashboard"
                   className="rounded-full border border-white bg-white px-7 py-3.5 text-base font-medium text-black transition hover:bg-white/85"
                 >
-                  Commencer l&apos;essai 7 jours
-                </button>
+                  Accéder au dashboard
+                </Link>
               ) : (
                 <a
                   href="#tarifs"
@@ -290,14 +288,12 @@ export default function Home() {
                   Commencer l&apos;essai 7 jours
                 </a>
               )}
-              <button
-                onClick={() => {
-                  setDemoOpen(true);
-                }}
+              <Link
+                href="/blog"
                 className="cc-button-secondary rounded-full px-7 py-3.5 text-base font-medium"
               >
-                Voir la demo
-              </button>
+                Voir le blog
+              </Link>
             </div>
           </div>
           </div>
@@ -544,94 +540,6 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="max-w-6xl mx-auto px-6 pb-24">
-        <div className="cc-hover-lift rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05)_0%,_rgba(10,10,10,0.98)_24%,_rgba(0,0,0,1)_88%)] p-6 md:p-8">
-          <p className="text-xs uppercase tracking-[0.18em] text-white/60">
-            Impact business
-          </p>
-          <h2 className="mt-2 text-3xl font-semibold">
-            Ce que l&apos;équipe gagne concrètement
-          </h2>
-          <div className="mt-5 grid gap-4 md:grid-cols-3">
-            {impactMetrics.map((item) => (
-              <div
-                key={item.label}
-                className="cc-hover-lift rounded-[24px] border border-white/10 bg-white/[0.03] p-5"
-              >
-                <p className="text-3xl font-semibold text-white">{item.value}</p>
-                <p className="mt-2 text-sm text-gray-300">{item.label}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-6">
-            <a
-              href={session?.user ? "/dashboard" : "/signup"}
-              className="inline-flex rounded-full border border-white bg-white px-5 py-3 text-sm font-medium text-black transition hover:bg-white/85"
-            >
-              Tester sur 1 URL en 60s
-            </a>
-          </div>
-        </div>
-      </section>
-
-      {/* HOW IT WORKS */}
-      <section
-        id="fonctionnement"
-        className="max-w-6xl mx-auto px-6 pb-24"
-      >
-        <motion.h2
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="text-3xl font-bold text-center mb-12"
-        >
-          Comment fonctionne ChronoCrawl
-        </motion.h2>
-
-        <p className="text-gray-300 text-center max-w-2xl mx-auto mb-10">
-          En trois étapes simples, tu mets en place une veille concurrentielle
-          efficace : ajoute tes URLs, laisse ChronoCrawl surveiller, puis lis
-          les changements utiles et l&apos;audit SEO concurrent dans le dashboard.
-        </p>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {[
-            {
-              step: "01",
-              title: "Ajoute les URLs",
-              text: "Indique les pages concurrentes que tu veux suivre dans le module Surveillance.",
-            },
-            {
-              step: "02",
-              title: "ChronoCrawl surveille",
-              text: "Le moteur releve les signaux SEO, CTA, pricing et titres visibles.",
-            },
-            {
-              step: "03",
-              title: "Lis et compare",
-              text: "Tu ouvres l'alerte, compares l'avant / après et completes si besoin avec l'Audit SEO.",
-            },
-          ].map((item, i) => (
-            <motion.div
-              key={i}
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              whileHover={{ y: -4 }}
-              className="cc-hover-lift cc-panel-strong rounded-[28px] p-6"
-            >
-              <span className="text-sm font-medium text-white/65">
-                {item.step}
-              </span>
-              <h3 className="mt-2 text-lg font-semibold">{item.title}</h3>
-              <p className="mt-2 text-gray-300 text-sm">{item.text}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
       {/* PRICING */}
       <section id="tarifs" className="max-w-6xl mx-auto px-6 pb-24">
         <motion.h2
@@ -798,78 +706,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FAQ */}
-      <section className="max-w-5xl mx-auto px-6 pb-24">
-        <motion.h2
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          className="text-3xl font-bold text-center mb-10"
-        >
-          FAQ — Veille concurrentielle
-        </motion.h2>
-        <p className="text-center text-xs text-gray-400 mb-8">
-          FAQ rapide ci-dessous.{" "}
-          <a href="/faq" className="text-white/72 underline underline-offset-4 transition hover:text-white">
-            En savoir plus (FAQ complete)
-          </a>
-          .
-        </p>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          {[
-            {
-              q: "Que surveille ChronoCrawl ?",
-              a: "Les URLs que tu ajoutes dans Surveillance. Le moteur remonte surtout les signaux SEO, CTA, pricing et titres visibles utiles à une veille concurrentielle.",
-            },
-            {
-              q: "Que vais-je voir dans une alerte ?",
-              a: "Un résumé court, un avant / après, une interprétation rapide et un lien direct vers le dashboard pour revoir le changement proprement.",
-            },
-            {
-              q: "Le produit est-il simple a prendre en main ?",
-              a: "Oui. Le parcours tient en peu d'etapes : ajouter une URL, lancer un scan, lire les alertes, puis ouvrir l'audit SEO concurrent si besoin.",
-            },
-            {
-              q: "Quelle est la difference entre Surveillance et Audit SEO ?",
-              a: "Surveillance suit les changements dans le temps. Audit SEO concurrent sert a lire ponctuellement la structure SEO d'une page concurrente.",
-            },
-            {
-              q: "Est-ce qu'il faut installer quelque chose ?",
-              a: "Non. ChronoCrawl est un SaaS : tu ajoutes tes URLs, tu règles tes emails si besoin, puis tu travailles depuis le dashboard.",
-            },
-            {
-              q: "Quel plan choisir au debut ?",
-              a: "Commence par l'essai ou Starter pour valider le flux. Passe a Pro des que tu veux plus d'URLs, plus de scans et plus d'historique.",
-            },
-          ].map((item, i) => (
-            <motion.div
-              key={i}
-              variants={fadeUp}
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              whileHover={{ y: -4 }}
-              className="cc-hover-lift cc-panel-strong rounded-[28px] p-6"
-            >
-              <h3 className="text-lg font-semibold mb-2">{item.q}</h3>
-              <p className="text-gray-300 text-sm">{item.a}</p>
-            </motion.div>
-          ))}
-        </div>
-        <div className="cc-hover-lift mt-6 cc-panel-strong rounded-[28px] p-5">
-          <p className="text-sm font-medium text-gray-100">
-            Ce que ChronoCrawl promet aujourd&apos;hui
-          </p>
-          <p className="mt-2 text-sm text-gray-300">
-            Un produit simple et francophone pour surveiller des pages concurrentes,
-            lire les alertes utiles et lancer un audit SEO concurrent sans empiler
-            des modules inutiles.
-          </p>
-        </div>
-      </section>
-
       {/* CONTACT */}
       <section id="contact" className="max-w-4xl mx-auto px-6 pb-32 text-center">
         <motion.h2
@@ -891,14 +727,16 @@ export default function Home() {
         >
           hello@chronocrawl.com
         </a>
-        <div className="mt-5">
-          <a
-            href={session?.user ? "/dashboard" : "/signup"}
-            className="cc-button-secondary inline-flex items-center justify-center rounded-full px-6 py-3 font-medium"
-          >
-            Tester sur 1 URL en 60s
-          </a>
-        </div>
+        {!session?.user ? (
+          <div className="mt-5">
+            <a
+              href="/signup"
+              className="cc-button-secondary inline-flex items-center justify-center rounded-full px-6 py-3 font-medium"
+            >
+              Tester sur 1 URL en 60s
+            </a>
+          </div>
+        ) : null}
       </section>
 
       <DemoVideoModal

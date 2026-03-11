@@ -1,10 +1,64 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import type { Session } from "@supabase/supabase-js";
 import PublicNavigation from "@/components/PublicNavigation";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function BlogShell({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+
+  useEffect(() => {
+    const hydrateSession = async () => {
+      const { data: refreshed } = await supabase.auth.refreshSession();
+      if (refreshed.session) {
+        setSession(refreshed.session);
+        return;
+      }
+
+      const { data } = await supabase.auth.getSession();
+      setSession(data.session);
+    };
+
+    hydrateSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const openBillingPortal = async () => {
+    if (!session?.access_token) return;
+    const response = await fetch("/api/billing/portal", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({}),
+    });
+    const data = await response.json();
+    if (response.ok && data?.url) {
+      window.location.href = data.url;
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.08)_0%,_rgba(12,12,12,0.96)_16%,_rgba(0,0,0,1)_50%,_rgba(0,0,0,1)_100%)] text-white">
-      <PublicNavigation />
+      <PublicNavigation
+        session={session}
+        onOpenBillingPortal={() => {
+          void openBillingPortal();
+        }}
+        onSignOut={() => {
+          void supabase.auth.signOut();
+        }}
+      />
 
       <div className="mx-auto max-w-[1400px] px-4 pb-16 pt-5 sm:px-6 lg:px-8">
         <div className="cc-shell rounded-[30px]">
