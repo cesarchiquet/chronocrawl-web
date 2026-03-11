@@ -27,33 +27,6 @@ export const metadata: Metadata = {
     canonical: "/",
   },
 
-  openGraph: {
-    title: "Surveiller un site concurrent | ChronoCrawl",
-    description:
-      "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
-    url: siteUrl,
-    siteName: "ChronoCrawl",
-    images: [
-      {
-        url: "/social-preview.png",
-        width: 1200,
-        height: 630,
-        alt: "ChronoCrawl - Surveille tes concurrents automatiquement",
-      },
-    ],
-    locale: "fr_FR",
-    type: "website",
-  },
-
-  twitter: {
-    card: "summary_large_image",
-    title: "Surveiller un site concurrent | ChronoCrawl",
-    description:
-      "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
-    images: ["/social-preview.png"],
-    creator: "@chronocrawl",
-  },
-
   robots: {
     index: true,
     follow: true,
