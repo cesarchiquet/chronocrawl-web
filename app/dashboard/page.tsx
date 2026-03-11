@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { motion, type Variants } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
@@ -56,6 +56,7 @@ function formatTimelineLabel(dateValue: string | null) {
 }
 
 export default function DashboardPage() {
+  const addUrlInputRef = useRef<HTMLInputElement | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [urls, setUrls] = useState<MonitoredUrl[]>([]);
@@ -178,6 +179,7 @@ export default function DashboardPage() {
           behavior: "smooth",
           block: "center",
         });
+        addUrlInputRef.current?.focus();
       });
     }
     if (onboarding || trialStarted || planUpdated) {
@@ -514,6 +516,8 @@ export default function DashboardPage() {
     if (!session?.user?.id || !session?.access_token) return;
     setAnalysisMessage("");
     setAnalysisRunning(true);
+    const hadEventsBefore = events.length > 0;
+    const hadUrlsBefore = urls.length > 0;
 
     try {
       let totalChecked = 0;
@@ -570,11 +574,15 @@ export default function DashboardPage() {
           : "";
 
       const runHeadline =
-        totalChanges === 0 && totalFailed === 0
-          ? "Scan terminé: moteur actif, aucun nouveau changement détecté."
-          : totalChecked === 0 && totalFailed > 0
-            ? "Scan terminé: les URLs ont echoue pendant la vérification."
-            : "Scan terminé.";
+        totalChecked > 0 && totalChanges === 0 && totalFailed === 0 && !hadEventsBefore && hadUrlsBefore
+          ? "Premier scan terminé: la base de comparaison est prête."
+          : totalChanges > 0 && !hadEventsBefore
+            ? "Premier scan terminé: les premiers signaux utiles sont remontés."
+            : totalChanges === 0 && totalFailed === 0
+              ? "Scan terminé: moteur actif, aucun nouveau changement détecté."
+              : totalChecked === 0 && totalFailed > 0
+                ? "Scan terminé: les URLs ont echoue pendant la vérification."
+                : "Scan terminé.";
       setAnalysisMessage(
         `${runHeadline} ${totalChecked} URL vérifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalGrouped} evenement(s) groupe(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
       );
@@ -1128,11 +1136,18 @@ export default function DashboardPage() {
             </div>
             <div className="flex flex-col md:flex-row gap-3">
               <input
+                ref={addUrlInputRef}
                 type="url"
                 placeholder="https://site-concurrent.com/pricing"
                 className="cc-panel flex-1 rounded-[18px] px-4 py-3 focus:outline-none"
                 value={newUrl}
                 onChange={(e) => setNewUrl(e.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && canAddUrl) {
+                    event.preventDefault();
+                    void addUrl();
+                  }
+                }}
               />
               <button
                 onClick={addUrl}

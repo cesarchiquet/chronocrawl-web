@@ -20,6 +20,18 @@ const links = [
   { href: "/contact", label: "Contact" },
 ];
 
+const sectionLabels: Record<string, string> = {
+  "/": "Produit",
+  "/fonctionnement": "Produit",
+  "/cas-d-usage": "Cas d'usage",
+  "/tarifs": "Tarifs",
+  "/faq": "FAQ",
+  "/blog": "Blog",
+  "/contact": "Contact",
+  "/login": "Connexion",
+  "/signup": "Essai gratuit",
+};
+
 export default function PublicNavigation({
   session,
   onOpenBillingPortal,
@@ -33,12 +45,24 @@ export default function PublicNavigation({
     return pathname === cleanHref;
   };
 
+  const currentSectionLabel = sectionLabels[pathname];
+
   return (
     <header className="sticky top-4 z-40 px-4">
       <nav className="mx-auto flex w-full max-w-[1320px] items-center justify-between rounded-full border border-white/10 bg-[#050505d9] px-5 py-3 shadow-[0_14px_44px_rgba(0,0,0,0.42)] backdrop-blur-xl">
-        <Link href="/" className="text-sm font-semibold tracking-[0.12em] text-white">
-          ChronoCrawl
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="text-lg font-semibold tracking-[-0.04em] text-white transition hover:text-white/82"
+          >
+            ChronoCrawl
+          </Link>
+          {pathname !== "/" && currentSectionLabel ? (
+            <span className="rounded-full border border-white/10 bg-white/6 px-3 py-1 text-xs font-medium uppercase tracking-[0.16em] text-white/62">
+              {currentSectionLabel}
+            </span>
+          ) : null}
+        </div>
 
         <div className="hidden md:flex items-center gap-1.5 text-sm">
           {links.map((item) => (

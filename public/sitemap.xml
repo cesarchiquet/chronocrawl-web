@@ -36,7 +36,32 @@
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://www.chronocrawl.com/blog/guide-surveiller-site-concurrent</loc>
+    <loc>https://www.chronocrawl.com/blog/surveiller-un-site-concurrent-sans-bruit</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.chronocrawl.com/blog/comment-lire-un-changement-seo-chez-un-concurrent</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.chronocrawl.com/blog/cta-principal-ce-que-cache-un-changement-de-message</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.chronocrawl.com/blog/pricing-que-surveiller-sur-une-page-tarifs</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.chronocrawl.com/blog/audit-seo-concurrent-ce-qu-il-faut-vraiment-lire</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://www.chronocrawl.com/blog/chronocrawl-vers-une-veille-concurrentielle-plus-actionnable</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>

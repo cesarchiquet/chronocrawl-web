@@ -29,6 +29,14 @@ export default function SignupPage() {
     "idle"
   );
   const [message, setMessage] = useState("");
+  const [from] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("from") || "";
+  });
+  const [intent] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("intent") || "";
+  });
   const passwordsMatch =
     confirmPassword.length === 0 || password === confirmPassword;
   const canSubmit =
@@ -36,6 +44,14 @@ export default function SignupPage() {
     password.length >= 6 &&
     confirmPassword.length >= 6 &&
     passwordsMatch;
+  const contextualIntro =
+    from === "blog"
+      ? intent === "pricing"
+        ? "Tu viens d’un article pricing. Crée ton compte pour surveiller une page tarifs concurrente et voir les vrais mouvements d’offre."
+        : intent === "audit"
+          ? "Tu viens du blog. Crée ton compte pour lancer un audit SEO concurrent et surveiller ensuite la même URL."
+          : "Tu viens du blog. Crée ton compte pour tester ChronoCrawl sur une première URL concurrente."
+      : "Cree ton compte, lance ton essai, puis ajoute ta premiere URL sans repasser par plusieurs ecrans.";
 
   const handleSignUp = async () => {
     if (!email || !password) {
@@ -139,9 +155,7 @@ export default function SignupPage() {
       >
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 md:p-6">
           <h1 className="text-3xl md:text-4xl font-bold">Créer un compte</h1>
-          <p className="mt-4 text-gray-300">
-            Cree ton compte, lance ton essai, puis ajoute ta premiere URL sans repasser par plusieurs ecrans.
-          </p>
+          <p className="mt-4 text-gray-300">{contextualIntro}</p>
           <div className="mt-6 rounded-xl border border-indigo-300/25 bg-indigo-500/10 p-4 text-left">
             <p className="text-sm font-medium text-indigo-100">
               Parcours recommande

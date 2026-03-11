@@ -24,7 +24,15 @@ export default function LoginPage() {
     "idle"
   );
   const [message, setMessage] = useState("");
+  const [from] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("from") || "";
+  });
   const canSubmit = email.trim().length > 4 && password.length >= 6;
+  const contextualIntro =
+    from === "blog"
+      ? "Connecte-toi pour reprendre depuis le blog, ouvrir le dashboard et ajouter directement une URL concurrente."
+      : "Connecte-toi pour reprendre ton essai, ouvrir le dashboard et ajouter ta premiere URL.";
 
   const handleSignIn = async () => {
     if (!canSubmit) return;
@@ -56,9 +64,7 @@ export default function LoginPage() {
       >
         <div className="rounded-2xl border border-white/10 bg-white/5 p-5 md:p-6">
           <h1 className="text-3xl md:text-4xl font-bold">Connexion</h1>
-          <p className="mt-4 text-gray-300">
-            Connecte-toi pour reprendre ton essai, ouvrir le dashboard et ajouter ta premiere URL.
-          </p>
+          <p className="mt-4 text-gray-300">{contextualIntro}</p>
 
           <div className="mt-8 space-y-4">
           <input
