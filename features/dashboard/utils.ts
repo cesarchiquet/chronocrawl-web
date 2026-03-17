@@ -17,8 +17,8 @@ export function getUrlStatusInfo(statusRaw: string | null) {
     return {
       label: "TIMEOUT",
       badgeClass: "bg-amber-500/20 text-amber-300",
-      detail: "Le site a depasse le delai de reponse.",
-      hint: "Relance plus tard ou verifie la latence du site cible.",
+      detail: "Le site a dépassé le délai de réponse.",
+      hint: "Relance plus tard ou vérifie la latence du site cible.",
     };
   }
 
@@ -27,7 +27,7 @@ export function getUrlStatusInfo(statusRaw: string | null) {
       label: "DNS_ERROR",
       badgeClass: "bg-rose-500/20 text-rose-300",
       detail: "Le domaine est introuvable via DNS.",
-      hint: "Verifie l'URL et le nom de domaine.",
+      hint: "Vérifie l'URL et le nom de domaine.",
     };
   }
 
@@ -36,7 +36,7 @@ export function getUrlStatusInfo(statusRaw: string | null) {
       label: "SSL_ERROR",
       badgeClass: "bg-rose-500/20 text-rose-300",
       detail: "Erreur TLS/SSL sur le site cible.",
-      hint: "Verifie le certificat HTTPS du site.",
+      hint: "Vérifie le certificat HTTPS du site.",
     };
   }
 
@@ -44,8 +44,8 @@ export function getUrlStatusInfo(statusRaw: string | null) {
     return {
       label: status,
       badgeClass: "bg-amber-500/20 text-amber-300",
-      detail: "Erreur reseau temporaire.",
-      hint: "Relance l'analyse; si recurrent, verifier l'accessibilite.",
+      detail: "Erreur réseau temporaire.",
+      hint: "Relance l'analyse ; si c'est récurrent, vérifie l'accessibilité.",
     };
   }
 
@@ -55,8 +55,8 @@ export function getUrlStatusInfo(statusRaw: string | null) {
       return {
         label: status,
         badgeClass: "bg-rose-500/20 text-rose-300",
-        detail: "Acces refuse par le site cible.",
-        hint: "Le site bloque probablement les bots ou necessite auth.",
+        detail: "Accès refusé par le site cible.",
+        hint: "Le site bloque probablement les bots ou nécessite une authentification.",
       };
     }
     if (code === 404) {
@@ -64,7 +64,7 @@ export function getUrlStatusInfo(statusRaw: string | null) {
         label: status,
         badgeClass: "bg-amber-500/20 text-amber-300",
         detail: "Page introuvable.",
-        hint: "Met a jour ou supprime cette URL.",
+        hint: "Mets à jour ou supprime cette URL.",
       };
     }
     if (code >= 500) {
@@ -72,14 +72,14 @@ export function getUrlStatusInfo(statusRaw: string | null) {
         label: status,
         badgeClass: "bg-amber-500/20 text-amber-300",
         detail: "Erreur serveur du site cible.",
-        hint: "Reessaye plus tard.",
+        hint: "Réessaie plus tard.",
       };
     }
     return {
       label: status,
       badgeClass: "bg-amber-500/20 text-amber-300",
-      detail: "Requete HTTP en echec.",
-      hint: "Verifier la page et ses restrictions d'acces.",
+      detail: "Requête HTTP en échec.",
+      hint: "Vérifie la page et ses restrictions d'accès.",
     };
   }
 
@@ -87,7 +87,7 @@ export function getUrlStatusInfo(statusRaw: string | null) {
     label: status,
     badgeClass: "bg-amber-500/20 text-amber-300",
     detail: "Statut de surveillance non standard.",
-    hint: "Relance une analyse pour rafraichir l'etat.",
+    hint: "Relance une analyse pour rafraîchir l'état.",
   };
 }
 
@@ -124,9 +124,9 @@ export function getRunHealthInfo(
 ): { label: string; badgeClass: string; detail: string } {
   if (!runLog) {
     return {
-      label: "AUCUNE EXECUTION",
+      label: "AUCUNE EXÉCUTION",
       badgeClass: "bg-white/10 text-gray-200",
-      detail: "Lance une premiere analyse pour initialiser le suivi.",
+      detail: "Lance une première analyse pour initialiser le suivi.",
     };
   }
 
@@ -135,7 +135,7 @@ export function getRunHealthInfo(
     return {
       label: "STABLE",
       badgeClass: "bg-emerald-500/20 text-emerald-200",
-      detail: `Derniere execution en ${runLog.duration_ms} ms.`,
+      detail: `Dernière exécution en ${runLog.duration_ms} ms.`,
     };
   }
   if (status === "PARTIAL_SUCCESS" || status === "PARTIAL") {
@@ -143,20 +143,20 @@ export function getRunHealthInfo(
       label: "PARTIEL",
       badgeClass: "bg-amber-500/20 text-amber-200",
       detail:
-        "Certaines URLs n'ont pas ete traitees. Relance une analyse pour completer.",
+        "Certaines URLs n'ont pas été traitées. Relance une analyse pour compléter.",
     };
   }
   if (status === "FAILED" || failureRate > 20) {
     return {
       label: "A SURVEILLER",
       badgeClass: "bg-rose-500/20 text-rose-200",
-      detail: "Taux d'echec eleve. Verifie les URLs en erreur et relance.",
+      detail: "Taux d'échec élevé. Vérifie les URLs en erreur et relance.",
     };
   }
   return {
     label: status,
     badgeClass: "bg-amber-500/20 text-amber-200",
-    detail: `Execution recente: ${runLog.duration_ms} ms, ${failureRate}% d'echec.`,
+    detail: `Exécution récente : ${runLog.duration_ms} ms, ${failureRate}% d'échec.`,
   };
 }
 
@@ -171,16 +171,16 @@ export function getAlertPriorityInfo(event: ChangeEvent) {
 
   if (confidence >= 80) {
     return {
-      label: "Priorite haute",
+      label: "Priorité haute",
       reason:
         event.metadata?.priority_reason ||
-        "Signal structurel ou changement fort detecte.",
+        "Signal structurel ou changement fort détecté.",
       badgeClass: "bg-red-500/15 text-red-200",
     };
   }
   if (confidence >= 60) {
     return {
-      label: "Priorite moyenne",
+      label: "Priorité moyenne",
       reason:
         event.metadata?.priority_reason ||
         "Changement a suivre rapidement.",
@@ -188,7 +188,7 @@ export function getAlertPriorityInfo(event: ChangeEvent) {
     };
   }
   return {
-    label: "Priorite faible",
+      label: "Priorité faible",
     reason:
       event.metadata?.priority_reason ||
       "Signal peu stable ou partiellement bruité.",

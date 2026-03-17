@@ -62,7 +62,7 @@ async function updateUserSubscriptionById({
 
   if (updateError) {
     throw new Error(
-      `Echec mise a jour abonnement pour ${userId}: ${updateError.message}`
+      `Échec de mise à jour de l'abonnement pour ${userId} : ${updateError.message}`
     );
   }
 }
@@ -128,7 +128,7 @@ async function upsertSubscriptionState(params: {
 export async function POST(request: Request) {
   if (!stripe || !webhookSecret) {
     return NextResponse.json(
-      { error: "Webhook Stripe non configure." },
+      { error: "Webhook Stripe non configuré." },
       { status: 500 }
     );
   }

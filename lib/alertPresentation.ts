@@ -42,8 +42,8 @@ export function getAlertFieldLabel(fieldKey?: string): string {
     case "headlines_json":
       return "Titres visibles";
     default:
-      if (fieldKey?.startsWith("rule:")) return "Bloc surveille";
-      return "Element observe";
+      if (fieldKey?.startsWith("rule:")) return "Bloc surveillé";
+      return "Élément observé";
   }
 }
 
@@ -55,13 +55,13 @@ export function getAlertChangeKind(alert: AlertInput): string {
 
   if (beforeMissing && !afterMissing) return "Ajout";
   if (!beforeMissing && afterMissing) return "Suppression";
-  return "Mise a jour";
+  return "Mise à jour";
 }
 
 function normalizeGeneratedSummary(summary: string) {
   return summary
     .replace(/^\[(seo|cta|pricing|rule)\]\s*/i, "")
-    .replace(/\s+modifie$/i, " mis a jour")
+    .replace(/\s+modifie$/i, " mis à jour")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -69,30 +69,30 @@ function normalizeGeneratedSummary(summary: string) {
 function getFieldDrivenSummary(alert: AlertInput): string | null {
   switch (alert.field_key) {
     case "title":
-      return "Title SEO mis a jour sur la page surveillee";
+      return "Title SEO mis à jour sur la page surveillée";
     case "meta_description":
-      return "Meta description mise a jour sur la page surveillee";
+      return "Meta description mise à jour sur la page surveillée";
     case "h1":
-      return "H1 principal mis a jour sur la page surveillee";
+      return "H1 principal mis à jour sur la page surveillée";
     case "canonical_url":
-      return "Canonical modifiee sur la page surveillee";
+      return "Canonical modifiée sur la page surveillée";
     case "robots_directive":
-      return "Directive robots modifiee sur la page surveillee";
+      return "Directive robots modifiée sur la page surveillée";
     case "pricing_json":
       return alert.severity === "high"
-        ? "Mouvement pricing important detecte"
-        : "Evolution pricing detectee";
+        ? "Mouvement pricing important détecté"
+        : "Évolution pricing détectée";
     case "cta_json":
       return alert.severity === "high"
-        ? "CTA principal modifie sur la page surveillee"
-        : "Ajustement de CTA detecte";
+        ? "CTA principal modifié sur la page surveillée"
+        : "Ajustement de CTA détecté";
     case "headlines_json":
       return alert.severity === "high"
-        ? "Rotation marquee des titres detectee"
-        : "Titres visibles mis a jour";
+        ? "Rotation marquée des titres détectée"
+        : "Titres visibles mis à jour";
     default:
       if (alert.field_key?.startsWith("rule:")) {
-        return "Bloc surveille mis a jour";
+        return "Bloc surveillé mis à jour";
       }
       return null;
   }
@@ -106,67 +106,67 @@ export function getAlertChangeSummary(alert: AlertInput): string {
   if (fieldDriven) return fieldDriven;
   if (alert.metadata?.summary) return normalizeGeneratedSummary(alert.metadata.summary);
   if (alert.field_key) return `${alert.domain.toUpperCase()} - ${alert.field_key}`;
-  return "Changement detecte sur la page surveillee";
+  return "Changement détecté sur la page surveillée";
 }
 
 export function getAlertImpactLabel(alert: AlertInput): string {
   if (alert.metadata?.grouped_fields_summary) {
     if (alert.domain === "seo") {
-      return "Le concurrent ajuste plusieurs signaux SEO sur la meme page.";
+      return "Le concurrent ajuste plusieurs signaux SEO sur la même page.";
     }
     if (alert.domain === "pricing") {
-      return "Le concurrent fait evoluer plusieurs elements de son offre ou de son pricing.";
+      return "Le concurrent fait évoluer plusieurs éléments de son offre ou de son pricing.";
     }
-    return "Le concurrent modifie plusieurs leviers de conversion sur la meme page.";
+    return "Le concurrent modifie plusieurs leviers de conversion sur la même page.";
   }
 
   if (alert.domain === "pricing") {
     return alert.severity === "high"
       ? "Le concurrent ajuste clairement son positionnement prix ou son offre."
-      : "Le positionnement prix evolue sur cette page.";
+      : "Le positionnement prix évolue sur cette page.";
   }
   if (alert.domain === "cta") {
     return alert.severity === "high"
       ? "Le concurrent pousse un levier de conversion plus visible."
-      : "Le parcours de conversion evolue sur cette page.";
+      : "Le parcours de conversion évolue sur cette page.";
   }
   if (alert.domain === "seo") {
     return alert.severity === "high"
-      ? "La page concurrente change son angle SEO de facon structurelle."
+      ? "La page concurrente change son angle SEO de façon structurelle."
       : "Le concurrent ajuste son angle SEO sur cette page.";
   }
   return alert.severity === "high"
-    ? "Le message commercial semble avoir evolue."
-    : "Evolution de contenu a suivre.";
+    ? "Le message commercial semble avoir évolué."
+    : "Évolution de contenu à suivre.";
 }
 
 export function getAlertRecommendedAction(alert: AlertInput): string {
   if (alert.metadata?.grouped_fields_summary) {
-    return `Ouvrir le detail puis relire en priorite: ${alert.metadata.grouped_fields_summary}.`;
+    return `Ouvrir le détail puis relire en priorité : ${alert.metadata.grouped_fields_summary}.`;
   }
 
   if (alert.domain === "pricing") {
-    return "Comparer les montants, l'offre affichee et la promesse de valeur.";
+    return "Comparer les montants, l'offre affichée et la promesse de valeur.";
   }
   if (alert.domain === "cta") {
-    return "Verifier le nouveau CTA, sa promesse et sa place dans la page.";
+    return "Vérifier le nouveau CTA, sa promesse et sa place dans la page.";
   }
   if (alert.domain === "seo") {
-    return "Relire le signal SEO modifie pour comprendre le nouvel angle de la page.";
+    return "Relire le signal SEO modifié pour comprendre le nouvel angle de la page.";
   }
-  return "Verifier le changement observe et son objectif probable.";
+  return "Vérifier le changement observé et son objectif probable.";
 }
 
 export function getAlertConfidence(
   alert: AlertInput
-): { label: "Elevee" | "Moyenne" | "Faible"; className: string } {
+): { label: "Élevée" | "Moyenne" | "Faible"; className: string } {
   const confidenceScore =
     typeof alert.confidence_score === "number" && Number.isFinite(alert.confidence_score)
       ? alert.confidence_score
       : null;
   if (confidenceScore !== null) {
     if (confidenceScore >= 75) {
-      return { label: "Elevee", className: "bg-emerald-500/15 text-emerald-200" };
+      return { label: "Élevée", className: "bg-emerald-500/15 text-emerald-200" };
     }
     if (confidenceScore >= 50) {
       return { label: "Moyenne", className: "bg-amber-500/15 text-amber-200" };
@@ -180,7 +180,7 @@ export function getAlertConfidence(
   const score = Number(hasBefore) + Number(hasAfter) + Number(hasReason);
 
   if (score >= 2) {
-    return { label: "Elevee", className: "bg-emerald-500/15 text-emerald-200" };
+    return { label: "Élevée", className: "bg-emerald-500/15 text-emerald-200" };
   }
   if (score === 1) {
     return { label: "Moyenne", className: "bg-amber-500/15 text-amber-200" };

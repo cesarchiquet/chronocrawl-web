@@ -44,8 +44,23 @@ describe("monitorDiff", () => {
     expect(rows.length).toBeGreaterThan(0);
     expect(rows.some((row) => row.field_key === "title")).toBe(true);
     const titleRow = rows.find((row) => row.field_key === "title");
-    expect(titleRow?.metadata.summary).toBe("Title SEO mis a jour");
+    expect(titleRow?.metadata.summary).toBe("Title SEO mis à jour");
     expect(typeof titleRow?.confidence_score).toBe("number");
+  });
+
+  it("ignores title changes that are only whitespace or casing", () => {
+    const before = makeSnapshot({ title: "ChronoCrawl  Pricing" });
+    const after = makeSnapshot({ id: "snap-new", title: "  chronocrawl pricing " });
+
+    const rows = buildDiffRows({
+      userId: "user-1",
+      monitoredUrlId: "url-1",
+      monitoredUrl: "https://concurrent.com/pricing",
+      before,
+      after,
+    });
+
+    expect(rows.some((row) => row.field_key === "title")).toBe(false);
   });
 
   it("does not generate content domain rows", () => {
@@ -114,6 +129,28 @@ describe("monitorDiff", () => {
     });
 
     expect(rows.some((row) => row.field_key === "cta_json")).toBe(false);
+  });
+
+  it("raises CTA severity when the conversion angle changes strongly", () => {
+    const before = makeSnapshot({
+      cta_json: ["Essai gratuit", "Demander une demo"],
+    });
+    const after = makeSnapshot({
+      id: "snap-new",
+      cta_json: ["Voir les tarifs", "Contacter les ventes"],
+    });
+
+    const rows = buildDiffRows({
+      userId: "user-1",
+      monitoredUrlId: "url-1",
+      monitoredUrl: "https://concurrent.com",
+      before,
+      after,
+    });
+
+    const ctaRow = rows.find((row) => row.field_key === "cta_json");
+    expect(ctaRow?.severity).toBe("high");
+    expect(String(ctaRow?.metadata.priority_reason)).toContain("conversion");
   });
 
   it("ignores headlines reordering without rotation", () => {
@@ -289,6 +326,31 @@ describe("monitorDiff", () => {
           after_value: '["titre d", "titre e", "titre f"]',
           severity: "high",
           confidence_score: 78,
+          noise_flags: [],
+          metadata: {},
+        },
+      ],
+    });
+
+    expect(filtered.filtered).toBe(0);
+    expect(filtered.kept).toHaveLength(1);
+  });
+
+  it("keeps a small CTA change in noisy context when a strategic keyword appears", () => {
+    const filtered = filterDynamicNoiseRows({
+      dynamicNoiseScore: 12,
+      rows: [
+        {
+          user_id: "u",
+          monitored_url_id: "m",
+          snapshot_before_id: "a",
+          snapshot_after_id: "b",
+          domain: "cta",
+          field_key: "cta_json",
+          before_value: '["nous contacter"]',
+          after_value: '["demander un devis"]',
+          severity: "medium",
+          confidence_score: 58,
           noise_flags: [],
           metadata: {},
         },

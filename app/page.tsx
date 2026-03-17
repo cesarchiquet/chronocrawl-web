@@ -179,7 +179,7 @@ export default function Home() {
 
   if (authLoading) {
     return (
-      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
         <PublicNavigation />
         <section className="max-w-5xl mx-auto px-6 pt-28 pb-24">
           <div className="h-6 w-40 rounded bg-white/10 animate-pulse" />
@@ -210,7 +210,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
       <PublicNavigation
         session={session}
         onOpenBillingPortal={openBillingPortal}
@@ -523,7 +523,7 @@ export default function Home() {
             <div className="grid flex-1 content-start gap-3 px-6 py-5 sm:grid-cols-2 xl:grid-cols-4">
               {[
                 ["Checks OK", "8"],
-                ["Points a surveiller", "2"],
+                ["Points à surveiller", "2"],
                 ["Signaux CTA", "6"],
                 ["Signaux pricing", "1"],
               ].map(([label, value]) => (

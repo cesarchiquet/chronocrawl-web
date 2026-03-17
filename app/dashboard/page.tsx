@@ -454,7 +454,7 @@ export default function DashboardPage() {
         throw new Error(data?.error || "Digest impossible.");
       }
       setDigestMessage(
-        `Digest traite: ${data.processed ?? 0} compte(s), ${data.sent ?? 0} email(s) envoye(s).`
+        `Digest traité : ${data.processed ?? 0} compte(s), ${data.sent ?? 0} email(s) envoyé(s).`
       );
     } catch (error: unknown) {
       setDigestMessage(
@@ -570,7 +570,7 @@ export default function DashboardPage() {
 
       const overflowNote =
         queuedRemaining > 0
-          ? ` File partiellement traitee (${queuedRemaining} URL(s) restantes). Relance le scan.`
+          ? ` File partiellement traitée (${queuedRemaining} URL(s) restantes). Relance le scan.`
           : "";
 
       const runHeadline =
@@ -581,10 +581,10 @@ export default function DashboardPage() {
             : totalChanges === 0 && totalFailed === 0
               ? "Scan terminé: moteur actif, aucun nouveau changement détecté."
               : totalChecked === 0 && totalFailed > 0
-                ? "Scan terminé: les URLs ont echoue pendant la vérification."
+                ? "Scan terminé : les URLs ont échoué pendant la vérification."
                 : "Scan terminé.";
       setAnalysisMessage(
-        `${runHeadline} ${totalChecked} URL vérifiee(s), ${totalChanges} changement(s), ${totalDeduped} dedoublonne(s), ${totalNoise} bruit(s) ignore(s), ${totalGrouped} evenement(s) groupe(s), ${totalFailed} echec(s).${failedSamples.length > 0 ? ` Exemples: ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
+        `${runHeadline} ${totalChecked} URL vérifiée(s), ${totalChanges} changement(s), ${totalDeduped} dédoublonné(s), ${totalNoise} bruit(s) ignoré(s), ${totalGrouped} événement(s) groupé(s), ${totalFailed} échec(s).${failedSamples.length > 0 ? ` Exemples : ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
       );
       await loadData(session.user.id);
     } catch (error: unknown) {
@@ -952,7 +952,7 @@ export default function DashboardPage() {
           <div className="cc-panel-strong mt-4 rounded-[24px] p-4 text-sm text-amber-100">
             <p className="font-medium">Abonnement inactif</p>
             <p className="mt-1 text-amber-200">
-              Ton compte a ete rétrogradé sur STARTER. Choisis un abonnement actif pour relancer la surveillance.
+              Ton compte a été rétrogradé sur STARTER. Choisis un abonnement actif pour relancer la surveillance.
             </p>
             <div className="mt-3">
               <a
@@ -969,7 +969,7 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="max-w-2xl">
                 <p className="text-sm font-medium text-white/82">
-                  Passer a Pro pour accelerer la veille
+                  Passer à Pro pour accélérer la veille
                 </p>
                 <p className="mt-1 text-xs text-white/68">
                   Le plan Pro débloque 50 URLs, un scan toutes les 60 minutes et
@@ -981,7 +981,7 @@ export default function DashboardPage() {
                 href="/tarifs"
                 className="cc-button-secondary inline-flex shrink-0 items-center justify-center rounded-full px-3 py-2 text-xs"
               >
-                Voir pourquoi passer a Pro
+                Voir pourquoi passer à Pro
               </a>
             </div>
           </div>
@@ -1031,7 +1031,7 @@ export default function DashboardPage() {
           {currentCount / Math.max(1, limit) >= 0.8 && (
             <div className="cc-panel mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[16px] px-3 py-2">
               <p className="text-xs text-white/78">
-                Tu approches la limite de ton plan. Passer a Pro evitera de bloquer de nouvelles URLs et gardera un rythme de scan plus confortable.
+                Tu approches la limite de ton plan. Passer à Pro évitera de bloquer de nouvelles URLs et gardera un rythme de scan plus confortable.
               </p>
               <a
                 href="/tarifs"
@@ -1089,7 +1089,7 @@ export default function DashboardPage() {
                   Ajout rapide
                 </p>
                 <p className="mt-1 text-sm text-gray-300">
-                  Ajoute une page concurrente a surveiller, puis lance un scan.
+                  Ajoute une page concurrente à surveiller, puis lance un scan.
                 </p>
               </div>
               <span className="cc-chip rounded-full px-3 py-1 text-[11px] text-gray-300">
@@ -1102,7 +1102,7 @@ export default function DashboardPage() {
                   Premier scan recommande
                 </p>
                 <p className="mt-1 text-xs text-white/68">
-                  Tu as deja au moins une URL. Lance maintenant le premier scan pour
+                  Tu as déjà au moins une URL. Lance maintenant le premier scan pour
                   créer la base de comparaison et débloquer les futures alertes.
                 </p>
               </div>

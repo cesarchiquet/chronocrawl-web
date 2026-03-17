@@ -127,7 +127,7 @@ export default function BlogIndex() {
             Veille concurrentielle, signaux SEO et lectures produit sans bruit inutile.
           </h1>
           <p className="mt-6 max-w-2xl text-base leading-7 text-white/62 sm:text-lg">
-            On reprend les vrais sujets du produit : surveillance d&apos;URLs concurrentes, lecture des changements SEO, pression CTA, pricing et qualité de signal.
+            On reprend les vrais sujets du produit : surveillance d&apos;URLs concurrentes, lecture des changements SEO, pression CTA, pricing et qualité du signal.
           </p>
         </div>
 

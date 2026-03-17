@@ -114,6 +114,7 @@ export async function POST(request: Request) {
   const insights = buildAuditInsights({
     title: signals.title || null,
     metaDescription: signals.metaDescription || null,
+    h1: signals.h1 || null,
     canonicalUrl: signals.canonicalUrl || null,
     ctaSignals: ctas,
     pricingSignals: prices,
@@ -121,6 +122,7 @@ export async function POST(request: Request) {
     h2Count,
     hasOpenGraph,
     hasTwitterCard: Boolean(twitterCard),
+    hasJsonLd,
   });
 
   const checks: AuditCheck[] = [
@@ -131,7 +133,7 @@ export async function POST(request: Request) {
       details:
         titleLength === 0
           ? "Title manquant."
-          : "Title detecte.",
+          : "Title détecté.",
       weight: 1.5,
     },
     {
@@ -141,7 +143,7 @@ export async function POST(request: Request) {
       details:
         metaLength === 0
           ? "Meta description manquante."
-          : "Meta description detectee.",
+          : "Meta description détectée.",
       weight: 1.2,
     },
     {
@@ -151,7 +153,7 @@ export async function POST(request: Request) {
       details:
         h1Count === 0
           ? "H1 manquant."
-          : `H1 detecte (${h1Count} balise(s)).`,
+          : `H1 détecté (${h1Count} balise(s)).`,
       weight: 1.2,
     },
     {
@@ -159,8 +161,8 @@ export async function POST(request: Request) {
       label: "Canonical",
       status: signals.canonicalUrl ? "pass" : "fail",
       details: signals.canonicalUrl
-        ? `Canonical detecte: ${signals.canonicalUrl}`
-        : "Canonical non detecte.",
+        ? `Canonical détectée : ${signals.canonicalUrl}`
+        : "Canonical non détectée.",
       weight: 1.1,
     },
     {
@@ -168,8 +170,8 @@ export async function POST(request: Request) {
       label: "Robots",
       status: robots.includes("noindex") ? "fail" : "pass",
       details: signals.robotsDirective
-        ? `Directive detectee: ${signals.robotsDirective}`
-        : "Aucune directive robots explicite detectee (comportement par defaut).",
+        ? `Directive détectée : ${signals.robotsDirective}`
+        : "Aucune directive robots explicite détectée (comportement par défaut).",
       weight: 1.4,
     },
     {
@@ -177,7 +179,7 @@ export async function POST(request: Request) {
       label: "Compatibilite mobile (viewport)",
       status: viewport ? "pass" : "fail",
       details: viewport
-        ? `Viewport detecte: ${viewport}`
+        ? `Viewport détecté : ${viewport}`
         : "Meta viewport absente (risque UX/mobile).",
       weight: 1,
     },
@@ -185,7 +187,7 @@ export async function POST(request: Request) {
       id: "language",
       label: "Langue de page",
       status: lang ? "pass" : "fail",
-      details: lang ? `Lang detecte: ${lang}` : "Attribut lang absent sur <html>.",
+      details: lang ? `Lang détectée : ${lang}` : "Attribut lang absent sur <html>.",
       weight: 0.9,
     },
     {
@@ -194,15 +196,15 @@ export async function POST(request: Request) {
       status: h2Count > 0 ? "pass" : "fail",
       details:
         h2Count > 0
-          ? `${h2Count} H2 detecte(s).`
-          : "Aucun H2 detecte sur cette page concurrente.",
+          ? `${h2Count} H2 détecté(s).`
+          : "Aucun H2 détecté sur cette page concurrente.",
       weight: 0.8,
     },
     {
       id: "content_depth",
       label: "Profondeur de contenu",
       status: wordCount < 200 ? "fail" : "pass",
-      details: `Volume texte detecte: ${wordCount} mots.`,
+      details: `Volume texte détecté : ${wordCount} mots.`,
       weight: 1.3,
     },
     {
@@ -211,7 +213,7 @@ export async function POST(request: Request) {
       status: imgCount === 0 || imgWithoutAltCount === 0 ? "pass" : "fail",
       details:
         imgCount === 0
-          ? "Aucune image detectee."
+          ? "Aucune image détectée."
           : `${imgWithoutAltCount}/${imgCount} image(s) sans attribut alt.`,
       weight: 1,
     },
@@ -221,8 +223,8 @@ export async function POST(request: Request) {
       status: hasOpenGraph ? "pass" : "fail",
       details:
         hasOpenGraph
-          ? "og:title, og:description et og:image detectes."
-          : "Balises Open Graph incompletes ou absentes.",
+          ? "og:title, og:description et og:image détectés."
+          : "Balises Open Graph incomplètes ou absentes.",
       weight: 0.9,
     },
     {
@@ -230,7 +232,7 @@ export async function POST(request: Request) {
       label: "Twitter card",
       status: twitterCard ? "pass" : "fail",
       details: twitterCard
-        ? `twitter:card detecte (${twitterCard}).`
+        ? `twitter:card détectée (${twitterCard}).`
         : "Balise twitter:card absente.",
       weight: 0.5,
     },
@@ -238,7 +240,7 @@ export async function POST(request: Request) {
       id: "structured_data",
       label: "Donnees structurees (JSON-LD)",
       status: hasJsonLd ? "pass" : "fail",
-      details: hasJsonLd ? "Script JSON-LD detecte." : "Aucune donnee structuree detectee.",
+      details: hasJsonLd ? "Script JSON-LD détecté." : "Aucune donnée structurée détectée.",
       weight: 0.8,
     },
     {
@@ -254,10 +256,10 @@ export async function POST(request: Request) {
       status: titleLength === 0 ? "fail" : "pass",
       details:
         titleLength === 0
-          ? "Impossible d'evaluer la qualite du title."
+          ? "Impossible d'évaluer la qualité du title."
           : titleLooksBrandOnly
-            ? "Title detecte."
-            : "Title detecte.",
+            ? "Title détecté."
+            : "Title détecté.",
       weight: 0.7,
     },
   ];
@@ -286,12 +288,12 @@ export async function POST(request: Request) {
       if (item.id === "content_depth")
         return "Le concurrent a un contenu relativement court sur cette page.";
       if (item.id === "image_alt") return "Le concurrent a des images sans attribut alt.";
-      if (item.id === "open_graph") return "Le concurrent a des balises Open Graph incompletes.";
+      if (item.id === "open_graph") return "Le concurrent a des balises Open Graph incomplètes.";
       if (item.id === "twitter_card") return "Le concurrent n'utilise pas twitter:card.";
-      if (item.id === "structured_data") return "Le concurrent n'expose pas de JSON-LD detectable.";
-      if (item.id === "link_profile") return "Le concurrent a un maillage interne limite sur cette page.";
-      if (item.id === "title_quality") return "Le title du concurrent est peu specifique.";
-      return "Point SEO faible detecte sur cette page concurrente.";
+      if (item.id === "structured_data") return "Le concurrent n'expose pas de JSON-LD détectable.";
+      if (item.id === "link_profile") return "Le concurrent a un maillage interne limité sur cette page.";
+      if (item.id === "title_quality") return "Le title du concurrent est peu spécifique.";
+      return "Point SEO faible détecté sur cette page concurrente.";
     });
 
   return NextResponse.json({

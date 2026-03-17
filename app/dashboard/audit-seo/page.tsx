@@ -34,6 +34,8 @@ type AuditPayload = {
     offerVisibility: { value: string; detail: string };
     contentPattern: { value: string; detail: string };
     socialPackaging: { value: string; detail: string };
+    positioningClarity: { value: string; detail: string };
+    opportunityWindow: { value: string; detail: string };
   };
   metrics?: {
     wordCount: number;
@@ -94,7 +96,7 @@ function confidenceBadgeClass(level?: AuditPayload["observationConfidence"]) {
 }
 
 function sourceScopeLabel(scope?: string) {
-  if (scope === "single_page_html") return "Analyse HTML page unique";
+  if (scope === "single_page_html") return "Analyse HTML de page unique";
   return "Analyse page unique";
 }
 
@@ -238,9 +240,9 @@ export default function DashboardAuditSeoPage() {
     return {
       lead:
         stats.fail === 0
-          ? "La page concurrente presente une base SEO propre sur les signaux observés."
+          ? "La page concurrente présente une base SEO propre sur les signaux observés."
           : stats.fail <= 3
-            ? "La page concurrente est exploitable, avec quelques points de vigilance clairement identifies."
+            ? "La page concurrente est exploitable, avec quelques points de vigilance clairement identifiés."
             : "La page concurrente montre plusieurs faiblesses structurelles exploitables.",
       weaknesses:
         weakAreas.length > 0
@@ -288,6 +290,13 @@ export default function DashboardAuditSeoPage() {
         detail:
           insights?.offerVisibility.detail ||
           "Lecture des signaux pricing exposes sur la page observee.",
+      },
+      {
+        label: "Positionnement concurrent",
+        value: insights?.positioningClarity.value || "Lecture en cours",
+        detail:
+          insights?.positioningClarity.detail ||
+          "Lecture de la cohérence entre title, H1 et meta description.",
       },
     ];
   }, [result, stats]);
@@ -340,6 +349,11 @@ export default function DashboardAuditSeoPage() {
         value: result.insights.socialPackaging.value,
         detail: result.insights.socialPackaging.detail,
       },
+      {
+        label: "Fenêtre d'opportunité",
+        value: result.insights.opportunityWindow.value,
+        detail: result.insights.opportunityWindow.detail,
+      },
     ];
   }, [result]);
 
@@ -349,7 +363,7 @@ export default function DashboardAuditSeoPage() {
       `URL: ${result.url}`,
       `Indice SEO observe: ${result.score}/100`,
       `Checks OK: ${stats.pass}`,
-      `Points a surveiller: ${stats.fail}`,
+      `Points à surveiller : ${stats.fail}`,
       "",
       "Observations concurrentes:",
       ...(result.recommendations.length > 0
@@ -367,7 +381,7 @@ export default function DashboardAuditSeoPage() {
 
   if (loadingSession) {
     return (
-      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
         <section className="max-w-6xl mx-auto px-6 pt-20 pb-10">
           <div className="h-6 w-32 rounded bg-white/10 animate-pulse" />
           <div className="mt-3 h-10 w-80 rounded bg-white/10 animate-pulse" />
@@ -378,7 +392,7 @@ export default function DashboardAuditSeoPage() {
 
   if (!session) {
     return (
-      <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
         <section className="max-w-3xl mx-auto px-6 pt-28 pb-24 text-center">
           <h1 className="text-3xl font-bold">Audit SEO</h1>
           <p className="mt-4 text-gray-300">
@@ -396,7 +410,7 @@ export default function DashboardAuditSeoPage() {
   }
 
   return (
-    <main className="min-h-scréen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
+    <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
       <motion.section
         variants={fadeUp}
         initial="hidden"
@@ -414,7 +428,7 @@ export default function DashboardAuditSeoPage() {
           <br />
           concurrent</h1>
         <p className="mt-3 max-w-2xl text-gray-300">
-          Observation SEO structuree d&apos;une page concurrente, avec niveau de fiabilite.
+          Observation SEO structurée d&apos;une page concurrente, avec niveau de fiabilité.
         </p>
         </div>
         </div>
@@ -431,7 +445,7 @@ export default function DashboardAuditSeoPage() {
         <div className="mb-6 rounded-[32px] border border-white/10 bg-white/[0.03] p-6">
           <h2 className="text-xl font-semibold">Historique des URLs enregistrees</h2>
           <p className="mt-2 text-sm text-gray-300">
-            Sélectionne une URL deja surveillée pour lancer un audit en un clic.
+            Sélectionne une URL déjà surveillée pour lancer un audit en un clic.
           </p>
           <div className="mt-4">
             <select
@@ -579,7 +593,7 @@ export default function DashboardAuditSeoPage() {
                       <p className="text-xl font-semibold text-emerald-200">{stats.pass}</p>
                     </div>
                     <div className="rounded-lg border border-rose-300/20 bg-rose-500/5 p-3">
-                      <p className="text-gray-400 text-xs">Points a surveiller</p>
+                      <p className="text-gray-400 text-xs">Points à surveiller</p>
                       <p className="text-xl font-semibold text-rose-200">{stats.fail}</p>
                     </div>
                     <div className="rounded-lg border border-white/10 bg-black/20 p-3">
@@ -635,7 +649,7 @@ export default function DashboardAuditSeoPage() {
               <h2 className="text-xl font-semibold">Priorités observees</h2>
               {priorityChecks.length === 0 ? (
                 <p className="mt-3 text-sm text-emerald-200">
-                  Aucun signal bloquant observe sur cette page concurrente.
+                  Aucun signal bloquant observé sur cette page concurrente.
                 </p>
               ) : (
                 <div className="mt-4 space-y-3">
@@ -681,7 +695,7 @@ export default function DashboardAuditSeoPage() {
                   <div className="rounded-lg border border-white/10 bg-black/20 p-3 md:col-span-2">
                     <p className="text-gray-400 text-xs">Robots</p>
                     <p className="mt-1 text-gray-200">
-                      {result.robotsDirective || "non specifie"}
+                      {result.robotsDirective || "non spécifié"}
                     </p>
                   </div>
                 </div>
@@ -736,7 +750,7 @@ export default function DashboardAuditSeoPage() {
               <h2 className="text-xl font-semibold">Synthese actionnable</h2>
               {result.recommendations.length === 0 ? (
                 <p className="mt-3 text-sm text-emerald-200">
-                  Aucun point critique observe sur cette page concurrente.
+                  Aucun point critique observé sur cette page concurrente.
                 </p>
               ) : (
                 <ul className="mt-3 space-y-2">

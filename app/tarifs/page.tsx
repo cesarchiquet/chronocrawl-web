@@ -127,7 +127,7 @@ export default function TarifsPage() {
         <p className="mt-5 text-center text-gray-300 max-w-2xl mx-auto">
           ChronoCrawl repose aujourd&apos;hui sur un produit clair :
           `Surveillance`, `Centre d&apos;alertes`, `Historique alertes` et
-          `Audit SEO concurrent`. Cette page montre simplement quelle capacite tu
+          `Audit SEO concurrent`. Cette page montre simplement quelle capacité tu
           obtiens selon ton volume.
         </p>
         {fromSignup && (
@@ -136,8 +136,8 @@ export default function TarifsPage() {
               Ton compte est prêt
             </p>
             <p className="mt-1 text-sm text-emerald-50/90">
-              Prochaine etape: démarrer l&apos;essai pour ouvrir la surveillance,
-              ajouter ta première URL et accèder au dashboard complet.
+              Prochaine étape : démarrer l&apos;essai pour ouvrir la surveillance,
+              ajouter ta première URL et accéder au dashboard complet.
             </p>
           </div>
         )}
@@ -171,8 +171,8 @@ export default function TarifsPage() {
 
         <div className="mt-6 cc-shell cc-hover-lift rounded-[28px] p-5">
           <p className="text-sm text-white/72">
-            Logique recommandee : commence par l&apos;essai pour valider le flux,
-            puis passe a `Pro` des que tu veux une veille concurrentielle suivie
+            Logique recommandée : commence par l&apos;essai pour valider le flux,
+            puis passe à `Pro` dès que tu veux une veille concurrentielle suivie
             avec plus d&apos;URLs, plus de scans et plus d&apos;historique.
           </p>
         </div>
@@ -193,11 +193,11 @@ export default function TarifsPage() {
               <p className="mt-2 text-xs text-white/68">{plan.fit}</p>
               <div className="mt-4 cc-panel rounded-[20px] p-3">
                 <p className="text-[11px] uppercase tracking-wide text-gray-400">
-                  Ce que tu achetes vraiment
+                  Ce que tu achètes vraiment
                 </p>
                 <p className="mt-1 text-sm text-gray-200">
                   {plan.name === "Starter"
-                    ? "Le point d'entree pour valider le produit sur un petit volume et confirmer que la veille te convient."
+                    ? "Le point d'entrée pour valider le produit sur un petit volume et confirmer que la veille te convient."
                     : plan.name === "Pro"
                       ? "Le bon équilibre pour suivre sérieusement plusieurs concurrents avec un vrai rythme de travail."
                       : "Le niveau équipe pour piloter plusieurs marques ou plusieurs clients dans la même interface."}
@@ -228,8 +228,8 @@ export default function TarifsPage() {
                   {plan.name === "Starter"
                     ? "Démarrer l'essai"
                     : plan.name === "Pro"
-                      ? "Passer a Pro"
-                      : "Passer a Agency"}
+                      ? "Passer à Pro"
+                      : "Passer à Agency"}
                 </button>
               ) : (
                 <a
@@ -243,8 +243,8 @@ export default function TarifsPage() {
                   {plan.name === "Starter"
                     ? "Démarrer l'essai"
                     : plan.name === "Pro"
-                      ? "Passer a Pro"
-                      : "Passer a Agency"}
+                      ? "Passer à Pro"
+                      : "Passer à Agency"}
                 </a>
               )}
             </article>
@@ -304,15 +304,15 @@ export default function TarifsPage() {
 
         <div className="mt-6 cc-panel-strong cc-hover-lift rounded-[32px] p-6">
           <p className="text-xs uppercase tracking-[0.18em] text-white/68">
-            Parcours recommande
+            Parcours recommandé
           </p>
           <h2 className="mt-2 text-2xl font-semibold">
             Starter pour valider, Pro pour travailler sérieusement
           </h2>
           <p className="mt-3 text-sm text-gray-300">
             Le vrai saut de valeur se fait entre l&apos;essai ou `Starter` et `Pro`.
-            `Starter` sert a vérifier le flux complet. `Pro` devient le bon niveau
-            des que la veille fait partie du quotidien.
+            `Starter` sert à vérifier le flux complet. `Pro` devient le bon niveau
+            dès que la veille fait partie du quotidien.
           </p>
           <div className="mt-5 space-y-3">
             {[
@@ -324,19 +324,19 @@ export default function TarifsPage() {
               {
                 step: "02",
                 title: "Mesurer le besoin réel",
-                text: "Quand les URLs augmentent et que tu veux un rythme plus serre, Starter devient vite limite.",
+                text: "Quand les URLs augmentent et que tu veux un rythme plus serré, Starter devient vite limite.",
               },
               {
                 step: "03",
-                title: "Passer a Pro",
-                text: "Plus de volume, un scan toutes les 60 minutes et 30 jours d'historique: c'est le vrai niveau de travail.",
+                title: "Passer à Pro",
+                text: "Plus de volume, un scan toutes les 60 minutes et 30 jours d'historique : c'est le vrai niveau de travail.",
               },
             ].map((item) => (
               <div
                 key={item.step}
                 className="cc-panel cc-hover-lift rounded-[22px] p-4"
               >
-                <p className="text-xs text-white/68">Etape {item.step}</p>
+                <p className="text-xs text-white/68">Étape {item.step}</p>
                 <p className="mt-1 text-sm font-medium text-gray-100">
                   {item.title}
                 </p>
@@ -348,7 +348,7 @@ export default function TarifsPage() {
 
         {session ? (
           <p className="mt-8 text-center text-xs text-gray-400">
-            Tu es connecte. Tu peux souscrire directement depuis cette page.
+            Tu es connecté. Tu peux souscrire directement depuis cette page.
           </p>
         ) : (
           <p className="mt-8 text-center text-xs text-gray-400">
@@ -358,7 +358,7 @@ export default function TarifsPage() {
         <div className="mt-6 cc-panel-strong cc-hover-lift rounded-[26px] p-4">
           <p className="text-sm font-medium text-gray-100">Besoin d&apos;aide pour choisir ?</p>
           <p className="mt-1 text-xs text-gray-300">
-            Si tu veux valider le produit: Starter. Si tu veux un rythme business propre: Pro. Si tu geres plusieurs comptes: Agency.
+            Si tu veux valider le produit : Starter. Si tu veux un rythme business propre : Pro. Si tu gères plusieurs comptes : Agency.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <a
@@ -384,7 +384,7 @@ export default function TarifsPage() {
             </div>
             <div className="cc-panel cc-hover-lift rounded-[20px] p-3">
               <p className="text-white/68 font-medium">Résiliation</p>
-              <p className="mt-1">Tu peux annuler a tout moment. Aucun engagement longue duree impose.</p>
+              <p className="mt-1">Tu peux annuler à tout moment. Aucun engagement longue durée imposé.</p>
             </div>
             <div className="cc-panel cc-hover-lift rounded-[20px] p-3">
               <p className="text-white/68 font-medium">Support</p>

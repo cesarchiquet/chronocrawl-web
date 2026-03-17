@@ -67,11 +67,11 @@ export default function HeroDashboardPreview({
                   <div className="flex flex-wrap gap-1 text-[10px]">
                     <span className="rounded border border-white/10 bg-white/10 px-2 py-0.5 text-white">SEO</span>
                     <span className="rounded border border-white/10 bg-white/10 px-2 py-0.5 text-white">HIGH</span>
-                    <span className="rounded border border-white/10 bg-white/10 px-2 py-0.5 text-white">PRIORITE HAUTE</span>
+                    <span className="rounded border border-white/10 bg-white/10 px-2 py-0.5 text-white">PRIORITÉ HAUTE</span>
                     <span className="rounded border border-white/10 bg-white/10 px-2 py-0.5 text-white">NOUVEAU</span>
                   </div>
-                  <p className="mt-2 text-[11px] text-gray-200">Title SEO mis a jour sur la page surveillée</p>
-                  <p className="mt-1 text-[10px] text-gray-400">Signal structurel pouvant modifier la visibilite de cette page.</p>
+                  <p className="mt-2 text-[11px] text-gray-200">Title SEO mis à jour sur la page surveillée</p>
+                  <p className="mt-1 text-[10px] text-gray-400">Signal structurel pouvant modifier la visibilité de cette page.</p>
                   <div className="mt-1 flex items-center justify-between text-[10px] text-gray-300">
                     <span>17/02 3H25</span>
                     <span className="rounded border border-white/10 px-1.5 py-0.5">Voir changement</span>

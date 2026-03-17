@@ -9,27 +9,27 @@ import { supabase } from "@/lib/supabaseClient";
 const useCases = [
   {
     title: "SaaS B2B",
-    problem: "Surveiller les évolutions pricing, positioning et landing pages concurrentes.",
-    setup: "10 a 30 URLs critiques: pricing, features, homepage, compare pages.",
+    problem: "Surveiller les évolutions pricing, positionnement et landing pages concurrentes.",
+    setup: "10 à 30 URLs critiques : pricing, features, homepage, compare pages.",
     result: "Alertes prioritaires exploitables en quelques minutes par semaine.",
   },
   {
     title: "E-commerce",
-    problem: "Détectér rapidement promotions, changements de prix et CTA concurrents.",
-    setup: "Suivi categories produits, fiches best sellers et page panier.",
-    result: "Reaction commerciale plus rapide sur les offres cle.",
+    problem: "Détecter rapidement promotions, changements de prix et CTA concurrents.",
+    setup: "Suivi des catégories produits, fiches best-sellers et page panier.",
+    result: "Réaction commerciale plus rapide sur les offres clés.",
   },
   {
     title: "Agence marketing",
     problem: "Suivre plusieurs clients sans bruit et sans contrôle manuel quotidien.",
     setup: "Segmentation par client + exports CSV + historique détaillé.",
-    result: "Reporting plus clair et decisions plus défendables en rendez-vous client.",
+    result: "Reporting plus clair et décisions plus défendables en rendez-vous client.",
   },
   {
     title: "Équipe SEO",
     problem: "Suivre title, meta, H1, canonical et signaux de contenu.",
-    setup: "Focus sur pages transactionnelles et pages SEO a fort trafic.",
-    result: "Detection rapide des mouvements SEO concurrentiels significatifs.",
+    setup: "Focus sur les pages transactionnelles et les pages SEO à fort trafic.",
+    result: "Détection rapide des mouvements SEO concurrentiels significatifs.",
   },
 ];
 
@@ -66,8 +66,8 @@ export default function CasUsagePage() {
           Pour qui ChronoCrawl crée le plus de valeur
         </h1>
         <p className="mt-5 text-gray-300 max-w-3xl">
-          Chaque scénario ci-dessous suit la même logique: problème concret,
-          setup de surveillance, puis resultat exploitable en decision.
+          Chaque scénario ci-dessous suit la même logique : problème concret,
+          setup de surveillance, puis résultat exploitable pour la décision.
         </p>
 
         <div className="mt-10 grid md:grid-cols-2 gap-6">
@@ -75,15 +75,15 @@ export default function CasUsagePage() {
             <article key={item.title} className="cc-panel-strong cc-hover-lift rounded-[28px] p-6">
               <h2 className="text-xl font-semibold">{item.title}</h2>
               <p className="mt-3 text-sm text-gray-300">
-                <span className="text-gray-200 font-medium">Probleme:</span>{" "}
+                <span className="text-gray-200 font-medium">Problème :</span>{" "}
                 {item.problem}
               </p>
               <p className="mt-2 text-sm text-gray-300">
-                <span className="text-gray-200 font-medium">Setup:</span>{" "}
+                <span className="text-gray-200 font-medium">Setup :</span>{" "}
                 {item.setup}
               </p>
               <p className="mt-2 text-sm text-gray-300">
-                <span className="text-gray-200 font-medium">Resultat:</span>{" "}
+                <span className="text-gray-200 font-medium">Résultat :</span>{" "}
                 {item.result}
               </p>
             </article>

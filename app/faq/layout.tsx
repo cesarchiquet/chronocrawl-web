@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "FAQ",
   description:
-    "FAQ complete de ChronoCrawl: fonctionnement, alertes, faux positifs, plans et securite.",
+    "FAQ complète de ChronoCrawl : fonctionnement, alertes, faux positifs, plans et sécurité.",
 };
 
 export default function FaqLayout({

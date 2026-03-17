@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "CGU",
-  description: "Conditions generales d'utilisation de ChronoCrawl.",
+  description: "Conditions générales d'utilisation de ChronoCrawl.",
 };
 
 export default function CguLayout({

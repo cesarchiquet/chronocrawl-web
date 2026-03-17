@@ -46,8 +46,8 @@ function severitiesFromThreshold(threshold: "low" | "medium" | "high") {
 }
 
 function actionSuggestion(domain: ChangeRow["domain"]) {
-  if (domain === "pricing") return "Comparer les prix, l'offre affichee et le message de valeur.";
-  if (domain === "cta") return "Verifier le CTA visible, sa promesse et sa place dans la page.";
+  if (domain === "pricing") return "Comparer les prix, l'offre affichée et le message de valeur.";
+  if (domain === "cta") return "Vérifier le CTA visible, sa promesse et sa place dans la page.";
   return "Relire title, H1 et meta pour comprendre le nouvel angle SEO.";
 }
 
@@ -77,14 +77,14 @@ export async function POST(request: Request) {
   } else {
     if (!digestSecret) {
       return errorResponse(
-        "Mode cron non configure (ALERT_DIGEST_SECRET).",
+        "Mode cron non configuré (ALERT_DIGEST_SECRET).",
         401,
         "CRON_NOT_CONFIGURED"
       );
     }
     const provided = request.headers.get("x-digest-secret");
     if (!provided || provided !== digestSecret) {
-      return errorResponse("Non autorise.", 401, "UNAUTHORIZED");
+      return errorResponse("Non autorisé.", 401, "UNAUTHORIZED");
     }
   }
 
@@ -160,13 +160,13 @@ export async function POST(request: Request) {
     const runCount = usage?.run_count || 0;
     const relanceNote =
       runCount < 2
-        ? "Relance usage: lance une analyse manuelle aujourd'hui pour garder les alertes a jour."
-        : "Usage OK: le moteur tourne regulierement.";
+        ? "Relance usage : lance une analyse manuelle aujourd'hui pour garder les alertes à jour."
+        : "Usage OK : le moteur tourne régulièrement.";
 
     try {
       const headlineItems = [
-        `Resume actionnable: ${highCount} HIGH, ${mediumCount} MEDIUM, domaine prioritaire ${topDomain.toUpperCase()}.`,
-        `Action prioritaire du jour: ${actionSuggestion(topDomain as ChangeRow["domain"])}`,
+        `Résumé actionnable : ${highCount} HIGH, ${mediumCount} MEDIUM, domaine prioritaire ${topDomain.toUpperCase()}.`,
+        `Action prioritaire du jour : ${actionSuggestion(topDomain as ChangeRow["domain"])}`,
         relanceNote,
       ];
 
@@ -182,19 +182,19 @@ export async function POST(request: Request) {
           : "ChronoCrawl — Digest quotidien des alertes";
       const { html, text } = renderAlertEmail({
         title: "Digest quotidien des alertes",
-        intro: `Voici le resume des alertes non lues a revoir aujourd'hui. Seuil applique: ${setting.min_email_severity.toUpperCase()}.`,
+        intro: `Voici le résumé des alertes non lues à revoir aujourd'hui. Seuil appliqué : ${setting.min_email_severity.toUpperCase()}.`,
         items,
         ctaUrl: "https://chronocrawl.com/dashboard",
         ctaLabel: "Ouvrir le dashboard",
         metaChips: [
           `${rows.length} alertes non lues`,
           `${coveredUrls} URL(s) couvertes`,
-          `${highCount} priorite(s) haute(s)`,
+          `${highCount} priorité(s) haute(s)`,
         ],
-        highlightTitle: "Action a prendre aujourd'hui",
+        highlightTitle: "Action à prendre aujourd'hui",
         highlightBody: actionSuggestion(topDomain as ChangeRow["domain"]),
         footerNote:
-          "Tu peux modifier ce mode depuis le dashboard ChronoCrawl. Objectif: revenir vite sur les alertes qui meritent une verification.",
+          "Tu peux modifier ce mode depuis le dashboard ChronoCrawl. Objectif : revenir vite sur les alertes qui méritent une vérification.",
       });
 
       await resend.emails.send({

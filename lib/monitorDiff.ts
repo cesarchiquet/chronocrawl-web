@@ -50,6 +50,29 @@ function asText(input: unknown) {
   return String(input);
 }
 
+const IMPORTANT_COMMERCIAL_KEYWORDS = [
+  "prix",
+  "tarif",
+  "pricing",
+  "essai",
+  "demo",
+  "démo",
+  "devis",
+  "contact",
+  "gratuit",
+  "trial",
+  "signup",
+  "acheter",
+  "abonnement",
+  "plateforme",
+  "logiciel",
+  "solution",
+];
+
+function normalizeTextCompare(input: unknown) {
+  return asText(input).replace(/\s+/g, " ").trim().toLowerCase();
+}
+
 function normalizeJson(input: unknown) {
   return JSON.stringify(input ?? {});
 }
@@ -109,9 +132,42 @@ function shortValue(input: unknown, max = 140) {
 function tokenize(value: string) {
   return value
     .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9\s]/gi, " ")
     .split(/\s+/)
     .filter(Boolean);
+}
+
+function countImportantKeywordShift(beforeValue: string, afterValue: string) {
+  const beforeTokens = new Set(tokenize(beforeValue));
+  const afterTokens = new Set(tokenize(afterValue));
+  let shift = 0;
+  for (const keyword of IMPORTANT_COMMERCIAL_KEYWORDS) {
+    const normalizedKeyword = tokenize(keyword)[0];
+    if (!normalizedKeyword) continue;
+    const beforeHas = beforeTokens.has(normalizedKeyword);
+    const afterHas = afterTokens.has(normalizedKeyword);
+    if (beforeHas !== afterHas) shift += 1;
+  }
+  return shift;
+}
+
+function hasStrategicKeywordSignal(value: string) {
+  const tokens = new Set(tokenize(value));
+  return IMPORTANT_COMMERCIAL_KEYWORDS.some((keyword) => {
+    const normalizedKeyword = tokenize(keyword)[0];
+    return normalizedKeyword ? tokens.has(normalizedKeyword) : false;
+  });
+}
+
+function rowHasStrategicSignal(row: Pick<ChangeRow, "before_value" | "after_value" | "field_key">) {
+  if (!["cta_json", "pricing_json", "headlines_json"].includes(row.field_key)) {
+    return false;
+  }
+  const combined = `${asText(row.before_value)} ${asText(row.after_value)}`;
+  if (hasVolatileTokenPattern(combined)) return false;
+  return hasStrategicKeywordSignal(combined);
 }
 
 function tokenChangeRatio(beforeValue: string, afterValue: string) {
@@ -193,29 +249,29 @@ function changeSummary(params: {
 
   switch (fieldKey) {
     case "title":
-      return "Title SEO mis a jour";
+      return "Title SEO mis à jour";
     case "meta_description":
-      return "Meta description mise a jour";
+      return "Meta description mise à jour";
     case "h1":
-      return "H1 principal mis a jour";
+      return "H1 principal mis à jour";
     case "canonical_url":
-      return "Canonical modifiee";
+      return "Canonical modifiée";
     case "robots_directive":
-      return "Directive robots modifiee";
+      return "Directive robots modifiée";
     case "pricing_json":
       return severity === "high"
-        ? "Mouvement pricing important detecte"
-        : "Evolution pricing detectee";
+        ? "Mouvement pricing important détecté"
+        : "Évolution pricing détectée";
     case "cta_json":
       return severity === "high"
-        ? "CTA principal modifie"
-        : "Ajustement de CTA detecte";
+        ? "CTA principal modifié"
+        : "Ajustement de CTA détecté";
     case "headlines_json":
       return severity === "high"
-        ? "Rotation marquee des titres detectee"
-        : "Titres visibles mis a jour";
+        ? "Rotation marquée des titres détectée"
+        : "Titres visibles mis à jour";
     default:
-      return `[${domainLabel(domain)}] ${fieldLabel(fieldKey)} modifie`;
+      return `[${domainLabel(domain)}] ${fieldLabel(fieldKey)} modifié`;
   }
 }
 
@@ -234,7 +290,7 @@ function hasMeaningfulFieldChange(params: {
     return normalizeComparableJson(beforeValue) !== normalizeComparableJson(afterValue);
   }
 
-  return asText(beforeValue) !== asText(afterValue);
+  return normalizeTextCompare(beforeValue) !== normalizeTextCompare(afterValue);
 }
 
 export function severityAtLeast(
@@ -270,11 +326,19 @@ function computeSeverity(params: {
   }
 
   if (fieldKey === "title" || fieldKey === "meta_description") {
+    const keywordShift = countImportantKeywordShift(beforeValue, afterValue);
     if (becameEmpty || becameFilled) {
       return {
         severity: "high" as const,
         score: 88,
         reason: "Ajout/suppression d'un champ SEO principal.",
+      };
+    }
+    if (keywordShift >= 2) {
+      return {
+        severity: "high" as const,
+        score: 84,
+        reason: "Changement d'angle SEO ou commercial visible.",
       };
     }
     if (ratio >= 0.55) {
@@ -287,16 +351,24 @@ function computeSeverity(params: {
     return {
       severity: "medium" as const,
       score: 64,
-      reason: "Variation moderee de texte SEO principal.",
+      reason: "Variation modérée de texte SEO principal.",
     };
   }
 
   if (fieldKey === "h1") {
+    const keywordShift = countImportantKeywordShift(beforeValue, afterValue);
     if (becameEmpty || becameFilled) {
       return {
         severity: "high" as const,
         score: 78,
         reason: "Ajout/suppression du H1.",
+      };
+    }
+    if (keywordShift >= 2) {
+      return {
+        severity: "high" as const,
+        score: 76,
+        reason: "Le message principal de la page évolue.",
       };
     }
     if (ratio >= 0.6) {
@@ -341,7 +413,7 @@ function computeSeverity(params: {
       return {
         severity: "high" as const,
         score: 94,
-        reason: "Variation de prix >= 10%.",
+        reason: "Variation de prix >= 10 %.",
       };
     }
 
@@ -357,6 +429,10 @@ function computeSeverity(params: {
     const afterCtas = parseStringArray(afterValue);
     const ctaKeywords = ["essai", "demo", "contact", "acheter", "devis", "signup"];
     const delta = symmetricDifferenceCount(beforeCtas, afterCtas);
+    const keywordShift = countImportantKeywordShift(
+      beforeCtas.join(" "),
+      afterCtas.join(" ")
+    );
 
     const beforeImportant = beforeCtas.some((cta) =>
       ctaKeywords.some((keyword) => cta.includes(keyword))
@@ -373,11 +449,19 @@ function computeSeverity(params: {
       };
     }
 
+    if (keywordShift >= 2) {
+      return {
+        severity: "high" as const,
+        score: 80,
+        reason: "Le levier de conversion principal change nettement.",
+      };
+    }
+
     if (delta >= 4) {
       return {
         severity: "high" as const,
         score: 78,
-        reason: "Refonte marquee des CTA visibles.",
+        reason: "Refonte marquée des CTA visibles.",
       };
     }
 
@@ -394,14 +478,14 @@ function computeSeverity(params: {
       return {
         severity: "medium" as const,
         score: 48,
-        reason: "Ajustement leger d'un CTA visible.",
+        reason: "Ajustement léger d'un CTA visible.",
       };
     }
 
     return {
       severity: "medium" as const,
       score: 52,
-      reason: "Variation de CTA detectee.",
+      reason: "Variation de CTA détectée.",
     };
   }
 
@@ -424,27 +508,27 @@ function computeSeverity(params: {
       return {
         severity: "high" as const,
         score: 78,
-        reason: "Rotation forte des headlines detectee.",
+        reason: "Rotation forte des headlines détectée.",
       };
     }
     if (delta <= 1) {
       return {
         severity: "medium" as const,
         score: 54,
-        reason: "Ajustement leger des titres visibles.",
+        reason: "Ajustement léger des titres visibles.",
       };
     }
     return {
       severity: "medium" as const,
       score: 64,
-      reason: "Variation des headlines detectee.",
+      reason: "Variation des headlines détectée.",
     };
   }
 
   return {
     severity: "medium" as const,
     score: 50,
-    reason: "Changement detecte.",
+    reason: "Changement détecté.",
   };
 }
 
@@ -576,13 +660,13 @@ export function buildRuleRows(params: {
       noise_flags: evaluation.matchFound ? [] : ["rule_selector_missing"],
       metadata: {
         url: monitoredUrl,
-        summary: `[RULE] ${evaluation.rule.label || evaluation.rule.selector} modifie`,
+        summary: `[RULE] ${evaluation.rule.label || evaluation.rule.selector} modifié`,
         before_short: shortValue(beforeText),
         after_short: shortValue(afterText),
         priority_score: baseConfidence,
         priority_reason: evaluation.matchFound
-          ? "Variation detectee sur une zone ciblee de surveillance."
-          : "Regle configuree mais zone cible non detectee sur cette page.",
+          ? "Variation détectée sur une zone ciblée de surveillance."
+          : "Règle configurée mais zone cible non détectée sur cette page.",
         rule_id: evaluation.rule.id,
         rule_type: evaluation.rule.rule_type,
         rule_selector: evaluation.rule.selector,
@@ -642,6 +726,7 @@ export function filterDynamicNoiseRows(params: {
     const shouldFilter =
       (nextRow.severity === "medium" &&
         !protectedSeoFields.has(nextRow.field_key) &&
+        !rowHasStrategicSignal(nextRow) &&
         (noiseFlags.has("dynamic_noise_high") || noiseFlags.has("volatile_token")) &&
         nextRow.confidence_score < 55) ||
       shouldFilterLowSignalDynamicChange({
@@ -668,26 +753,37 @@ function shouldFilterLowSignalDynamicChange(params: {
   if (row.severity !== "medium") return false;
   if (dynamicNoiseScore < 10) return false;
 
-  if (row.field_key === "headlines_json") {
+    if (row.field_key === "headlines_json") {
+    const beforeText = asText(row.before_value);
+    const afterText = asText(row.after_value);
     const delta = symmetricDifferenceCount(
-      parseStringArray(asText(row.before_value)),
-      parseStringArray(asText(row.after_value))
+      parseStringArray(beforeText),
+      parseStringArray(afterText)
     );
-    return delta <= 2;
+    return delta <= 2 && !hasStrategicKeywordSignal(beforeText + " " + afterText);
   }
 
   if (row.field_key === "cta_json") {
+    const beforeText = asText(row.before_value);
+    const afterText = asText(row.after_value);
     const delta = symmetricDifferenceCount(
-      parseStringArray(asText(row.before_value)),
-      parseStringArray(asText(row.after_value))
+      parseStringArray(beforeText),
+      parseStringArray(afterText)
     );
-    return delta <= 1;
+    return delta <= 1 && !hasStrategicKeywordSignal(beforeText + " " + afterText);
   }
 
   if (row.field_key === "pricing_json") {
-    const beforeNums = parseNumericValues(asText(row.before_value));
-    const afterNums = parseNumericValues(asText(row.after_value));
-    return beforeNums.length === 0 && afterNums.length === 0 && row.confidence_score < 72;
+    const beforeText = asText(row.before_value);
+    const afterText = asText(row.after_value);
+    const beforeNums = parseNumericValues(beforeText);
+    const afterNums = parseNumericValues(afterText);
+    return (
+      beforeNums.length === 0 &&
+      afterNums.length === 0 &&
+      !hasStrategicKeywordSignal(beforeText + " " + afterText) &&
+      row.confidence_score < 72
+    );
   }
 
   return false;

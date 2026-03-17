@@ -51,7 +51,7 @@ export default function SignupPage() {
         : intent === "audit"
           ? "Tu viens du blog. Crée ton compte pour lancer un audit SEO concurrent et surveiller ensuite la même URL."
           : "Tu viens du blog. Crée ton compte pour tester ChronoCrawl sur une première URL concurrente."
-      : "Cree ton compte, lance ton essai, puis ajoute ta premiere URL sans repasser par plusieurs ecrans.";
+      : "Crée ton compte, lance ton essai, puis ajoute ta première URL sans repasser par plusieurs écrans.";
 
   const handleSignUp = async () => {
     if (!email || !password) {
@@ -140,8 +140,8 @@ export default function SignupPage() {
     }
     setMessage(
       targetUrl.trim()
-        ? "Compte cree. Verifie ton email pour confirmer, puis connecte-toi. Ton URL sera pre-remplie apres connexion."
-        : "Compte cree. Verifie ton email pour confirmer, puis connecte-toi."
+        ? "Compte créé. Vérifie ton email pour confirmer, puis connecte-toi. Ton URL sera pré-remplie après connexion."
+        : "Compte créé. Vérifie ton email pour confirmer, puis connecte-toi."
     );
   };
 
@@ -161,9 +161,9 @@ export default function SignupPage() {
               Parcours recommande
             </p>
             <div className="mt-2 grid gap-2 text-xs text-indigo-50/90">
-              <span>1. Creer le compte</span>
-              <span>2. Demarrer l&apos;essai 7 jours</span>
-              <span>3. Ajouter la premiere URL dans le dashboard</span>
+              <span>1. Créer le compte</span>
+              <span>2. Démarrer l&apos;essai 7 jours</span>
+              <span>3. Ajouter la première URL dans le dashboard</span>
             </div>
           </div>
 
@@ -218,7 +218,7 @@ export default function SignupPage() {
                 Demarrer mon essai 7 jours juste apres l&apos;inscription
               </span>
               <span className="mt-1 block text-xs text-gray-400">
-                Recommande pour arriver plus vite a la premiere URL surveillee.
+                Recommandé pour arriver plus vite à la première URL surveillée.
               </span>
             </span>
           </label>
@@ -247,7 +247,7 @@ export default function SignupPage() {
               />
               <input
                 type="url"
-                placeholder="Premiere URL concurrente a pre-remplir"
+                placeholder="Première URL concurrente à pré-remplir"
                 value={targetUrl}
                 onChange={(e) => {
                   setTargetUrl(e.target.value);
@@ -257,7 +257,7 @@ export default function SignupPage() {
                 className="w-full px-4 py-3 rounded-lg bg-black/20 border border-white/10 focus:outline-none focus:border-indigo-400"
               />
               <p className="text-xs text-gray-400">
-                Si tu renseignes cette URL, elle sera pre-remplie dans le dashboard apres inscription.
+                Si tu renseignes cette URL, elle sera pré-remplie dans le dashboard après inscription.
               </p>
             </div>
           )}
@@ -268,10 +268,10 @@ export default function SignupPage() {
             disabled={status === "loading" || !canSubmit}
           >
             {status === "loading"
-              ? "Creation..."
+              ? "Création..."
               : startTrialNow
-                ? "Creer mon compte et lancer l'essai"
-                : "Creer mon compte"}
+                ? "Créer mon compte et lancer l'essai"
+                : "Créer mon compte"}
           </button>
           </div>
 
@@ -293,7 +293,7 @@ export default function SignupPage() {
 
           <div className="mt-6 text-sm text-gray-300">
             <Link href="/login" className="underline underline-offset-4">
-              Deja un compte ? Se connecter
+              Déjà un compte ? Se connecter
             </Link>
           </div>
         </div>

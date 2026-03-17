@@ -33,19 +33,19 @@ export default function DashboardControlPanels({
     <section className="max-w-6xl mx-auto px-6 pb-24">
       <div className="cc-panel-strong mb-6 rounded-[28px] p-6">
         <div className="mb-4 flex items-center gap-2">
-          <h2 className="text-xl font-semibold">Preferences d&apos;alertes</h2>
+          <h2 className="text-xl font-semibold">Préférences d&apos;alertes</h2>
           <span className="relative inline-flex items-center group">
             <button
               type="button"
-              aria-label="Information sur les preferences d'alertes"
+              aria-label="Information sur les préférences d'alertes"
               className="h-4 w-4 rounded-full border border-white/20 text-[10px] leading-none text-gray-300 hover:text-white hover:border-white/40"
             >
               i
             </button>
             <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-2 hidden w-72 -translate-x-1/2 rounded-[18px] border border-white/10 bg-[#050505] p-3 text-[11px] text-gray-200 shadow-[0_18px_40px_rgba(0,0,0,0.45)] group-hover:block group-focus-within:block">
-              <span className="block">- Mode email : `Instant` envoie chaque alerte prioritaire, `Digest quotidien` envoie un recap lisible, `Aucun email` coupe les envois.</span>
-              <span className="block mt-1">- Seuil email : niveau minimal envoye (`HIGH` uniquement, ou `MEDIUM/HIGH`).</span>
-              <span className="block mt-1">- Heure digest : heure locale (0-23) a laquelle le recap quotidien est envoye.</span>
+              <span className="block">- Mode email : `Instant` envoie chaque alerte prioritaire, `Digest quotidien` envoie un récap lisible, `Aucun email` coupe les envois.</span>
+              <span className="block mt-1">- Seuil email : niveau minimal envoyé (`HIGH` uniquement, ou `MEDIUM/HIGH`).</span>
+              <span className="block mt-1">- Heure digest : heure locale (0-23) à laquelle le récap quotidien est envoyé.</span>
             </span>
           </span>
         </div>

@@ -32,7 +32,7 @@ export default function LoginPage() {
   const contextualIntro =
     from === "blog"
       ? "Connecte-toi pour reprendre depuis le blog, ouvrir le dashboard et ajouter directement une URL concurrente."
-      : "Connecte-toi pour reprendre ton essai, ouvrir le dashboard et ajouter ta premiere URL.";
+      : "Connecte-toi pour reprendre ton essai, ouvrir le dashboard et ajouter ta première URL.";
 
   const handleSignIn = async () => {
     if (!canSubmit) return;
@@ -119,7 +119,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-sm text-gray-300">
             <Link href="/signup" className="underline underline-offset-4">
-              Pas encore de compte ? Creer un compte
+              Pas encore de compte ? Créer un compte
             </Link>
           </div>
         </div>

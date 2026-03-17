@@ -149,10 +149,10 @@ function extractCssSelectorSignal(html: string, selector: string) {
 
 function actionSuggestion(domain: "seo" | "pricing" | "cta") {
   if (domain === "pricing") {
-    return "Comparer les prix, l'offre affichee et le message de valeur.";
+    return "Comparer les prix, l'offre affichée et le message de valeur.";
   }
   if (domain === "cta") {
-    return "Verifier le CTA visible, sa promesse et sa place dans la page.";
+    return "Vérifier le CTA visible, sa promesse et sa place dans la page.";
   }
   return "Relire title, H1 et meta pour comprendre le nouvel angle SEO.";
 }
@@ -394,7 +394,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       checked: 0,
       changes: 0,
-      message: "Aucune URL a analyser.",
+      message: "Aucune URL à analyser.",
     });
   }
 
@@ -862,26 +862,26 @@ export async function POST(request: Request) {
       const topDomain =
         Object.entries(domainCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "seo";
       const uniqueAlerts = dedupedAlerts.map((item) => {
-        return `[${item.severity.toUpperCase()}] ${item.summary} - ${item.url} | Verification: ${actionSuggestion(item.domain)}`;
+        return `[${item.severity.toUpperCase()}] ${item.summary} - ${item.url} | Vérification : ${actionSuggestion(item.domain)}`;
       });
       const subject =
         highCount > 0
-          ? `ChronoCrawl — ${highCount} alerte(s) prioritaire(s) detectee(s)`
-          : "ChronoCrawl — Alertes detectees";
+          ? `ChronoCrawl — ${highCount} alerte(s) prioritaire(s) détectée(s)`
+          : "ChronoCrawl — Alertes détectées";
       const { html, text } = renderAlertEmail({
-        title: "Alertes detectees",
-        intro: `Voici les alertes detectees lors du dernier scan. Seuil applique: ${alertSettings.min_email_severity.toUpperCase()}.`,
+        title: "Alertes détectées",
+        intro: `Voici les alertes détectées lors du dernier scan. Seuil appliqué : ${alertSettings.min_email_severity.toUpperCase()}.`,
         items: uniqueAlerts,
         ctaUrl: "https://chronocrawl.com/dashboard",
         ctaLabel: "Ouvrir le dashboard",
         metaChips: [
-          `${dedupedAlerts.length} alerte(s) remontee(s)`,
-          `${coveredUrls} URL(s) concernee(s)`,
-          `${highCount} priorite(s) haute(s)`,
+          `${dedupedAlerts.length} alerte(s) remontée(s)`,
+          `${coveredUrls} URL(s) concernée(s)`,
+          `${highCount} priorité(s) haute(s)`,
         ],
-        highlightTitle: "Action conseilee maintenant",
+        highlightTitle: "Action conseillée maintenant",
         highlightBody: actionSuggestion(topDomain as "seo" | "pricing" | "cta"),
-        footerNote: "Tu recois cet email car les alertes instantanees sont actives sur ton compte.",
+        footerNote: "Tu reçois cet email car les alertes instantanées sont actives sur ton compte.",
       });
       await resend.emails.send({
         from: "ChronoCrawl <hello@chronocrawl.com>",

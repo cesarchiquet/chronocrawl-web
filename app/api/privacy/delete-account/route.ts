@@ -28,7 +28,7 @@ export async function POST(request: Request) {
         message: subscriptionError.message,
       });
       return NextResponse.json(
-        { error: "Impossible de verifier l'abonnement." },
+        { error: "Impossible de vérifier l'abonnement." },
         { status: 500 }
       );
     }
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error:
-              "Suppression bloquee: impossible d'annuler l'abonnement Stripe.",
+              "Suppression bloquée : impossible d'annuler l'abonnement Stripe.",
           },
           { status: 502 }
         );
@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     appLogger.info("privacy_delete:success", { userId });
     return NextResponse.json({
       code: "OK",
-      message: "Compte supprime. Toutes les donnees liees sont effacees.",
+      message: "Compte supprimé. Toutes les données liées sont effacées.",
     });
   } catch (error: unknown) {
     appLogger.error("privacy_delete:unexpected_error", {

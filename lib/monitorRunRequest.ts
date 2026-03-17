@@ -23,7 +23,7 @@ export function parseMonitorRunRequestBody(rawBody: {
     typeof rawBody.continueQueue !== "boolean"
   ) {
     return {
-      message: "Le champ continueQueue doit etre un booleen.",
+      message: "Le champ continueQueue doit être un booléen.",
       code: "INVALID_BODY",
     };
   }
@@ -37,7 +37,7 @@ export function parseMonitorRunRequestBody(rawBody: {
       )
     ) {
       return {
-        message: "Le champ severities doit etre une liste parmi medium, high.",
+        message: "Le champ severities doit être une liste parmi medium, high.",
         code: "INVALID_BODY",
       };
     }

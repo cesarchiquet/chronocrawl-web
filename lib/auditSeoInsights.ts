@@ -6,6 +6,7 @@ export type AuditInsight = {
 type BuildAuditInsightsParams = {
   title: string | null;
   metaDescription: string | null;
+  h1: string | null;
   canonicalUrl: string | null;
   ctaSignals: number;
   pricingSignals: number;
@@ -13,6 +14,7 @@ type BuildAuditInsightsParams = {
   h2Count: number;
   hasOpenGraph: boolean;
   hasTwitterCard: boolean;
+  hasJsonLd: boolean;
 };
 
 function normalizeText(input: string | null) {
@@ -37,6 +39,7 @@ export function buildAuditInsights(params: BuildAuditInsightsParams) {
   const {
     title,
     metaDescription,
+    h1,
     canonicalUrl,
     ctaSignals,
     pricingSignals,
@@ -44,6 +47,7 @@ export function buildAuditInsights(params: BuildAuditInsightsParams) {
     h2Count,
     hasOpenGraph,
     hasTwitterCard,
+    hasJsonLd,
   } = params;
 
   const titleParts = titleSegments(title);
@@ -94,17 +98,17 @@ export function buildAuditInsights(params: BuildAuditInsightsParams) {
     ctaSignals >= 6
       ? {
           value: "Pression conversion forte",
-          detail: `${ctaSignals} CTA detectes: la page pousse clairement une action commerciale.`,
+          detail: `${ctaSignals} CTA détectés : la page pousse clairement une action commerciale.`,
         }
       : ctaSignals >= 3
         ? {
             value: "Pression conversion visible",
-            detail: `${ctaSignals} CTA detectes: la page travaille la conversion sans surcharger le parcours.`,
+            detail: `${ctaSignals} CTA détectés : la page travaille la conversion sans surcharger le parcours.`,
           }
         : ctaSignals > 0
           ? {
               value: "Pression conversion legere",
-              detail: `${ctaSignals} CTA detectes: le levier commercial existe, mais il reste discret.`,
+              detail: `${ctaSignals} CTA détectés : le levier commercial existe, mais il reste discret.`,
             }
           : {
               value: "Pression conversion faible",
@@ -114,8 +118,8 @@ export function buildAuditInsights(params: BuildAuditInsightsParams) {
   const offerVisibility: AuditInsight =
     pricingSignals >= 2
       ? {
-          value: "Offre clairement exposee",
-          detail: `${pricingSignals} signaux pricing detectes: la page laisse apparaitre son cadrage offre/prix.`,
+          value: "Offre clairement exposée",
+          detail: `${pricingSignals} signaux pricing détectés : la page laisse apparaître son cadrage offre/prix.`,
         }
       : pricingSignals === 1
         ? {
@@ -134,13 +138,13 @@ export function buildAuditInsights(params: BuildAuditInsightsParams) {
       ? {
           value: "Contenu profond et structure",
           detail:
-            "Le volume texte et le maillage de H2 indiquent une page concurrente construite pour tenir une requete sur la duree.",
+            "Le volume texte et le maillage de H2 indiquent une page concurrente construite pour tenir une requête sur la durée.",
         }
       : wordCount >= 400 && h2Count >= 1
         ? {
             value: "Contenu exploitable",
             detail:
-              "La page a assez de matiere pour soutenir son angle, sans etre un contenu tres dense.",
+              "La page a assez de matière pour soutenir son angle, sans être un contenu très dense.",
           }
         : {
             value: "Contenu court ou peu charpente",
@@ -161,7 +165,64 @@ export function buildAuditInsights(params: BuildAuditInsightsParams) {
           }
         : {
             value: "Partage social faible",
-            detail: "Les balises de partage social restent peu structurees ou absentes.",
+          detail: "Les balises de partage social restent peu structurees ou absentes.",
+        };
+
+  const positioningClarity: AuditInsight =
+    title && h1 && metaDescription
+      ? hasCommercialKeyword(title) || hasCommercialKeyword(h1) || hasCommercialKeyword(metaDescription)
+        ? {
+            value: "Positionnement concurrent explicite",
+            detail:
+              "Le title, le H1 et la meta description racontent une promesse commerciale assez claire.",
+          }
+        : {
+            value: "Positionnement plutôt éditorial",
+            detail:
+              "La page est cohérente, mais elle pousse plus un sujet ou une marque qu'une promesse fortement commerciale.",
+          }
+      : title || h1
+        ? {
+            value: "Positionnement partiel",
+            detail:
+              "La page donne un axe, mais il n'est pas complètement verrouillé entre title, H1 et meta description.",
+          }
+        : {
+            value: "Positionnement peu lisible",
+            detail:
+              "Les signaux principaux de cadrage restent trop incomplets pour lire clairement la promesse concurrente.",
+          };
+
+  const weakSignals = [
+    !title,
+    !metaDescription,
+    !h1,
+    !canonicalUrl,
+    ctaSignals <= 2,
+    pricingSignals === 0,
+    !hasOpenGraph,
+    !hasTwitterCard,
+    !hasJsonLd,
+    h2Count === 0,
+  ].filter(Boolean).length;
+
+  const opportunityWindow: AuditInsight =
+    weakSignals >= 5
+      ? {
+            value: "Fenêtre d'opportunité large",
+          detail:
+            "Plusieurs signaux clés sont faibles ou absents: il y a un vrai espace pour construire une page plus propre que ce concurrent.",
+        }
+      : weakSignals >= 3
+        ? {
+            value: "Fenêtre d'opportunité visible",
+            detail:
+              "Le concurrent tient une base exploitable, mais laisse encore plusieurs angles ouverts sur le SEO, la conversion ou le packaging.",
+          }
+        : {
+            value: "Fenêtre d'opportunité plus étroite",
+            detail:
+              "La page concurrente est assez cadrée. La différence se jouera surtout sur l'exécution, le message et le niveau de finition.",
           };
 
   return {
@@ -171,5 +232,7 @@ export function buildAuditInsights(params: BuildAuditInsightsParams) {
     offerVisibility,
     contentPattern,
     socialPackaging,
+    positioningClarity,
+    opportunityWindow,
   };
 }

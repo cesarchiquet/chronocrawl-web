@@ -6,8 +6,8 @@ const items = [
     a: "Les URLs que tu ajoutes: pages pricing, landing pages, contenus SEO ou pages produit.",
   },
   {
-    q: "Comment reduisez-vous les faux positifs ?",
-    a: "Le moteur compare plusieurs signaux (SEO, pricing, CTA, contenu) et dedoublonne les changements consecutifs.",
+    q: "Comment réduisez-vous les faux positifs ?",
+    a: "Le moteur compare plusieurs signaux (SEO, pricing, CTA, contenu) et dédoublonne les changements consécutifs.",
   },
   {
     q: "Puis-je filtrer par URL et période ?",
@@ -15,15 +15,15 @@ const items = [
   },
   {
     q: "Que signifient les statuts TIMEOUT / DNS_ERROR / HTTP_403 ?",
-    a: "Ce sont des causes techniques de scan. Elles sont affichees dans le dashboard avec une recommandation d'action.",
+    a: "Ce sont des causes techniques de scan. Elles sont affichées dans le dashboard avec une recommandation d'action.",
   },
   {
-    q: "Comment fonctionnent les limites plan ?",
-    a: "Chaque plan definit un nombre max d'URLs et un volume max d'analyses journalieres.",
+    q: "Comment fonctionnent les limites du plan ?",
+    a: "Chaque plan définit un nombre maximal d'URLs et un volume maximal d'analyses journalières.",
   },
   {
-    q: "Mes données sont-elles isolees ?",
-    a: "Oui, les données sont isolees par utilisateur et protegees par les policies RLS cote base.",
+    q: "Mes données sont-elles isolées ?",
+    a: "Oui, les données sont isolées par utilisateur et protégées par les policies RLS côté base.",
   },
 ];
 
@@ -31,10 +31,10 @@ export default function FaqPage() {
   return (
     <PublicChrome>
       <section className="max-w-5xl mx-auto px-6 pt-16 pb-24">
-        <h1 className="text-4xl md:text-5xl font-bold text-center">FAQ complete</h1>
+        <h1 className="text-4xl md:text-5xl font-bold text-center">FAQ complète</h1>
         <p className="mt-5 text-center text-gray-300 max-w-2xl mx-auto">
-          La page d&apos;accueil contient une version courte. Cette page rassemble la FAQ complete
-          pour eviter les ambiguities avant inscription.
+          La page d&apos;accueil contient une version courte. Cette page rassemble la FAQ complète
+          pour éviter les ambiguïtés avant inscription.
         </p>
 
         <div className="mt-10 grid md:grid-cols-2 gap-6">

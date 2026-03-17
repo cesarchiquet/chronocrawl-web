@@ -43,7 +43,7 @@ function resolveBaseUrl(request: Request) {
 export async function POST(request: Request) {
   if (!stripe) {
     return errorResponse(
-      "Stripe non configure (cle secrete manquante).",
+      "Stripe non configuré (clé secrète manquante).",
       500,
       "STRIPE_NOT_CONFIGURED"
     );

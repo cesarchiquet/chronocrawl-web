@@ -85,7 +85,7 @@ export default function FonctionnementPage() {
             <h2 className="text-xl font-semibold mb-2">Sécurité et données</h2>
             <p className="text-gray-300 text-sm">
               Chaque compte n&apos;accède qu&apos;a ses propres données (RLS),
-              les sessions API sont vérifiees par token et la facturation est
+              les sessions API sont vérifiées par token et la facturation est
               gérée via Stripe.
             </p>
           </div>

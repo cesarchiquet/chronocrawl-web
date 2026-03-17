@@ -13,10 +13,10 @@ export default function PublicFooter() {
             Guides
           </Link>
           <Link href="/mentions-legales" className="transition hover:text-white">
-            Mentions legales
+            Mentions légales
           </Link>
           <Link href="/confidentialite" className="transition hover:text-white">
-            Confidentialite
+            Confidentialité
           </Link>
           <Link href="/cgu" className="transition hover:text-white">
             CGU

@@ -53,7 +53,7 @@ export default function ContactPage() {
         </h1>
         <p className="mt-6 text-lg text-gray-300 max-w-2xl mx-auto">
           Une question sur la veille concurrentielle, les alertes ou le
-          fonctionnement ? Écris‑nous et on te répond rapidement.
+          fonctionnement ? Écris-nous et on te répond rapidement.
         </p>
 
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
