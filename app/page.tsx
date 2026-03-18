@@ -20,7 +20,6 @@ const fadeUp: Variants = {
 
 export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
-  const [authLoading, setAuthLoading] = useState(true);
   const [checkoutError, setCheckoutError] = useState("");
   const [billingError, setBillingError] = useState("");
   const [demoOpen, setDemoOpen] = useState(false);
@@ -34,20 +33,17 @@ export default function Home() {
       const { data: refreshed } = await supabase.auth.refreshSession();
       if (refreshed.session) {
         setSession(refreshed.session);
-        setAuthLoading(false);
         return;
       }
 
       const { data } = await supabase.auth.getSession();
       setSession(data.session);
-      setAuthLoading(false);
     };
     hydrateSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, currentSession) => {
         setSession(currentSession);
-        setAuthLoading(false);
       }
     );
 
@@ -177,38 +173,6 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [demoOpen]);
 
-  if (authLoading) {
-    return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
-        <PublicNavigation />
-        <section className="max-w-5xl mx-auto px-6 pt-28 pb-24">
-          <div className="h-6 w-40 rounded bg-white/10 animate-pulse" />
-          <div className="mt-5 h-12 w-full rounded bg-white/10 animate-pulse" />
-          <div className="mt-3 h-12 w-4/5 rounded bg-white/10 animate-pulse" />
-          <div className="mt-8 h-10 w-64 rounded bg-white/10 animate-pulse" />
-          <div className="mt-10 flex flex-wrap gap-3">
-            <div className="h-11 w-40 rounded bg-white/10 animate-pulse" />
-            <div className="h-11 w-40 rounded bg-white/10 animate-pulse" />
-            <div className="h-11 w-40 rounded bg-white/10 animate-pulse" />
-          </div>
-        </section>
-        <section className="max-w-6xl mx-auto px-6 pb-24 grid md:grid-cols-3 gap-6">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div
-              key={index}
-              className="cc-panel-strong cc-hover-lift rounded-[28px] p-6"
-            >
-              <div className="h-5 w-36 rounded bg-white/10 animate-pulse" />
-              <div className="mt-3 h-3 w-full rounded bg-white/10 animate-pulse" />
-              <div className="mt-2 h-3 w-5/6 rounded bg-white/10 animate-pulse" />
-            </div>
-          ))}
-        </section>
-        <PublicFooter />
-      </main>
-    );
-  }
-
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top,_#141414_0%,_#050505_38%,_#000000_100%)] text-white">
       <PublicNavigation
@@ -322,6 +286,46 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-white/60">
+                Accès directs
+              </p>
+              <h2 className="mt-2 text-3xl font-semibold">
+                Les pages clés de ChronoCrawl
+              </h2>
+              <p className="mt-2 max-w-2xl text-sm text-gray-300">
+                Cette structure simple aide aussi Google à comprendre les sections
+                importantes du site : produit, tarifs, blog, FAQ, connexion et création de compte.
+              </p>
+            </div>
+          </div>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {[
+              { href: "/fonctionnement", title: "Produit", text: "Découvrir comment fonctionne la surveillance ChronoCrawl." },
+              { href: "/tarifs", title: "Tarifs", text: "Voir les plans Starter, Pro et Agency." },
+              { href: "/blog", title: "Blog", text: "Lire les guides SEO, CTA, pricing et veille concurrentielle." },
+              { href: "/faq", title: "FAQ", text: "Comprendre rapidement les alertes, les scans et les limites." },
+              { href: "/cas-d-usage", title: "Cas d’usage", text: "Voir comment ChronoCrawl s’utilise selon ton métier." },
+              { href: "/contact", title: "Contact", text: "Poser une question commerciale ou produit." },
+              { href: "/login", title: "Connexion", text: "Ouvrir ton espace ChronoCrawl et reprendre la veille." },
+              { href: "/signup", title: "Créer un compte", text: "Commencer l’essai et ajouter ta première URL concurrente." },
+            ].map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="cc-hover-lift rounded-[24px] border border-white/10 bg-white/[0.03] p-5 transition hover:bg-white/[0.06]"
+              >
+                <p className="text-lg font-medium text-white">{item.title}</p>
+                <p className="mt-2 text-sm text-gray-300">{item.text}</p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-[1320px] px-4 pb-20 sm:px-6">
+        <div className="rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05)_0%,_rgba(10,10,10,0.98)_24%,_rgba(0,0,0,1)_88%)] p-6 md:p-8">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-white/60">
                 Parcours produit
               </p>
               <h2 className="mt-2 text-3xl font-semibold">
@@ -357,7 +361,7 @@ export default function Home() {
               className="cc-hover-lift rounded-[28px] border border-white/10 bg-white/[0.03] p-5 transition hover:bg-white/[0.06]"
             >
               <p className="text-xs uppercase tracking-[0.18em] text-white/60">Action</p>
-              <p className="mt-3 text-lg font-medium">Passer a l&apos;action</p>
+              <p className="mt-3 text-lg font-medium">Passer à l&apos;action</p>
               <p className="mt-2 text-sm text-gray-300">Ajouter des URLs, lancer un scan et ouvrir l&apos;historique des alertes.</p>
             </a>
           </div>
@@ -369,7 +373,7 @@ export default function Home() {
         {[
           {
             title: "Moins de bruit, plus de lecture utile",
-            text: "Le produit se concentre sur les signaux SEO, CTA, pricing et titres visibles pour eviter les alertes inutiles.",
+            text: "Le produit se concentre sur les signaux SEO, CTA, pricing et titres visibles pour éviter les alertes inutiles.",
           },
           {
             title: "Alertes avec contexte",
@@ -377,7 +381,7 @@ export default function Home() {
           },
           {
             title: "Audit SEO concurrent inclus",
-            text: "Tu peux lire la structure SEO d'une page concurrente dans un module separe, sans changer d'outil.",
+            text: "Tu peux lire la structure SEO d'une page concurrente dans un module séparé, sans changer d'outil.",
           },
         ].map((item, i) => (
           <motion.div
@@ -402,11 +406,11 @@ export default function Home() {
               Audit SEO concurrent
             </p>
             <h2 className="mt-2 max-w-xl text-3xl font-bold leading-[1.02]">
-              Une restitution qui ressemble a un rapport, pas a un simple score
+              Une restitution qui ressemble à un rapport, pas à un simple score
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-7 text-gray-300">
-              L&apos;audit SEO concurrent est pense comme une lecture structuree de la
-              page observee: fiche concurrente, cadre de confiance, signaux visibles
+              L&apos;audit SEO concurrent est pensé comme une lecture structurée de la
+              page observée : fiche concurrente, cadre de confiance, signaux visibles
               et lecture executive. Tu comprends vite ce que la page montre
               publiquement, sans confusion avec un audit de ton propre site.
             </p>
@@ -414,11 +418,11 @@ export default function Home() {
               {[
                 {
                   title: "Fiche concurrente",
-                  text: "L'URL observee, l'indice SEO et le niveau de fiabilite sont poses en tete de rapport.",
+                  text: "L'URL observée, l'indice SEO et le niveau de fiabilité sont posés en tête de rapport.",
                 },
                 {
                   title: "Cadre de confiance",
-                  text: "Le perimetre réel de lecture est explicite: HTML public, page unique, signaux disponibles.",
+                  text: "Le périmètre réel de lecture est explicite : HTML public, page unique, signaux disponibles.",
                 },
                 {
                   title: "Lecture executive",

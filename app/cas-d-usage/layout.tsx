@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Cas d'usage",
+  title: "Cas d’usage veille concurrentielle",
   description:
-    "Cas d'usage ChronoCrawl pour SaaS, e-commerce, agence et equipes marketing.",
+    "Cas d’usage ChronoCrawl pour SaaS, e-commerce, agences et équipes marketing.",
 };
 
 export default function CasUsageLayout({

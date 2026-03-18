@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Fonctionnement",
+  title: "Produit veille concurrentielle",
   description:
     "Découvre comment ChronoCrawl surveille un site concurrent et envoie des alertes de changement automatiquement.",
 };
