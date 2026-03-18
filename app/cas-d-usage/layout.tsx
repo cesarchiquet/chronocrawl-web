@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Cas d’usage veille concurrentielle",
+  title: "Cas d’usage ChronoCrawl",
   description:
-    "Cas d’usage ChronoCrawl pour SaaS, e-commerce, agences et équipes marketing.",
+    "Découvre les cas d’usage ChronoCrawl pour les SaaS, l’e-commerce, les agences et les équipes marketing qui veulent une veille concurrentielle claire et actionnable.",
+  alternates: {
+    canonical: "/cas-d-usage",
+  },
 };
 
 export default function CasUsageLayout({

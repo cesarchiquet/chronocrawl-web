@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Blog veille concurrentielle",
+  title: "Blog ChronoCrawl",
   description:
-    "Blog ChronoCrawl : guides et analyses pour surveiller des concurrents, lire les changements SEO, CTA et pricing, et structurer une veille concurrentielle utile.",
+    "Lis les guides ChronoCrawl pour surveiller un site concurrent, comprendre les changements SEO, CTA et pricing, et structurer une veille concurrentielle plus utile.",
+  alternates: {
+    canonical: "/blog",
+  },
 };
 
 export default function BlogLayout({

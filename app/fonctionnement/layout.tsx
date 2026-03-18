@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Produit veille concurrentielle",
+  title: "Produit ChronoCrawl",
   description:
-    "Découvre comment ChronoCrawl surveille un site concurrent et envoie des alertes de changement automatiquement.",
+    "Découvre comment ChronoCrawl surveille un site concurrent, détecte les changements SEO, CTA et pricing, et restitue les alertes dans un dashboard lisible.",
+  alternates: {
+    canonical: "/fonctionnement",
+  },
 };
 
 export default function FonctionnementLayout({

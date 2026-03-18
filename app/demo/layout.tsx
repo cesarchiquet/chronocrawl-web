@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Demo",
+  title: "Démo",
   description:
-    "Demo ChronoCrawl: exemple concret d'une detection de changement priorisee.",
+    "Démo ChronoCrawl : exemple concret de détection de changement priorisée.",
+  alternates: {
+    canonical: "/demo",
+  },
 };
 
 export default function DemoLayout({

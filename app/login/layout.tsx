@@ -1,8 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Connexion",
-  description: "Connexion à ChronoCrawl pour accéder au dashboard.",
+  title: "Connexion ChronoCrawl",
+  description:
+    "Connecte-toi à ChronoCrawl pour ouvrir le dashboard, reprendre ton essai et surveiller tes URLs concurrentes.",
+  alternates: {
+    canonical: "/login",
+  },
 };
 
 export default function LoginLayout({

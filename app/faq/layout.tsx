@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "FAQ veille concurrentielle",
+  title: "FAQ ChronoCrawl",
   description:
-    "FAQ complète de ChronoCrawl : fonctionnement, alertes, faux positifs, plans et sécurité.",
+    "Retrouve les réponses aux questions fréquentes sur ChronoCrawl : alertes, scans, audit SEO, plans, faux positifs et sécurité.",
+  alternates: {
+    canonical: "/faq",
+  },
 };
 
 export default function FaqLayout({

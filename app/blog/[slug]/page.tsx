@@ -53,12 +53,27 @@ const articleCtaByCategory = {
   },
 } as const;
 
+const siteUrl =
+  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/+$/, "") ||
+  "https://chronocrawl.com";
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "long",
     year: "numeric",
   }).format(new Date(value));
+}
+
+function getArticleBody(post: (typeof blogPosts)[number]) {
+  return post.content
+    .map((block) => {
+      if (block.type === "paragraph" || block.type === "quote") return block.text;
+      if (block.type === "heading") return block.text;
+      if (block.type === "callout") return `${block.title}. ${block.text}`;
+      return block.items.join(" ");
+    })
+    .join("\n\n");
 }
 
 export function generateStaticParams() {
@@ -82,6 +97,13 @@ export async function generateMetadata({
   return {
     title: post.title,
     description: post.excerpt,
+    authors: [{ name: post.author }],
+    creator: post.author,
+    publisher: "ChronoCrawl",
+    category: categoryLabels[post.category],
+    alternates: {
+      canonical: `/blog/${post.slug}`,
+    },
   };
 }
 
@@ -99,9 +121,71 @@ export default async function BlogPostPage({
 
   const relatedPosts = getRelatedPosts(post.slug, post.category);
   const articleCta = articleCtaByCategory[post.category];
+  const articleSchema = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "@id": `${siteUrl}/blog/${post.slug}#breadcrumb`,
+        itemListElement: [
+          {
+            "@type": "ListItem",
+            position: 1,
+            name: "ChronoCrawl",
+            item: siteUrl,
+          },
+          {
+            "@type": "ListItem",
+            position: 2,
+            name: "Blog",
+            item: `${siteUrl}/blog`,
+          },
+          {
+            "@type": "ListItem",
+            position: 3,
+            name: post.title,
+            item: `${siteUrl}/blog/${post.slug}`,
+          },
+        ],
+      },
+      {
+        "@type": "BlogPosting",
+        "@id": `${siteUrl}/blog/${post.slug}#article`,
+        headline: post.title,
+        description: post.excerpt,
+        articleSection: categoryLabels[post.category],
+        datePublished: post.publishedAt,
+        dateModified: post.publishedAt,
+        timeRequired: post.readTime,
+        author: {
+          "@type": "Organization",
+          name: post.author,
+        },
+        publisher: {
+          "@type": "Organization",
+          "@id": `${siteUrl}/#organization`,
+          name: "ChronoCrawl",
+          logo: {
+            "@type": "ImageObject",
+            url: `${siteUrl}/brand-mark.png`,
+          },
+        },
+        mainEntityOfPage: `${siteUrl}/blog/${post.slug}`,
+        url: `${siteUrl}/blog/${post.slug}`,
+        image: `${siteUrl}/brand-mark.png`,
+        articleBody: getArticleBody(post),
+      },
+    ],
+  };
 
   return (
     <BlogShell>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(articleSchema),
+        }}
+      />
       <article className="px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-6xl">
           <Link

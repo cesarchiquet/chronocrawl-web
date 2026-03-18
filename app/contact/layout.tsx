@@ -1,9 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Contact veille concurrentielle",
+  title: "Contacter ChronoCrawl",
   description:
-    "Contacte ChronoCrawl pour une question sur la veille concurrentielle ou pour discuter de ton besoin.",
+    "Contacte ChronoCrawl pour une question produit, un besoin commercial ou un échange autour de ta veille concurrentielle.",
+  alternates: {
+    canonical: "/contact",
+  },
 };
 
 export default function ContactLayout({

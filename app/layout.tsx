@@ -27,12 +27,12 @@ export const metadata: Metadata = {
   },
 
   title: {
-    default: "Surveiller un site concurrent | ChronoCrawl",
+    default: "ChronoCrawl : veille concurrentielle et surveillance de site concurrent",
     template: "%s | ChronoCrawl",
   },
 
   description:
-    "Surveille les sites concurrents automatiquement. ChronoCrawl détecte les changements et t’envoie des alertes instantanées. Veille concurrentielle simple et rapide.",
+    "ChronoCrawl surveille les sites concurrents, détecte les changements SEO, CTA et pricing, et t’envoie des alertes utiles dans un dashboard lisible.",
   alternates: {
     canonical: "/",
   },

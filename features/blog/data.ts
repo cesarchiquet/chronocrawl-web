@@ -59,6 +59,193 @@ export const categoryClasses: Record<BlogCategory, string> = {
 
 export const blogPosts: BlogPost[] = [
   {
+    slug: "alerte-changement-site-web-comment-eviter-les-faux-positifs",
+    title: "Alerte changement site web : comment éviter les faux positifs",
+    excerpt:
+      "Une alerte changement site web n'a de valeur que si elle remonte un vrai signal. Sinon, elle fatigue l'équipe et tue la veille concurrentielle.",
+    category: "guide",
+    publishedAt: "2026-03-19",
+    readTime: "5 min",
+    author: "Équipe ChronoCrawl",
+    spotlight: "Faire remonter moins d’alertes, mais de bien meilleure qualité.",
+    metric: "Alertes, anti-bruit, priorisation",
+    coverKicker: "Qualité du signal",
+    content: [
+      {
+        type: "paragraph",
+        text: "Le problème d'une alerte changement site web n'est pas seulement technique. Ce n'est pas grave si un outil détecte beaucoup de micro-variations. Ce qui coûte cher, c'est quand ces micro-variations arrivent dans les emails, le centre d'alertes et la tête de l'équipe comme si elles méritaient une réaction.",
+      },
+      {
+        type: "paragraph",
+        text: "Un faux positif n'est pas juste un changement inutile. C'est un changement qui consomme de l'attention sans apporter de lecture exploitable. Au bout de quelques jours, l'utilisateur se dit que le produit remonte trop de bruit. Et à partir de là, même les vrais signaux perdent de la valeur.",
+      },
+      {
+        type: "heading",
+        text: "D'où viennent la plupart des faux positifs",
+      },
+      {
+        type: "list",
+        items: [
+          "Rotations de blocs ou changements d'ordre dans une liste.",
+          "Timestamps, compteurs et micro-variations techniques.",
+          "CTA très proches qui changent seulement de casse ou d'espacement.",
+          "Headlines ou éléments dynamiques qui bougent sans impact business clair.",
+        ],
+      },
+      {
+        type: "paragraph",
+        text: "Beaucoup d'outils confondent activité visuelle et changement utile. Pourtant, ce n'est pas parce qu'une page bouge qu'elle devient stratégique. Le vrai travail d'un moteur d'alertes consiste à séparer les mouvements mécaniques des signaux qui disent quelque chose de l'offre, du SEO ou de la conversion.",
+      },
+      {
+        type: "heading",
+        text: "Ce qu'une bonne alerte doit filtrer avant de notifier",
+      },
+      {
+        type: "list",
+        items: [
+          "Les simples changements d'ordre quand le contenu reste identique.",
+          "Les répétitions quasi identiques entre deux scans rapprochés.",
+          "Les modifications trop faibles pour justifier une décision humaine.",
+          "Les signaux techniques instables qui ne changent rien à la lecture concurrente.",
+        ],
+      },
+      {
+        type: "quote",
+        text: "Une bonne alerte n'est pas celle qui détecte tout. C'est celle qui mérite encore d'être ouverte au bout de la cinquantième notification.",
+      },
+      {
+        type: "heading",
+        text: "Comment reconnaître un vrai signal utile",
+      },
+      {
+        type: "paragraph",
+        text: "Un vrai signal modifie la manière dont le concurrent se présente ou pousse son offre. Un title plus précis, un CTA plus agressif, un plan davantage mis en avant ou une nouvelle promesse visible dès le hero sont des changements qui peuvent justifier une lecture. Ils racontent une intention.",
+      },
+      {
+        type: "list",
+        items: [
+          "Le message principal change vraiment.",
+          "Le niveau de friction conversion baisse ou monte clairement.",
+          "La hiérarchie pricing devient plus agressive ou plus rassurante.",
+          "La page cible un nouveau besoin ou un nouveau segment.",
+        ],
+      },
+      {
+        type: "paragraph",
+        text: "Autrement dit, une alerte utile reformule une évolution, pas un simple diff. C'est pour ça que la restitution compte autant que la détection. Si l'outil affiche juste 'bloc modifié', il n'aide pas. S'il dit que le concurrent pousse désormais un essai gratuit ou un angle SEO plus précis, il donne déjà une lecture.",
+      },
+      {
+        type: "heading",
+        text: "La bonne méthode pour réduire les faux positifs dans le temps",
+      },
+      {
+        type: "list",
+        items: [
+          "Limiter d'abord la surveillance aux pages qui portent de vrais enjeux.",
+          "Observer quels types d'alertes sont ouverts, ignorés ou relus.",
+          "Regrouper les signaux proches en une seule alerte lisible.",
+          "Durcir progressivement le filtre sur les changements faibles et répétitifs.",
+        ],
+      },
+      {
+        type: "callout",
+        title: "Point de méthode",
+        text: "Une veille concurrentielle fiable ne se juge pas au nombre d'alertes envoyées, mais au nombre d'alertes que l'équipe considère encore comme utiles après plusieurs semaines.",
+      },
+      {
+        type: "paragraph",
+        text: "ChronoCrawl doit gagner là-dessus. Pas en promettant de détecter tout, mais en aidant à voir ce qui mérite réellement une lecture. C'est exactement ce qui transforme une alerte changement site web en outil de veille concurrentielle crédible, au lieu d'un simple flux de notifications techniques.",
+      },
+    ],
+  },
+  {
+    slug: "comment-surveiller-la-page-tarifs-d-un-concurrent",
+    title: "Comment surveiller la page tarifs d’un concurrent",
+    excerpt:
+      "Surveiller une page tarifs concurrente ne consiste pas à relever un prix. Il faut suivre la mise en avant des plans, les preuves de valeur et la pression commerciale.",
+    category: "guide",
+    publishedAt: "2026-03-17",
+    readTime: "5 min",
+    author: "Équipe ChronoCrawl",
+    spotlight: "Méthode simple pour suivre une page tarifs sans se perdre dans les détails.",
+    metric: "Pricing, plans, preuves de valeur",
+    coverKicker: "Surveillance pricing",
+    content: [
+      {
+        type: "paragraph",
+        text: "Quand une équipe dit qu'elle veut surveiller la page tarifs d'un concurrent, elle pense souvent au prix affiché. En pratique, ce n'est presque jamais le seul élément important. Une page tarifs peut devenir beaucoup plus agressive sans changer le chiffre principal. Elle peut pousser un plan différemment, ajouter des preuves de valeur ou réduire la friction autour de l'essai.",
+      },
+      {
+        type: "paragraph",
+        text: "C'est pour ça qu'une bonne surveillance pricing commence par une question plus utile : qu'est-ce que cette page essaie désormais de faire faire au visiteur ? Si la réponse change, la page a bougé de manière intéressante, même si les tarifs eux-mêmes n'ont presque pas changé.",
+      },
+      {
+        type: "heading",
+        text: "Commencer par les bons éléments à suivre",
+      },
+      {
+        type: "list",
+        items: [
+          "Le plan mis en avant ou marqué comme recommandé.",
+          "L'ordre des plans dans la grille tarifs.",
+          "La présence d'un essai, d'une remise ou d'une garantie.",
+          "Les preuves de valeur affichées autour du pricing.",
+        ],
+      },
+      {
+        type: "paragraph",
+        text: "Cette base suffit déjà à éviter une erreur fréquente : surveiller toute la page comme un bloc unique. Une page tarifs est un espace commercial dense. Si l'on ne distingue pas les signaux utiles, on finit avec des alertes trop vagues pour être réellement exploitables.",
+      },
+      {
+        type: "heading",
+        text: "Ce qui mérite vraiment une alerte",
+      },
+      {
+        type: "list",
+        items: [
+          "Un plan devient soudainement central dans la page.",
+          "Une montée en gamme est rendue plus désirable.",
+          "Le concurrent réduit la friction avec un essai ou une promesse rassurante.",
+          "Une nouvelle logique d'offre apparaît dans les libellés, bénéfices ou CTA.",
+        ],
+      },
+      {
+        type: "quote",
+        text: "Sur une page tarifs, un changement de hiérarchie vaut souvent autant qu'un changement de prix.",
+      },
+      {
+        type: "paragraph",
+        text: "Ce point est clé. Beaucoup de mouvements intéressants passent par la mise en scène commerciale. Un concurrent peut décider de pousser sa version Pro, de rendre son offre de départ plus rassurante ou de déplacer son CTA pour faire monter le taux de conversion sans toucher au tarif facial.",
+      },
+      {
+        type: "heading",
+        text: "Comment lire les changements dans le temps",
+      },
+      {
+        type: "paragraph",
+        text: "Une page tarifs ne s'analyse pas une seule fois. Elle s'observe dans la continuité. Si le même plan est mis en avant plusieurs semaines de suite, si les preuves de valeur se renforcent ou si le discours autour du prix devient plus net, tu commences à voir un mouvement d'offre, pas juste un test isolé.",
+      },
+      {
+        type: "list",
+        items: [
+          "Regarder si le même plan remonte régulièrement.",
+          "Vérifier si la pression commerciale s'intensifie au fil des semaines.",
+          "Comparer les changements de pricing avec les changements de CTA.",
+          "Lire ensemble l'offre, la preuve et le niveau de friction.",
+        ],
+      },
+      {
+        type: "callout",
+        title: "Méthode simple",
+        text: "Le bon objectif n'est pas de suivre tous les pixels d'une page tarifs. C'est d'identifier les changements qui peuvent révéler une nouvelle stratégie de packaging, de conversion ou de montée en gamme.",
+      },
+      {
+        type: "paragraph",
+        text: "ChronoCrawl doit servir exactement à ça : t'aider à voir quand une page tarifs concurrente devient plus agressive, plus rassurante ou plus claire. C'est ce niveau de lecture qui rend la surveillance pricing utile pour un fondateur, une équipe growth ou une équipe marketing, au lieu d'en faire un simple archivage de captures.",
+      },
+    ],
+  },
+  {
     slug: "surveiller-un-site-concurrent-sans-bruit",
     title: "Surveiller un site concurrent sans se noyer dans le bruit",
     excerpt:
@@ -364,6 +551,92 @@ export const blogPosts: BlogPost[] = [
       {
         type: "paragraph",
         text: "Dans ChronoCrawl, l'objectif n'est donc pas d'empiler des snapshots. Il est d'aider à voir quand la page tarifs d'un concurrent devient plus claire, plus agressive ou plus rassurante. C'est ce type de lecture qui peut justifier une réaction sur ton propre pricing ou ton propre packaging.",
+      },
+    ],
+  },
+  {
+    slug: "alternative-a-changetower-en-francais",
+    title: "Alternative à ChangeTower en français",
+    excerpt:
+      "Si tu cherches une alternative à ChangeTower en français, la vraie question n'est pas seulement le monitoring. C'est la qualité de lecture des changements et la clarté du produit.",
+    category: "comparatif",
+    publishedAt: "2026-03-15",
+    readTime: "5 min",
+    author: "Équipe ChronoCrawl",
+    spotlight: "Comparer les outils sur la qualité du signal, pas seulement sur la détection.",
+    metric: "Monitoring, alertes, lisibilité",
+    coverKicker: "Comparatif outil",
+    content: [
+      {
+        type: "paragraph",
+        text: "ChangeTower reste une référence logique quand on parle de surveillance de changements sur des pages web. L'outil a un positionnement clair et une vraie légitimité sur le monitoring. Mais pour une équipe française ou francophone, la question pratique devient vite plus précise : existe-t-il une alternative plus simple, plus lisible et plus orientée veille concurrentielle ?",
+      },
+      {
+        type: "paragraph",
+        text: "Comparer des outils de monitoring uniquement sur leur capacité à détecter un diff n'a pas beaucoup d'intérêt. Aujourd'hui, beaucoup de produits savent détecter des changements. La vraie différence se fait sur ce que l'utilisateur comprend ensuite : est-ce un changement important, un ajustement mineur ou du bruit ?",
+      },
+      {
+        type: "heading",
+        text: "Ce qu'il faut vraiment comparer",
+      },
+      {
+        type: "list",
+        items: [
+          "La capacité à filtrer les faux positifs.",
+          "La lisibilité du centre d'alertes au quotidien.",
+          "La qualité de formulation des changements remontés.",
+          "La cohérence entre surveillance, historique et audit SEO.",
+        ],
+      },
+      {
+        type: "paragraph",
+        text: "C'est là que ChronoCrawl veut se différencier. Pas en promettant une suite infinie. Mais en restant très focalisé sur la veille concurrentielle actionnable : SEO, CTA, pricing, changements utiles et lecture simple dans un environnement francophone.",
+      },
+      {
+        type: "heading",
+        text: "Quand ChangeTower reste fort",
+      },
+      {
+        type: "list",
+        items: [
+          "Pour une logique pure de change monitoring.",
+          "Pour une culture produit déjà habituée à ce type d'outil.",
+          "Pour des usages où la granularité technique prime sur la lecture métier.",
+        ],
+      },
+      {
+        type: "paragraph",
+        text: "Il ne faut pas caricaturer. ChangeTower n'est pas un mauvais point de comparaison. Au contraire, c'est une bonne référence pour juger ce qu'un produit de surveillance doit réussir. Mais cela permet aussi de clarifier ce que ChronoCrawl doit faire mieux pour exister : moins de bruit, plus de restitution, et une expérience plus directe pour une équipe qui veut vite comprendre ce qui bouge.",
+      },
+      {
+        type: "heading",
+        text: "Là où une alternative française peut être plus crédible",
+      },
+      {
+        type: "list",
+        items: [
+          "Une interface pensée directement pour un usage francophone.",
+          "Des alertes reformulées en langage utile, pas seulement technique.",
+          "Un pont naturel entre surveillance et audit SEO concurrent.",
+          "Une lecture orientée business pour les pages tarifs, CTA et landings.",
+        ],
+      },
+      {
+        type: "quote",
+        text: "Une alternative utile à ChangeTower ne gagne pas en ajoutant des couches. Elle gagne en réduisant le bruit et en améliorant la lecture du signal.",
+      },
+      {
+        type: "paragraph",
+        text: "Pour beaucoup d'équipes, le vrai besoin n'est pas de surveiller tout le web. Il est de suivre un petit nombre de pages concurrentes importantes et de savoir si les changements détectés justifient une réaction. Si l'outil répond bien à cette question, il devient crédible. Sinon, il devient un flux de notifications de plus.",
+      },
+      {
+        type: "callout",
+        title: "Lecture d'équipe",
+        text: "ChronoCrawl n'a pas besoin d'être une copie de ChangeTower. Il doit être plus lisible, plus ciblé et plus actionnable pour la veille concurrentielle d'équipes francophones.",
+      },
+      {
+        type: "paragraph",
+        text: "Si tu cherches une alternative à ChangeTower en français, le bon critère de choix n'est donc pas seulement le nombre de détections possibles. C'est la capacité du produit à t'aider à comprendre, relire et exploiter les changements qui comptent. C'est exactement la zone où ChronoCrawl a le plus de légitimité à se construire.",
       },
     ],
   },
