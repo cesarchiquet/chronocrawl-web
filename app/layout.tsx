@@ -16,6 +16,15 @@ const siteUrl =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   applicationName: "ChronoCrawl",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/brand-mark.png", type: "image/png", sizes: "512x512" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: ["/brand-mark.png"],
+  },
 
   title: {
     default: "Surveiller un site concurrent | ChronoCrawl",
@@ -53,6 +62,7 @@ export default function RootLayout({
                   "@id": `${siteUrl}/#organization`,
                   name: "ChronoCrawl",
                   url: siteUrl,
+                  logo: `${siteUrl}/brand-mark.png`,
                   email: "hello@chronocrawl.com",
                 },
                 {

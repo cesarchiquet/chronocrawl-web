@@ -1,0 +1,13 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bg" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(180 150) rotate(45) scale(360)">
+      <stop stop-color="#181818"/>
+      <stop offset="0.58" stop-color="#090909"/>
+      <stop offset="1" stop-color="#000000"/>
+    </radialGradient>
+  </defs>
+  <circle cx="256" cy="256" r="224" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="223" stroke="rgba(255,255,255,0.12)" stroke-width="2"/>
+  <text x="256" y="256" text-anchor="middle" dominant-baseline="central" fill="#FFFFFF"
+    font-family="Manrope, Geist, Arial, sans-serif" font-size="260" font-weight="800" letter-spacing="-16">C</text>
+</svg>
