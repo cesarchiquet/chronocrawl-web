@@ -10,6 +10,7 @@ import {
 } from "@/lib/alertPresentation";
 import { formatAlertDateShort } from "@/lib/dateFormat";
 import type { ChangeEvent } from "@/features/dashboard/types";
+import AlertBeforeAfter from "@/features/dashboard/components/AlertBeforeAfter";
 
 type AlertDetailModalProps = {
   alert: ChangeEvent;
@@ -97,23 +98,12 @@ export default function AlertDetailModal({ alert, onClose }: AlertDetailModalPro
             </div>
           </div>
 
-          <div className="mt-4 grid grid-cols-1 gap-3 text-sm">
-            <div className="rounded-xl border border-amber-300/20 bg-amber-500/[0.05] p-4">
-              <p className="text-xs uppercase tracking-wide text-amber-100/80">
-                Etat precedent
-              </p>
-              <p className="mt-2 text-gray-100">
-                {alert.metadata?.before_short || "non disponible"}
-              </p>
-            </div>
-            <div className="rounded-xl border border-emerald-300/20 bg-emerald-500/[0.05] p-4">
-              <p className="text-xs uppercase tracking-wide text-emerald-100/80">
-                Etat observe
-              </p>
-              <p className="mt-2 text-gray-100">
-                {alert.metadata?.after_short || "non disponible"}
-              </p>
-            </div>
+          <div className="mt-4 text-sm">
+            <AlertBeforeAfter
+              beforeValue={alert.metadata?.before_short}
+              afterValue={alert.metadata?.after_short}
+              compact
+            />
           </div>
 
           <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">

@@ -18,11 +18,11 @@ export const metadata: Metadata = {
   applicationName: "ChronoCrawl",
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
       { url: "/icon.svg", type: "image/svg+xml" },
       { url: "/brand-mark.png", type: "image/png", sizes: "512x512" },
+      { url: "/favicon.ico", sizes: "any" },
     ],
-    shortcut: ["/favicon.ico"],
+    shortcut: ["/icon.svg"],
     apple: ["/brand-mark.png"],
   },
 
