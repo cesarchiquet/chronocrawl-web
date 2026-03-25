@@ -400,146 +400,104 @@ export default function Home() {
       </section>
 
       <section className="max-w-6xl mx-auto px-6 pb-24">
-        <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-stretch">
-          <div className="cc-hover-lift flex h-full min-w-0 flex-col rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05)_0%,_rgba(10,10,10,0.98)_24%,_rgba(0,0,0,1)_88%)] p-6 md:p-8">
-            <p className="text-xs uppercase tracking-[0.18em] text-white/60">
-              Audit SEO concurrent
-            </p>
-            <h2 className="mt-2 max-w-xl text-3xl font-bold leading-[1.02]">
-              Une restitution qui ressemble à un rapport, pas à un simple score
-            </h2>
-            <p className="mt-4 max-w-xl text-sm leading-7 text-gray-300">
-              L&apos;audit SEO concurrent est pensé comme une lecture structurée de la
-              page observée : fiche concurrente, cadre de confiance, signaux visibles
-              et lecture executive. Tu comprends vite ce que la page montre
-              publiquement, sans confusion avec un audit de ton propre site.
-            </p>
-            <div className="mt-6 grid gap-3">
-              {[
-                {
-                  title: "Fiche concurrente",
-                  text: "L'URL observée, l'indice SEO et le niveau de fiabilité sont posés en tête de rapport.",
-                },
-                {
-                  title: "Cadre de confiance",
-                  text: "Le périmètre réel de lecture est explicite : HTML public, page unique, signaux disponibles.",
-                },
-                {
-                  title: "Lecture executive",
-                  text: "Les points visibles, les angles faibles et les signaux conversion ressortent sans jargon inutile.",
-                },
-              ].map((item) => (
-                <div
-                  key={item.title}
-                  className="cc-hover-lift min-w-0 rounded-[24px] border border-white/10 bg-white/[0.03] p-4"
-                >
-                  <p className="break-words text-sm font-semibold text-white">{item.title}</p>
-                  <p className="mt-2 break-words text-sm text-gray-300">{item.text}</p>
-                </div>
-              ))}
+        <div className="cc-hover-lift rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05)_0%,_rgba(10,10,10,0.98)_24%,_rgba(0,0,0,1)_88%)] p-6 md:p-8">
+          <div className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-[0.18em] text-white/60">
+                Audit SEO concurrent
+              </p>
+              <h2 className="mt-2 max-w-2xl text-3xl font-bold leading-[1.02]">
+                Une restitution qui ressemble à un rapport, pas à un simple score
+              </h2>
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-300">
+                L&apos;audit SEO concurrent est pensé comme une lecture structurée de la
+                page observée. Tu vois l&apos;URL analysée, les signaux détectés, le
+                niveau de fiabilité, la lecture executive et les points à surveiller
+                dans un même bloc. L&apos;objectif est simple : comprendre vite ce que la
+                page concurrente montre publiquement et ce que cela peut signaler.
+              </p>
+              <div className="mt-6 grid gap-3 md:grid-cols-3">
+                {[
+                  {
+                    title: "Fiche concurrente",
+                    text: "L'URL observée, l'indice SEO et le niveau de fiabilité sont posés en tête.",
+                  },
+                  {
+                    title: "Cadre de confiance",
+                    text: "Le périmètre de lecture est explicite : HTML public, page unique, signaux visibles.",
+                  },
+                  {
+                    title: "Lecture executive",
+                    text: "Les points solides, les points faibles et la pression conversion ressortent sans jargon.",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.title}
+                    className="cc-hover-lift min-w-0 rounded-[24px] border border-white/10 bg-white/[0.03] p-4"
+                  >
+                    <p className="break-words text-sm font-semibold text-white">{item.title}</p>
+                    <p className="mt-2 break-words text-sm text-gray-300">{item.text}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="mt-6 mt-auto">
-              <a
-                href={session?.user ? "/dashboard/audit-seo" : "/signup"}
-                className="inline-flex rounded-lg border border-white bg-white px-5 py-3 text-sm font-medium text-black transition hover:bg-white/85"
-              >
-                Voir l&apos;audit SEO concurrent
-              </a>
+
+            <div className="grid content-start gap-3">
+              <div className="cc-hover-lift min-w-0 rounded-[28px] border border-white/10 bg-white/[0.03] p-5">
+                <p className="text-xs uppercase tracking-[0.18em] text-white/60">
+                  C&apos;est quoi le SEO ?
+                </p>
+                <h3 className="mt-2 text-2xl font-semibold leading-tight text-white">
+                  Le SEO, c&apos;est la façon dont une page se rend compréhensible et
+                  visible dans Google
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-gray-300">
+                  En pratique, Google lit d&apos;abord les signaux visibles d&apos;une page :
+                  son title, sa meta description, son H1, sa structure, ses liens,
+                  ses appels à l&apos;action et parfois la manière dont l&apos;offre est
+                  formulée. Quand ces éléments sont clairs, cohérents et bien
+                  hiérarchisés, la page a plus de chances d&apos;être comprise, bien
+                  positionnée et bien cliquée.
+                </p>
+                <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                  {[
+                    {
+                      title: "À quoi ça sert",
+                      text: "Comprendre comment un concurrent structure sa page pour capter de la visibilité et de l'intention.",
+                    },
+                    {
+                      title: "Ce qu'on lit",
+                      text: "Title, meta description, H1, canonical, signaux CTA, présence d'une offre et structure visible.",
+                    },
+                    {
+                      title: "Pourquoi c'est utile",
+                      text: "Repérer vite si la page pousse un angle SEO fort, un message commercial précis ou une faiblesse exploitable.",
+                    },
+                    {
+                      title: "Ce que ChronoCrawl apporte",
+                      text: "Une lecture concurrente claire, structurée et directement exploitable, sans jargon technique inutile.",
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.title}
+                      className="min-w-0 rounded-[24px] border border-white/10 bg-black/20 p-4"
+                    >
+                      <p className="text-sm font-semibold text-white">{item.title}</p>
+                      <p className="mt-2 text-sm leading-6 text-gray-300">{item.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="cc-hover-lift flex h-full min-w-0 flex-col overflow-hidden rounded-[36px] border border-white/10 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05)_0%,_rgba(10,10,10,0.98)_24%,_rgba(0,0,0,1)_88%)]">
-            <div className="border-b border-white/10 px-6 py-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs uppercase tracking-[0.18em] text-white/60">
-                    Fiche concurrente
-                  </p>
-                  <h3 className="mt-2 max-w-lg text-2xl font-semibold leading-tight text-white">
-                    Restitution premium de la page observee
-                  </h3>
-                  <p className="mt-2 break-all text-sm text-gray-300">
-                    https://www.concurrent-exemple.com/pricing
-                  </p>
-                </div>
-                <div className="flex min-w-0 flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-white">
-                    Indice SEO observe: 76/100
-                  </span>
-                  <span className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs text-white/80">
-                    Fiabilité élevée
-                  </span>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-[1.05fr_0.95fr]">
-                <div className="cc-hover-lift min-w-0 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">
-                    Lecture executive
-                  </p>
-                  <p className="mt-2 break-words text-base font-medium text-white">
-                    Page concurrente exploitable, avec une offre visible et des
-                    leviers SEO clairement lisibles.
-                  </p>
-                  <p className="mt-2 break-words text-sm text-gray-300">
-                    Faiblesses visibles: meta description courte, pression CTA moderee.
-                  </p>
-                  <p className="mt-1 break-words text-sm text-gray-300">
-                    Points solides: title détecté, canonical present, pricing lisible.
-                  </p>
-                </div>
-                <div className="cc-hover-lift min-w-0 rounded-[24px] border border-white/10 bg-white/[0.03] p-4">
-                  <p className="text-xs uppercase tracking-wide text-gray-400">
-                    Cadre de confiance
-                  </p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <div className="min-w-0">
-                      <p className="text-[11px] text-gray-400">Source analysee</p>
-                      <p className="mt-1 break-words text-sm text-gray-100">Analyse HTML page unique</p>
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-[11px] text-gray-400">Base de lecture</p>
-                      <p className="mt-1 break-words text-sm text-gray-100">HTML public capture au moment du scan</p>
-                    </div>
-                  </div>
-                  <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
-                    {[
-                      ["Title", "Détecté"],
-                      ["Meta", "Détectée"],
-                      ["H1", "Détecté"],
-                      ["Canonical", "Détectée"],
-                      ["CTA", "6"],
-                      ["Pricing", "1"],
-                    ].map(([label, value]) => (
-                      <div
-                        key={label}
-                        className="min-w-0 rounded-[18px] border border-white/10 bg-white/[0.03] px-3 py-2"
-                      >
-                        <p className="text-[11px] text-gray-400">{label}</p>
-                        <p className="mt-1 break-words text-sm font-medium text-gray-100">
-                          {value}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="grid flex-1 content-start gap-3 px-6 py-5 sm:grid-cols-2 xl:grid-cols-4">
-              {[
-                ["Checks OK", "8"],
-                ["Points à surveiller", "2"],
-                ["Signaux CTA", "6"],
-                ["Signaux pricing", "1"],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="cc-hover-lift min-w-0 rounded-[24px] border border-white/10 bg-white/[0.03] p-4"
-                >
-                  <p className="text-xs text-gray-400">{label}</p>
-                  <p className="mt-1 break-words text-lg font-semibold text-gray-100">{value}</p>
-                </div>
-              ))}
-            </div>
+          <div className="mt-6">
+            <a
+              href={session?.user ? "/dashboard/audit-seo" : "/signup"}
+              className="inline-flex rounded-lg border border-white bg-white px-5 py-3 text-sm font-medium text-black transition hover:bg-white/85"
+            >
+              Voir l&apos;audit SEO concurrent
+            </a>
           </div>
         </div>
       </section>

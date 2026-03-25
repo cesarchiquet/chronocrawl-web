@@ -71,3 +71,15 @@ V1 + V2 + V3 cleanup:
 - `Surveillance`: monitored URLs, alert center, alert history
 - `Audit SEO`: competitor page audit with structured observations
 - `Pricing` dashboard module removed from the active product path
+
+## Automated monitoring
+
+ChronoCrawl now supports server-side automatic monitoring on Netlify:
+
+- `Starter`: every 6 hours
+- `Pro`: every 60 minutes
+- `Agency`: every 15 minutes
+
+Required production env var:
+
+- `MONITOR_SCHEDULE_SECRET`

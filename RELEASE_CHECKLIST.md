@@ -18,6 +18,7 @@ Use this checklist before each production push.
   - [ ] `NEXT_PUBLIC_SITE_URL`
   - [ ] `RESEND_API_KEY`
   - [ ] `ALERT_DIGEST_SECRET` (if digest endpoint used by scheduler)
+  - [ ] `MONITOR_SCHEDULE_SECRET` (required for automatic monitoring cron)
 
 ## 2) Smoke Flow (Manual)
 
@@ -61,6 +62,11 @@ Use this checklist before each production push.
   - [ ] retries happen on transient failures
   - [ ] failure statuses are actionable (`TIMEOUT`, `DNS_ERROR`, `SSL_ERROR`, `HTTP_xxx`)
 - [ ] Confirm dashboard "Sante monitoring" block updates.
+- [ ] Netlify scheduled function `monitor-auto-dispatch` is active.
+- [ ] Automatic monitoring respects plan frequency:
+  - [ ] Starter: every 6h
+  - [ ] Pro: every 60 min
+  - [ ] Agency: every 15 min
 - [ ] Trigger `/api/alerts/digest` (manual test) and verify:
   - [ ] email includes action-oriented summary (HIGH/MEDIUM + focus domain)
   - [ ] email includes "Action prioritaire du jour"

@@ -207,6 +207,7 @@ function evaluateMonitorRuleSignals(params: {
 export async function POST(request: Request) {
   const requestStartedAtMs = Date.now();
   const rawBody = (await request.json().catch(() => ({}))) as {
+    userId?: unknown;
     continueQueue?: unknown;
     severities?: unknown;
     minSeverity?: unknown;
@@ -217,16 +218,15 @@ export async function POST(request: Request) {
   }
   const continueQueue = parsedBody.continueQueue;
   const selectedSeverities = parsedBody.selectedSeverities;
+  const scheduleSecret = process.env.MONITOR_SCHEDULE_SECRET?.trim();
+  const requestScheduleSecret =
+    request.headers.get("x-monitor-schedule-secret")?.trim() || "";
+  const internalUserId =
+    typeof rawBody.userId === "string" ? rawBody.userId.trim() : "";
+  const isScheduledRun =
+    Boolean(scheduleSecret) && requestScheduleSecret === scheduleSecret;
 
-  const auth = await requireUserFromRequest(request);
-  if ("error" in auth) {
-    return errorResponse(
-      auth.error || "Session invalide.",
-      auth.status || 401,
-      "UNAUTHORIZED"
-    );
-  }
-  const userId = auth.user.id;
+  let userId = "";
   const runStartedAtIso = new Date(requestStartedAtMs).toISOString();
   const writeRunLog = async (params: {
     status: MonitorRunStatus;
@@ -251,10 +251,35 @@ export async function POST(request: Request) {
     }
   };
 
-  const { data: userData, error: userError } =
-    await supabaseAdmin.auth.admin.getUserById(userId);
-  if (userError || !userData.user) {
-    return errorResponse("Utilisateur introuvable.", 400, "USER_NOT_FOUND");
+  let user: NonNullable<
+    Awaited<ReturnType<typeof supabaseAdmin.auth.admin.getUserById>>["data"]["user"]
+  > | null = null;
+
+  if (isScheduledRun) {
+    if (!internalUserId) {
+      return errorResponse("userId manquant.", 400, "INVALID_INTERNAL_USER");
+    }
+    userId = internalUserId;
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (error || !data.user) {
+      return errorResponse("Utilisateur introuvable.", 400, "USER_NOT_FOUND");
+    }
+    user = data.user;
+  } else {
+    const auth = await requireUserFromRequest(request);
+    if ("error" in auth) {
+      return errorResponse(
+        auth.error || "Session invalide.",
+        auth.status || 401,
+        "UNAUTHORIZED"
+      );
+    }
+    userId = auth.user.id;
+    const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (error || !data.user) {
+      return errorResponse("Utilisateur introuvable.", 400, "USER_NOT_FOUND");
+    }
+    user = data.user;
   }
 
   const { data: subscriptionRow } = await supabaseAdmin
@@ -265,13 +290,13 @@ export async function POST(request: Request) {
 
   const plan =
     subscriptionRow?.plan ||
-    (userData.user.user_metadata?.plan as string | undefined) ||
+    (user.user_metadata?.plan as string | undefined) ||
     "starter";
   const rawStatus =
     subscriptionRow?.status ||
-    (userData.user.user_metadata?.subscription_status as string | undefined) ||
+    (user.user_metadata?.subscription_status as string | undefined) ||
     "inactive";
-  const metadataStatus = userData.user.user_metadata?.subscription_status as
+  const metadataStatus = user.user_metadata?.subscription_status as
     | string
     | undefined;
   const status =
@@ -488,7 +513,7 @@ export async function POST(request: Request) {
   const failed: string[] = [];
   const highSeverityAlerts: InstantAlertItem[] = [];
   const diagnostics: UrlRunDiagnostic[] = [];
-  const userEmail = userData.user.email || "";
+  const userEmail = user.email || "";
 
   for (const job of jobs) {
     const item = urlById.get(job.monitored_url_id);
