@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUserFromRequest } from "@/lib/routeAuth";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const portalConfigurationId = process.env.STRIPE_PORTAL_CONFIGURATION_ID;
 const priceStarter = process.env.STRIPE_PRICE_STARTER;
 const pricePro = process.env.STRIPE_PRICE_PRO;
 const priceAgency = process.env.STRIPE_PRICE_AGENCY;
@@ -14,6 +15,13 @@ const stripe = stripeSecretKey
 
 type Plan = "starter" | "pro" | "agency";
 const VALID_PLANS: Plan[] = ["starter", "pro", "agency"];
+const MANAGED_SUBSCRIPTION_STATUSES = new Set([
+  "active",
+  "trialing",
+  "past_due",
+  "unpaid",
+  "incomplete",
+]);
 
 function errorResponse(
   message: string,
@@ -94,9 +102,17 @@ export async function POST(request: Request) {
           ? priceAgency
           : null;
 
-  if (!priceId || !userId || !email) {
+  if (!priceId) {
     return errorResponse(
-      "Plan, utilisateur ou prix Stripe invalide.",
+      `Prix Stripe manquant pour le plan ${plan}.`,
+      500,
+      "MISSING_STRIPE_PRICE"
+    );
+  }
+
+  if (!userId || !email) {
+    return errorResponse(
+      "Utilisateur ou email invalide pour le checkout.",
       400,
       "INVALID_CHECKOUT_INPUT"
     );
@@ -118,10 +134,53 @@ export async function POST(request: Request) {
   const existingMetadata = userData.user.user_metadata ?? {};
   const { data: subscriptionRow } = await supabaseAdmin
     .from("user_subscriptions")
-    .select("stripe_customer_id,status")
+    .select("stripe_customer_id,stripe_subscription_id,status,plan")
     .eq("user_id", userId)
-    .maybeSingle<{ stripe_customer_id: string | null; status: string | null }>();
+    .maybeSingle<{
+      stripe_customer_id: string | null;
+      stripe_subscription_id: string | null;
+      status: string | null;
+      plan: Plan | null;
+    }>();
   const existingStatus = subscriptionRow?.status || null;
+  const existingSubscriptionId = subscriptionRow?.stripe_subscription_id || null;
+  if (
+    existingSubscriptionId &&
+    existingStatus &&
+    MANAGED_SUBSCRIPTION_STATUSES.has(existingStatus)
+  ) {
+    if (!subscriptionRow?.stripe_customer_id) {
+      return errorResponse(
+        "Un abonnement existe déjà, mais le compte client Stripe est introuvable. Ouvre le portail de facturation depuis le dashboard.",
+        409,
+        "SUBSCRIPTION_MANAGED_IN_PORTAL"
+      );
+    }
+
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: subscriptionRow.stripe_customer_id,
+      return_url: `${origin}/dashboard`,
+      ...(portalConfigurationId
+        ? {
+            configuration: portalConfigurationId,
+          }
+        : {}),
+    });
+
+    if (!portalSession.url) {
+      return errorResponse(
+        "Le portail de facturation est indisponible pour le moment.",
+        500,
+        "PORTAL_URL_MISSING"
+      );
+    }
+
+    return NextResponse.json({
+      url: portalSession.url,
+      code: "SUBSCRIPTION_MANAGED_IN_PORTAL",
+    });
+  }
+
   const nextStatus =
     existingStatus === "active" || existingStatus === "trialing"
       ? existingStatus

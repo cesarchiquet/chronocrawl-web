@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { requireUserFromRequest } from "@/lib/routeAuth";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const portalConfigurationId = process.env.STRIPE_PORTAL_CONFIGURATION_ID;
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
 
 function errorResponse(
@@ -88,6 +89,11 @@ export async function POST(request: Request) {
   const session = await stripe.billingPortal.sessions.create({
     customer: resolvedCustomerId,
     return_url: `${origin}/dashboard`,
+    ...(portalConfigurationId
+      ? {
+          configuration: portalConfigurationId,
+        }
+      : {}),
   });
 
   if (!session.url) {

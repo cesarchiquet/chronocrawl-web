@@ -19,6 +19,14 @@ function getPlanFromPriceId(priceId: string | undefined) {
   return "starter";
 }
 
+function normalizeSubscriptionStatus(status: string, cancelAtPeriodEnd?: boolean) {
+  if (cancelAtPeriodEnd) return "inactive";
+  if (status === "canceled" || status === "incomplete_expired") {
+    return "inactive";
+  }
+  return status;
+}
+
 async function updateUserSubscriptionById({
   userId,
   plan,
@@ -180,31 +188,93 @@ export async function POST(request: Request) {
         session.client_reference_id || session.metadata?.user_id || "";
 
       if (userId) {
-        const priceId = session.metadata?.plan
-          ? session.metadata.plan === "pro"
-            ? pricePro
-            : session.metadata.plan === "agency"
-              ? priceAgency
-              : priceStarter
-          : undefined;
+        const stripeSubscription =
+          typeof session.subscription === "string"
+            ? await stripe.subscriptions.retrieve(session.subscription)
+            : null;
+        const priceId =
+          stripeSubscription?.items.data[0]?.price?.id ||
+          (session.metadata?.plan
+            ? session.metadata.plan === "pro"
+              ? pricePro
+              : session.metadata.plan === "agency"
+                ? priceAgency
+                : priceStarter
+            : undefined);
+        const normalizedStatus = stripeSubscription
+          ? normalizeSubscriptionStatus(
+              stripeSubscription.status,
+              stripeSubscription.cancel_at_period_end
+            )
+          : "active";
+        const trialEnd = stripeSubscription?.trial_end
+          ? new Date(stripeSubscription.trial_end * 1000).toISOString()
+          : null;
+        const currentPeriodEnd = stripeSubscription?.current_period_end
+          ? new Date(stripeSubscription.current_period_end * 1000).toISOString()
+          : null;
 
         await updateUserSubscriptionById({
           userId,
           plan: getPlanFromPriceId(priceId),
-          status: "trialing",
+          status: normalizedStatus,
           customerId: typeof session.customer === "string" ? session.customer : null,
           subscriptionId:
             typeof session.subscription === "string" ? session.subscription : null,
+          trialEnd,
         });
 
         await upsertSubscriptionState({
           userId,
           plan: getPlanFromPriceId(priceId),
-          status: "trialing",
+          status: normalizedStatus,
           customerId: typeof session.customer === "string" ? session.customer : null,
           subscriptionId:
             typeof session.subscription === "string" ? session.subscription : null,
+          trialEnd,
+          currentPeriodEnd,
+          cancelAtPeriodEnd: stripeSubscription?.cancel_at_period_end ?? false,
         });
+      }
+    }
+
+    if (event.type === "checkout.session.expired") {
+      const session = event.data.object as Stripe.Checkout.Session;
+      const userId =
+        session.client_reference_id || session.metadata?.user_id || "";
+
+      if (userId) {
+        const { data: existingRow } = await supabaseAdmin
+          .from("user_subscriptions")
+          .select("status,plan,stripe_customer_id")
+          .eq("user_id", userId)
+          .maybeSingle<{
+            status: string | null;
+            plan: string | null;
+            stripe_customer_id: string | null;
+          }>();
+
+        if (existingRow?.status === "pending_checkout") {
+          await updateUserSubscriptionById({
+            userId,
+            plan: existingRow.plan || "starter",
+            status: "inactive",
+            customerId:
+              typeof session.customer === "string"
+                ? session.customer
+                : existingRow.stripe_customer_id,
+          });
+
+          await upsertSubscriptionState({
+            userId,
+            plan: existingRow.plan || "starter",
+            status: "inactive",
+            customerId:
+              typeof session.customer === "string"
+                ? session.customer
+                : existingRow.stripe_customer_id,
+          });
+        }
       }
     }
 
@@ -223,7 +293,12 @@ export async function POST(request: Request) {
         hasScheduledCancellation;
 
       if (userId) {
-        const status = shouldDowngrade ? "inactive" : subscription.status;
+        const status = shouldDowngrade
+          ? "inactive"
+          : normalizeSubscriptionStatus(
+              subscription.status,
+              subscription.cancel_at_period_end
+            );
         const plan = shouldDowngrade ? "starter" : getPlanFromPriceId(priceId);
         const trialEnd = subscription.trial_end
           ? new Date(subscription.trial_end * 1000).toISOString()

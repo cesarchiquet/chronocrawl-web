@@ -17,6 +17,7 @@ Required environment variables are documented in `.env.local` examples used by r
 - `STRIPE_PRICE_STARTER`
 - `STRIPE_PRICE_PRO`
 - `STRIPE_PRICE_AGENCY`
+- `STRIPE_PORTAL_CONFIGURATION_ID` (optional but recommended in production)
 - `RESEND_API_KEY`
 
 ## Quality gate before commit

@@ -11,6 +11,11 @@ Use this checklist before each production push.
   - [ ] `SUPABASE_SERVICE_ROLE_KEY`
   - [ ] `STRIPE_SECRET_KEY`
   - [ ] `STRIPE_WEBHOOK_SECRET`
+  - [ ] `STRIPE_PRICE_STARTER`
+  - [ ] `STRIPE_PRICE_PRO`
+  - [ ] `STRIPE_PRICE_AGENCY`
+  - [ ] `STRIPE_PORTAL_CONFIGURATION_ID` (recommended)
+  - [ ] `NEXT_PUBLIC_SITE_URL`
   - [ ] `RESEND_API_KEY`
   - [ ] `ALERT_DIGEST_SECRET` (if digest endpoint used by scheduler)
 
@@ -46,6 +51,8 @@ Use this checklist before each production push.
 - [ ] Complete Stripe test payment.
 - [ ] Confirm user sees active/trialing state in dashboard.
 - [ ] Open billing portal and return successfully.
+- [ ] If a subscribed user re-clicks a pricing CTA, they are redirected to the billing portal instead of creating a duplicate subscription.
+- [ ] A canceled or expired checkout does not leave the account stuck in `pending_checkout`.
 
 ## 4) API and Monitoring Sanity
 
