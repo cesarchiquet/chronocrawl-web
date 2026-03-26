@@ -71,6 +71,9 @@ function getArticleBody(post: (typeof blogPosts)[number]) {
       if (block.type === "paragraph" || block.type === "quote") return block.text;
       if (block.type === "heading") return block.text;
       if (block.type === "callout") return `${block.title}. ${block.text}`;
+      if (block.type === "internal-links") {
+        return block.links.map((item) => `${item.label}. ${item.description}`).join(" ");
+      }
       return block.items.join(" ");
     })
     .join("\n\n");
@@ -285,6 +288,35 @@ export default async function BlogPostPage({
                       >
                         {block.text}
                       </blockquote>
+                    );
+                  }
+
+                  if (block.type === "internal-links") {
+                    return (
+                      <div
+                        key={index}
+                        className="mt-8 rounded-[24px] border border-white/8 bg-white/[0.025] p-5"
+                      >
+                        <p className="text-xs uppercase tracking-[0.16em] text-white/42">
+                          {block.title}
+                        </p>
+                        <div className="mt-4 space-y-3">
+                          {block.links.map((item) => (
+                            <Link
+                              key={item.href}
+                              href={item.href}
+                              className="block rounded-[20px] border border-white/8 bg-white/[0.02] p-4 transition hover:bg-white/[0.05]"
+                            >
+                              <p className="text-base font-medium tracking-[-0.03em] text-white">
+                                {item.label}
+                              </p>
+                              <p className="mt-2 text-sm leading-6 text-white/56">
+                                {item.description}
+                              </p>
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
                     );
                   }
 

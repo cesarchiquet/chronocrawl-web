@@ -10,7 +10,12 @@ export type BlogContentBlock =
   | { type: "heading"; text: string }
   | { type: "list"; items: string[] }
   | { type: "quote"; text: string }
-  | { type: "callout"; title: string; text: string };
+  | { type: "callout"; title: string; text: string }
+  | {
+      type: "internal-links";
+      title: string;
+      links: { href: string; label: string; description: string }[];
+    };
 
 export type BlogPost = {
   slug: string;
@@ -153,6 +158,27 @@ export const blogPosts: BlogPost[] = [
         text: "Une veille concurrentielle fiable ne se juge pas au nombre d'alertes envoyées, mais au nombre d'alertes que l'équipe considère encore comme utiles après plusieurs semaines.",
       },
       {
+        type: "internal-links",
+        title: "À lire aussi",
+        links: [
+          {
+            href: "/blog/surveiller-un-site-concurrent-sans-bruit",
+            label: "Surveiller un site concurrent sans se noyer dans le bruit",
+            description: "Le guide de base pour cadrer une veille concurrentielle utile.",
+          },
+          {
+            href: "/blog/comment-lire-un-changement-seo-chez-un-concurrent",
+            label: "Comment lire un changement SEO chez un concurrent",
+            description: "Pour relier les alertes aux vrais mouvements de positionnement.",
+          },
+          {
+            href: "/tarifs",
+            label: "Voir les plans ChronoCrawl",
+            description: "Comparer Starter, Pro et Agency selon ton rythme de veille.",
+          },
+        ],
+      },
+      {
         type: "paragraph",
         text: "ChronoCrawl doit gagner là-dessus. Pas en promettant de détecter tout, mais en aidant à voir ce qui mérite réellement une lecture. C'est exactement ce qui transforme une alerte changement site web en outil de veille concurrentielle crédible, au lieu d'un simple flux de notifications techniques.",
       },
@@ -238,6 +264,27 @@ export const blogPosts: BlogPost[] = [
         type: "callout",
         title: "Méthode simple",
         text: "Le bon objectif n'est pas de suivre tous les pixels d'une page tarifs. C'est d'identifier les changements qui peuvent révéler une nouvelle stratégie de packaging, de conversion ou de montée en gamme.",
+      },
+      {
+        type: "internal-links",
+        title: "Articles complémentaires",
+        links: [
+          {
+            href: "/blog/pricing-que-surveiller-sur-une-page-tarifs",
+            label: "Pricing : quoi surveiller vraiment sur une page tarifs concurrente",
+            description: "Lire les signaux pricing les plus importants au-delà du simple prix.",
+          },
+          {
+            href: "/blog/alternative-a-changetower-en-francais",
+            label: "Alternative à ChangeTower en français",
+            description: "Comparer les outils sur la qualité du signal et la lisibilité.",
+          },
+          {
+            href: "/tarifs",
+            label: "Voir les plans ChronoCrawl",
+            description: "Choisir le bon plan selon le volume d’URLs et la fréquence de scan.",
+          },
+        ],
       },
       {
         type: "paragraph",
@@ -331,6 +378,27 @@ export const blogPosts: BlogPost[] = [
         text: "ChronoCrawl doit rester focalisé sur les changements qui peuvent influencer ton acquisition, ta conversion ou ta perception marché.",
       },
       {
+        type: "internal-links",
+        title: "Continuer la lecture",
+        links: [
+          {
+            href: "/blog/alerte-changement-site-web-comment-eviter-les-faux-positifs",
+            label: "Alerte changement site web : comment éviter les faux positifs",
+            description: "Comprendre pourquoi le bruit tue la valeur d’une veille concurrentielle.",
+          },
+          {
+            href: "/blog/audit-seo-concurrent-ce-qu-il-faut-vraiment-lire",
+            label: "Audit SEO concurrent : ce qu'il faut vraiment lire dans une page",
+            description: "Compléter la surveillance par une lecture plus structurée des pages clés.",
+          },
+          {
+            href: "/fonctionnement",
+            label: "Voir comment fonctionne ChronoCrawl",
+            description: "Comprendre la logique du produit entre surveillance, alertes et audit SEO.",
+          },
+        ],
+      },
+      {
         type: "paragraph",
         text: "En clair : surveiller un site concurrent sans se noyer dans le bruit consiste à réduire le périmètre, filtrer les faux positifs, reformuler les changements en langage utile et montrer un historique assez propre pour qu'une équipe revienne dessus régulièrement. C'est exactement ce qui transforme une simple surveillance technique en veille concurrentielle actionnable.",
       },
@@ -407,6 +475,27 @@ export const blogPosts: BlogPost[] = [
         type: "paragraph",
         text: "Cette lecture devient particulièrement utile quand elle est répétée sur plusieurs pages. Si le même vocabulaire remonte partout, tu n'es plus face à une micro-optimisation SEO. Tu es face à une direction produit ou acquisition qui se met en place.",
       },
+      {
+        type: "internal-links",
+        title: "Pour approfondir",
+        links: [
+          {
+            href: "/blog/audit-seo-concurrent-ce-qu-il-faut-vraiment-lire",
+            label: "Audit SEO concurrent : ce qu'il faut vraiment lire dans une page",
+            description: "Passer du signal SEO isolé à une lecture plus globale de la page.",
+          },
+          {
+            href: "/blog/surveiller-un-site-concurrent-sans-bruit",
+            label: "Surveiller un site concurrent sans se noyer dans le bruit",
+            description: "Voir comment replacer un changement SEO dans une veille plus large.",
+          },
+          {
+            href: "/blog/alerte-changement-site-web-comment-eviter-les-faux-positifs",
+            label: "Alerte changement site web : comment éviter les faux positifs",
+            description: "Filtrer les signaux faibles avant qu’ils ne fatiguent l’équipe.",
+          },
+        ],
+      },
     ],
   },
   {
@@ -472,6 +561,27 @@ export const blogPosts: BlogPost[] = [
       {
         type: "quote",
         text: "Un CTA change rarement pour faire joli. Il change pour faire bouger un taux de conversion, une qualification ou une perception de risque.",
+      },
+      {
+        type: "internal-links",
+        title: "Liens utiles",
+        links: [
+          {
+            href: "/blog/surveiller-un-site-concurrent-sans-bruit",
+            label: "Surveiller un site concurrent sans se noyer dans le bruit",
+            description: "Replacer le signal CTA dans une veille concurrentielle plus large.",
+          },
+          {
+            href: "/blog/comment-surveiller-la-page-tarifs-d-un-concurrent",
+            label: "Comment surveiller la page tarifs d’un concurrent",
+            description: "Comprendre comment le CTA et le pricing se répondent sur une même page.",
+          },
+          {
+            href: "/fonctionnement",
+            label: "Voir le fonctionnement de ChronoCrawl",
+            description: "Comprendre comment les changements CTA remontent dans le produit.",
+          },
+        ],
       },
     ],
   },
@@ -551,6 +661,27 @@ export const blogPosts: BlogPost[] = [
       {
         type: "paragraph",
         text: "Dans ChronoCrawl, l'objectif n'est donc pas d'empiler des snapshots. Il est d'aider à voir quand la page tarifs d'un concurrent devient plus claire, plus agressive ou plus rassurante. C'est ce type de lecture qui peut justifier une réaction sur ton propre pricing ou ton propre packaging.",
+      },
+      {
+        type: "internal-links",
+        title: "À consulter ensuite",
+        links: [
+          {
+            href: "/blog/comment-surveiller-la-page-tarifs-d-un-concurrent",
+            label: "Comment surveiller la page tarifs d’un concurrent",
+            description: "Voir la méthode de surveillance continue d’une page pricing.",
+          },
+          {
+            href: "/blog/alternative-a-changetower-en-francais",
+            label: "Alternative à ChangeTower en français",
+            description: "Comparer les approches de monitoring et de lecture du signal.",
+          },
+          {
+            href: "/tarifs",
+            label: "Voir les plans ChronoCrawl",
+            description: "Choisir le bon plan pour suivre des pages pricing dans le temps.",
+          },
+        ],
       },
     ],
   },
@@ -635,6 +766,27 @@ export const blogPosts: BlogPost[] = [
         text: "ChronoCrawl n'a pas besoin d'être une copie de ChangeTower. Il doit être plus lisible, plus ciblé et plus actionnable pour la veille concurrentielle d'équipes francophones.",
       },
       {
+        type: "internal-links",
+        title: "Continuer la comparaison",
+        links: [
+          {
+            href: "/blog/alerte-changement-site-web-comment-eviter-les-faux-positifs",
+            label: "Alerte changement site web : comment éviter les faux positifs",
+            description: "Le bon angle pour comparer les outils sur la qualité réelle des alertes.",
+          },
+          {
+            href: "/blog/surveiller-un-site-concurrent-sans-bruit",
+            label: "Surveiller un site concurrent sans se noyer dans le bruit",
+            description: "Voir la promesse produit la plus centrale de ChronoCrawl.",
+          },
+          {
+            href: "/tarifs",
+            label: "Voir les tarifs ChronoCrawl",
+            description: "Comparer les plans si tu cherches une alternative française.",
+          },
+        ],
+      },
+      {
         type: "paragraph",
         text: "Si tu cherches une alternative à ChangeTower en français, le bon critère de choix n'est donc pas seulement le nombre de détections possibles. C'est la capacité du produit à t'aider à comprendre, relire et exploiter les changements qui comptent. C'est exactement la zone où ChronoCrawl a le plus de légitimité à se construire.",
       },
@@ -705,6 +857,27 @@ export const blogPosts: BlogPost[] = [
         title: "Position juste",
         text: "L'audit concurrent n'est pas là pour promettre l'impossible. Il doit être suffisamment solide pour être utile, tout en restant clair sur ce qu'il mesure réellement.",
       },
+      {
+        type: "internal-links",
+        title: "Compléter cette lecture",
+        links: [
+          {
+            href: "/blog/comment-lire-un-changement-seo-chez-un-concurrent",
+            label: "Comment lire un changement SEO chez un concurrent",
+            description: "Voir comment interpréter les balises et le message SEO dans le temps.",
+          },
+          {
+            href: "/blog/surveiller-un-site-concurrent-sans-bruit",
+            label: "Surveiller un site concurrent sans se noyer dans le bruit",
+            description: "Replacer l’audit dans une veille concurrentielle continue.",
+          },
+          {
+            href: "/fonctionnement",
+            label: "Voir le fonctionnement de ChronoCrawl",
+            description: "Comprendre comment l’audit SEO s’intègre au produit.",
+          },
+        ],
+      },
     ],
   },
   {
@@ -763,6 +936,27 @@ export const blogPosts: BlogPost[] = [
       {
         type: "paragraph",
         text: "La suite logique du produit n'est donc pas d'ajouter dix modules. C'est de continuer à renforcer le moteur, la qualité des résumés et la pertinence de ce qui est montré à l'utilisateur. C'est ce qui rendra ChronoCrawl plus bankable et plus défendable face aux acteurs déjà en place.",
+      },
+      {
+        type: "internal-links",
+        title: "Voir aussi",
+        links: [
+          {
+            href: "/blog/alerte-changement-site-web-comment-eviter-les-faux-positifs",
+            label: "Alerte changement site web : comment éviter les faux positifs",
+            description: "Le chantier le plus important pour renforcer la valeur du produit.",
+          },
+          {
+            href: "/blog/alternative-a-changetower-en-francais",
+            label: "Alternative à ChangeTower en français",
+            description: "La manière dont ChronoCrawl cherche à se positionner face aux acteurs en place.",
+          },
+          {
+            href: "/blog/audit-seo-concurrent-ce-qu-il-faut-vraiment-lire",
+            label: "Audit SEO concurrent : ce qu'il faut vraiment lire dans une page",
+            description: "L’autre pilier produit à côté de la surveillance.",
+          },
+        ],
       },
     ],
   },
