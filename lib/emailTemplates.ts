@@ -10,6 +10,18 @@ type AlertEmailParams = {
   highlightBody?: string;
 };
 
+type WelcomeEmailParams = {
+  dashboardUrl: string;
+  pricingUrl: string;
+};
+
+type SubscriptionEmailParams = {
+  planLabel: string;
+  dashboardUrl: string;
+  billingUrl: string;
+  trialEndLabel?: string | null;
+};
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -108,6 +120,100 @@ export function renderAlertEmail(params: AlertEmailParams) {
   ]
     .filter(Boolean)
     .join("\n");
+
+  return { html, text };
+}
+
+export function renderWelcomeEmail(params: WelcomeEmailParams) {
+  const html = `
+  <div style="margin:0;padding:24px;background:#f3f4f6;font-family:Arial,sans-serif;color:#0f172a;">
+    <div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
+      <div style="padding:20px 24px;background:linear-gradient(135deg,#050505,#171717);color:#ffffff;">
+        <div style="font-size:12px;opacity:0.85;letter-spacing:.06em;text-transform:uppercase;">ChronoCrawl</div>
+        <h1 style="margin:8px 0 0 0;font-size:22px;line-height:1.25;">Bienvenue sur ChronoCrawl</h1>
+      </div>
+      <div style="padding:22px 24px;">
+        <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#1f2937;">
+          Ton compte est prêt. L’objectif maintenant est simple : ajouter une première URL concurrente et laisser ChronoCrawl surveiller les vrais changements.
+        </p>
+        <div style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #d1d5db;border-radius:10px;background:#f9fafb;">
+          <p style="margin:0 0 6px 0;font-size:12px;line-height:1.4;color:#111827;text-transform:uppercase;letter-spacing:.04em;">Parcours recommandé</p>
+          <p style="margin:0;font-size:14px;line-height:1.7;color:#374151;">1. Ouvre ton dashboard<br />2. Ajoute ta première URL<br />3. Lance ou laisse tourner la surveillance automatique</p>
+        </div>
+        <div style="margin-top:18px;">
+          <a href="${escapeHtml(params.dashboardUrl)}" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;margin-right:10px;">
+            Ouvrir le dashboard
+          </a>
+          <a href="${escapeHtml(params.pricingUrl)}" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#ffffff;color:#111111;text-decoration:none;font-size:14px;font-weight:600;border:1px solid #d1d5db;">
+            Voir les offres
+          </a>
+        </div>
+        <p style="margin:16px 0 0 0;font-size:12px;color:#6b7280;">
+          ChronoCrawl surveille les sites concurrents, détecte les changements utiles et les remonte dans un dashboard clair.
+        </p>
+      </div>
+    </div>
+  </div>`;
+
+  const text = [
+    "ChronoCrawl - Bienvenue",
+    "",
+    "Ton compte est prêt. Ajoute une première URL concurrente et laisse ChronoCrawl surveiller les vrais changements.",
+    "",
+    "Parcours recommandé :",
+    "1. Ouvrir le dashboard",
+    "2. Ajouter une première URL",
+    "3. Lancer ou laisser tourner la surveillance automatique",
+    "",
+    `Dashboard: ${params.dashboardUrl}`,
+    `Offres: ${params.pricingUrl}`,
+  ].join("\n");
+
+  return { html, text };
+}
+
+export function renderSubscriptionEmail(params: SubscriptionEmailParams) {
+  const safePlanLabel = escapeHtml(params.planLabel);
+  const html = `
+  <div style="margin:0;padding:24px;background:#f3f4f6;font-family:Arial,sans-serif;color:#0f172a;">
+    <div style="max-width:620px;margin:0 auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:14px;overflow:hidden;">
+      <div style="padding:20px 24px;background:linear-gradient(135deg,#050505,#171717);color:#ffffff;">
+        <div style="font-size:12px;opacity:0.85;letter-spacing:.06em;text-transform:uppercase;">ChronoCrawl</div>
+        <h1 style="margin:8px 0 0 0;font-size:22px;line-height:1.25;">Abonnement ${safePlanLabel} activé</h1>
+      </div>
+      <div style="padding:22px 24px;">
+        <p style="margin:0 0 14px 0;font-size:14px;line-height:1.6;color:#1f2937;">
+          Ton abonnement ${safePlanLabel} est maintenant actif sur ChronoCrawl.
+        </p>
+        <div style="margin:0 0 16px 0;padding:14px 16px;border:1px solid #d1d5db;border-radius:10px;background:#f9fafb;">
+          <p style="margin:0 0 6px 0;font-size:12px;line-height:1.4;color:#111827;text-transform:uppercase;letter-spacing:.04em;">Ce que tu peux faire maintenant</p>
+          <p style="margin:0;font-size:14px;line-height:1.7;color:#374151;">Ajouter plus d’URLs, laisser le monitoring tourner automatiquement et gérer ton abonnement depuis le portail client.</p>
+        </div>
+        ${
+          params.trialEndLabel
+            ? `<p style="margin:0 0 14px 0;font-size:13px;line-height:1.6;color:#4b5563;">Fin d’essai prévue : ${escapeHtml(params.trialEndLabel)}</p>`
+            : ""
+        }
+        <div style="margin-top:18px;">
+          <a href="${escapeHtml(params.dashboardUrl)}" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;margin-right:10px;">
+            Ouvrir le dashboard
+          </a>
+          <a href="${escapeHtml(params.billingUrl)}" style="display:inline-block;padding:10px 16px;border-radius:8px;background:#ffffff;color:#111111;text-decoration:none;font-size:14px;font-weight:600;border:1px solid #d1d5db;">
+            Gérer l’abonnement
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>`;
+
+  const text = [
+    `ChronoCrawl - Abonnement ${params.planLabel} activé`,
+    "",
+    `Ton abonnement ${params.planLabel} est maintenant actif sur ChronoCrawl.`,
+    ...(params.trialEndLabel ? [`Fin d’essai prévue : ${params.trialEndLabel}`, ""] : []),
+    `Dashboard: ${params.dashboardUrl}`,
+    `Portail abonnement: ${params.billingUrl}`,
+  ].join("\n");
 
   return { html, text };
 }

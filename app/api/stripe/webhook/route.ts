@@ -1,6 +1,9 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { Resend } from "resend";
+import { renderSubscriptionEmail } from "@/lib/emailTemplates";
+import { appLogger } from "@/lib/appLogger";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -10,6 +13,9 @@ const pricePro = process.env.STRIPE_PRICE_PRO;
 const priceAgency = process.env.STRIPE_PRICE_AGENCY;
 
 const stripe = stripeSecretKey ? new Stripe(stripeSecretKey) : null;
+const resend = process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
 
 function getPlanFromPriceId(priceId: string | undefined) {
   if (!priceId) return "starter";
@@ -25,6 +31,66 @@ function normalizeSubscriptionStatus(status: string, cancelAtPeriodEnd?: boolean
     return "inactive";
   }
   return status;
+}
+
+function formatPlanLabel(plan: string) {
+  if (plan === "pro") return "Pro";
+  if (plan === "agency") return "Agency";
+  return "Starter";
+}
+
+async function sendSubscriptionActivatedEmail(params: {
+  userId: string;
+  plan: string;
+  subscriptionId: string | null;
+  trialEnd?: string | null;
+}) {
+  if (!resend || !params.subscriptionId) return;
+
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(params.userId);
+  if (error || !data.user || typeof data.user.email !== "string" || !data.user.email) {
+    return;
+  }
+
+  const user = data.user;
+  const email = data.user.email;
+  const metadata = user.user_metadata ?? {};
+  if (metadata.last_subscription_email_subscription_id === params.subscriptionId) {
+    return;
+  }
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL?.trim() || "https://www.chronocrawl.com";
+  const { html, text } = renderSubscriptionEmail({
+    planLabel: formatPlanLabel(params.plan),
+    dashboardUrl: `${siteUrl}/dashboard`,
+    billingUrl: `${siteUrl}/dashboard`,
+    trialEndLabel: params.trialEnd
+      ? new Date(params.trialEnd).toLocaleDateString("fr-FR")
+      : null,
+  });
+
+  await resend.emails.send({
+    from: "ChronoCrawl <hello@chronocrawl.com>",
+    to: email,
+    subject: `Ton abonnement ${formatPlanLabel(params.plan)} est actif`,
+    html,
+    text,
+  });
+
+  await supabaseAdmin.auth.admin.updateUserById(params.userId, {
+    user_metadata: {
+      ...metadata,
+      last_subscription_email_subscription_id: params.subscriptionId,
+      last_subscription_email_sent_at: new Date().toISOString(),
+    },
+  });
+
+  appLogger.info("subscription_email:sent", {
+    userId: params.userId,
+    subscriptionId: params.subscriptionId,
+    plan: params.plan,
+  });
 }
 
 async function updateUserSubscriptionById({
@@ -234,6 +300,14 @@ export async function POST(request: Request) {
           trialEnd,
           currentPeriodEnd,
           cancelAtPeriodEnd: stripeSubscription?.cancel_at_period_end ?? false,
+        });
+
+        await sendSubscriptionActivatedEmail({
+          userId,
+          plan: getPlanFromPriceId(priceId),
+          subscriptionId:
+            typeof session.subscription === "string" ? session.subscription : null,
+          trialEnd,
         });
       }
     }

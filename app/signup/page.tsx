@@ -92,6 +92,16 @@ export default function SignupPage() {
 
     setStatus("ok");
     if (data.session) {
+      try {
+        await fetch("/api/auth/welcome", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${data.session.access_token}`,
+          },
+        });
+      } catch {
+        // Non-blocking: signup must continue even if the welcome email fails.
+      }
       if (startTrialNow) {
         try {
           const response = await fetch("/api/checkout", {
