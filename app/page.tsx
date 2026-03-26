@@ -137,6 +137,10 @@ export default function Home() {
 
       const data = await response.json();
       if (!response.ok || !data?.url) {
+        if (data?.code === "MISSING_STRIPE_CUSTOMER") {
+          window.location.href = "/tarifs?from=billing";
+          return;
+        }
         throw new Error(
           data?.error || "Impossible d'ouvrir la gestion d'abonnement."
         );
