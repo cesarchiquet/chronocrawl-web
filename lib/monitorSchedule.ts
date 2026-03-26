@@ -27,6 +27,7 @@ type SubscriptionRow = {
 type UsageRow = {
   user_id: string;
   last_run_at: string | null;
+  last_auto_run_at?: string | null;
 };
 
 type UrlRow = {
@@ -68,24 +69,41 @@ export async function getDueAutoMonitorUsers(limit = AUTO_MONITOR_USER_BATCH) {
 
   const userIds = activeSubscriptions.map((row) => row.user_id);
 
-  const [{ data: usageRows, error: usageError }, { data: urlRows, error: urlError }, { data: jobRows, error: jobError }] = await Promise.all([
-    supabaseAdmin
+  const [{ data: urlRows, error: urlError }, { data: jobRows, error: jobError }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("monitored_urls")
+        .select("user_id")
+        .in("user_id", userIds)
+        .returns<UrlRow[]>(),
+      supabaseAdmin
+        .from("monitor_jobs")
+        .select("user_id,status")
+        .in("user_id", userIds)
+        .in("status", ["queued", "processing"])
+        .returns<JobRow[]>(),
+    ]);
+
+  let usageRows: UsageRow[] | null = null;
+  let usageError: { message: string } | null = null;
+
+  const extendedUsage = await supabaseAdmin
+    .from("user_monitor_usage")
+    .select("user_id,last_run_at,last_auto_run_at")
+    .in("user_id", userIds)
+    .returns<UsageRow[]>();
+
+  if (extendedUsage.error) {
+    const legacyUsage = await supabaseAdmin
       .from("user_monitor_usage")
       .select("user_id,last_run_at")
       .in("user_id", userIds)
-      .returns<UsageRow[]>(),
-    supabaseAdmin
-      .from("monitored_urls")
-      .select("user_id")
-      .in("user_id", userIds)
-      .returns<UrlRow[]>(),
-    supabaseAdmin
-      .from("monitor_jobs")
-      .select("user_id,status")
-      .in("user_id", userIds)
-      .in("status", ["queued", "processing"])
-      .returns<JobRow[]>(),
-  ]);
+      .returns<UsageRow[]>();
+    usageRows = legacyUsage.data;
+    usageError = legacyUsage.error;
+  } else {
+    usageRows = extendedUsage.data;
+  }
 
   if (usageError) {
     throw new Error(`Echec lecture user_monitor_usage: ${usageError.message}`);
@@ -111,7 +129,11 @@ export async function getDueAutoMonitorUsers(limit = AUTO_MONITOR_USER_BATCH) {
   const dueUsers = activeSubscriptions
     .map<AutoMonitorUser | null>((row) => {
       const plan = normalizePlan(row.plan);
-      const lastRunAt = usageMap.get(row.user_id)?.last_run_at || null;
+      const usage = usageMap.get(row.user_id);
+      const lastRunAt =
+        "last_auto_run_at" in (usage || {})
+          ? usage?.last_auto_run_at || null
+          : usage?.last_run_at || null;
       const urlCount = urlCountByUser.get(row.user_id) || 0;
       const pendingQueueCount = pendingQueueByUser.get(row.user_id) || 0;
       const resumeQueue = pendingQueueCount > 0;

@@ -55,6 +55,7 @@ Run SQL scripts in order from `db/`:
 6. `006_monitor_run_logs.sql`
 7. `007_detected_changes_perf_indexes.sql`
 8. `008_monitor_rules_and_confidence.sql`
+9. `009_monitor_auto_schedule.sql`
 
 ## Current cleanup status
 
@@ -83,3 +84,7 @@ ChronoCrawl now supports server-side automatic monitoring on Netlify:
 Required production env var:
 
 - `MONITOR_SCHEDULE_SECRET`
+
+Production note:
+
+- `009_monitor_auto_schedule.sql` decouples automatic monitoring cadence from manual scans.

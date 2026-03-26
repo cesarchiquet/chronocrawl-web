@@ -333,15 +333,40 @@ export async function POST(request: Request) {
   }
 
   const nowIso = new Date().toISOString();
-  const { data: usageRow } = await supabaseAdmin
+  let usageRow:
+    | {
+        window_started_at: string;
+        run_count: number;
+        last_run_at: string | null;
+        last_auto_run_at?: string | null;
+      }
+    | null = null;
+
+  const extendedUsageRes = await supabaseAdmin
     .from("user_monitor_usage")
-    .select("window_started_at,run_count,last_run_at")
+    .select("window_started_at,run_count,last_run_at,last_auto_run_at")
     .eq("user_id", userId)
     .maybeSingle<{
       window_started_at: string;
       run_count: number;
       last_run_at: string | null;
+      last_auto_run_at?: string | null;
     }>();
+
+  if (extendedUsageRes.error) {
+    const legacyUsageRes = await supabaseAdmin
+      .from("user_monitor_usage")
+      .select("window_started_at,run_count,last_run_at")
+      .eq("user_id", userId)
+      .maybeSingle<{
+        window_started_at: string;
+        run_count: number;
+        last_run_at: string | null;
+      }>();
+    usageRow = legacyUsageRes.data;
+  } else {
+    usageRow = extendedUsageRes.data;
+  }
 
   const dailyLimit = DAILY_RUN_LIMIT_BY_PLAN[plan] || DAILY_RUN_LIMIT_BY_PLAN.starter;
 
@@ -356,7 +381,7 @@ export async function POST(request: Request) {
     : null;
 
   if (!continueQueue) {
-    if (lastRunAt && now - lastRunAt < COOLDOWN_MS) {
+    if (!isScheduledRun && lastRunAt && now - lastRunAt < COOLDOWN_MS) {
       await writeRunLog({
         status: "rate_limited",
       });
@@ -378,17 +403,33 @@ export async function POST(request: Request) {
       );
     }
 
-    await supabaseAdmin.from("user_monitor_usage").upsert(
-      {
-        user_id: userId,
-        window_started_at:
-          windowExpired ? nowIso : usageRow?.window_started_at || nowIso,
-        run_count: runCount + 1,
-        last_run_at: nowIso,
-        updated_at: nowIso,
-      },
-      { onConflict: "user_id" }
-    );
+    const usagePayload = {
+      user_id: userId,
+      window_started_at:
+        windowExpired ? nowIso : usageRow?.window_started_at || nowIso,
+      run_count: runCount + 1,
+      last_run_at: nowIso,
+      ...(isScheduledRun ? { last_auto_run_at: nowIso } : {}),
+      updated_at: nowIso,
+    };
+
+    const extendedUpsert = await supabaseAdmin
+      .from("user_monitor_usage")
+      .upsert(usagePayload, { onConflict: "user_id" });
+
+    if (extendedUpsert.error && isScheduledRun) {
+      await supabaseAdmin.from("user_monitor_usage").upsert(
+        {
+          user_id: userId,
+          window_started_at:
+            windowExpired ? nowIso : usageRow?.window_started_at || nowIso,
+          run_count: runCount + 1,
+          last_run_at: nowIso,
+          updated_at: nowIso,
+        },
+        { onConflict: "user_id" }
+      );
+    }
   }
 
   const maxUrls = MAX_URLS_BY_PLAN[plan] || MAX_URLS_BY_PLAN.starter;
