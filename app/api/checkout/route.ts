@@ -144,12 +144,18 @@ export async function POST(request: Request) {
     }>();
   const existingStatus = subscriptionRow?.status || null;
   const existingSubscriptionId = subscriptionRow?.stripe_subscription_id || null;
+  const managedPortalCustomerIdRaw = subscriptionRow?.stripe_customer_id || null;
+  const managedPortalCustomerId =
+    typeof managedPortalCustomerIdRaw === "string" &&
+    managedPortalCustomerIdRaw.startsWith("cus_")
+      ? managedPortalCustomerIdRaw
+      : null;
   if (
     existingSubscriptionId &&
     existingStatus &&
     MANAGED_SUBSCRIPTION_STATUSES.has(existingStatus)
   ) {
-    if (!subscriptionRow?.stripe_customer_id) {
+    if (!managedPortalCustomerId) {
       return errorResponse(
         "Un abonnement existe déjà, mais le compte client Stripe est introuvable. Ouvre le portail de facturation depuis le dashboard.",
         409,
@@ -158,7 +164,7 @@ export async function POST(request: Request) {
     }
 
     const portalSession = await stripe.billingPortal.sessions.create({
-      customer: subscriptionRow.stripe_customer_id,
+      customer: managedPortalCustomerId,
       return_url: `${origin}/dashboard`,
       ...(portalConfigurationId
         ? {

@@ -818,8 +818,16 @@ export default function DashboardPage() {
         },
         body: JSON.stringify({}),
       });
-      const data = await response.json();
+      const data = (await response.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+        code?: string;
+      };
       if (!response.ok || !data?.url) {
+        if (data?.code === "MISSING_STRIPE_CUSTOMER") {
+          window.location.href = "/tarifs?from=billing";
+          return;
+        }
         throw new Error(
           data?.error ||
             "Impossible d'ouvrir la gestion d'abonnement pour le moment."

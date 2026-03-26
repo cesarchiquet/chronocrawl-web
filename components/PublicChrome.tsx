@@ -49,9 +49,17 @@ export default function PublicChrome({ children }: PublicChromeProps) {
       },
       body: JSON.stringify({}),
     });
-    const data = await response.json();
+    const data = (await response.json().catch(() => ({}))) as {
+      url?: string;
+      code?: string;
+    };
     if (response.ok && data?.url) {
       window.location.href = data.url;
+      return;
+    }
+
+    if (data?.code === "MISSING_STRIPE_CUSTOMER") {
+      window.location.href = "/tarifs?from=billing";
     }
   };
 

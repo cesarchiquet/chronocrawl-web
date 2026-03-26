@@ -75,8 +75,12 @@ export async function POST(request: Request) {
 
   const resolvedCustomerId =
     subscriptionRow?.stripe_customer_id || customerId;
+  const safeCustomerId =
+    typeof resolvedCustomerId === "string" && resolvedCustomerId.startsWith("cus_")
+      ? resolvedCustomerId
+      : null;
 
-  if (!resolvedCustomerId) {
+  if (!safeCustomerId) {
     return errorResponse(
       "Compte client Stripe introuvable pour cet utilisateur.",
       400,
@@ -87,7 +91,7 @@ export async function POST(request: Request) {
   const origin = resolveBaseUrl(request);
 
   const session = await stripe.billingPortal.sessions.create({
-    customer: resolvedCustomerId,
+    customer: safeCustomerId,
     return_url: `${origin}/dashboard`,
     ...(portalConfigurationId
       ? {
