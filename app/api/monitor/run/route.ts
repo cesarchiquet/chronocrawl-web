@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { extractSignalsFromHtml } from "@/lib/monitorSignals";
-import { renderAlertEmail } from "@/lib/emailTemplates";
-import { Resend } from "resend";
 import { requireUserFromRequest } from "@/lib/routeAuth";
 import { fetchPageHtml } from "@/lib/monitorFetch";
 import { dedupeConsecutiveRows, groupRowsByDomain } from "@/lib/monitorDedupe";
@@ -10,7 +8,6 @@ import {
   buildDiffRows,
   buildRuleRows,
   filterDynamicNoiseRows,
-  severityAtLeast,
   type DbSnapshot,
   type MonitorRule,
   type RuleEvaluation,
@@ -46,15 +43,6 @@ type MonitorRuleRow = {
   label: string | null;
   is_active: boolean;
 };
-
-type AlertSettings = {
-  email_mode: "instant" | "daily" | "off";
-  min_email_severity: "medium" | "high";
-};
-type AlertSettingsRow = {
-  email_mode: "instant" | "daily" | "off";
-  min_email_severity: "low" | "medium" | "high";
-};
 type MonitorRunStatus =
   | "completed"
   | "no_urls"
@@ -80,17 +68,6 @@ type UrlRunDiagnostic = {
   storedCount: number;
   note?: string;
 };
-
-type InstantAlertItem = {
-  summary: string;
-  url: string;
-  domain: "seo" | "pricing" | "cta";
-  severity: "medium" | "high";
-};
-
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
 
 function errorResponse(
   message: string,
@@ -152,16 +129,6 @@ function extractCssSelectorSignal(html: string, selector: string) {
     return tagMatch[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
   }
   return "";
-}
-
-function actionSuggestion(domain: "seo" | "pricing" | "cta") {
-  if (domain === "pricing") {
-    return "Comparer les prix, l'offre affichée et le message de valeur.";
-  }
-  if (domain === "cta") {
-    return "Vérifier le CTA visible, sa promesse et sa place dans la page.";
-  }
-  return "Relire title, H1 et meta pour comprendre le nouvel angle SEO.";
 }
 
 function evaluateMonitorRuleSignals(params: {
@@ -308,25 +275,6 @@ export async function POST(request: Request) {
     | undefined;
   const status =
     rawStatus === "pending_checkout" ? metadataStatus || "inactive" : rawStatus;
-  let alertSettings: AlertSettings = {
-    email_mode: "instant",
-    min_email_severity: "high",
-  };
-
-  const { data: alertSettingsRow } = await supabaseAdmin
-    .from("user_alert_settings")
-    .select("email_mode,min_email_severity")
-    .eq("user_id", userId)
-    .maybeSingle<AlertSettingsRow>();
-
-  if (alertSettingsRow) {
-    const minEmailSeverity =
-      alertSettingsRow.min_email_severity === "high" ? "high" : "medium";
-    alertSettings = {
-      email_mode: alertSettingsRow.email_mode ?? "instant",
-      min_email_severity: minEmailSeverity,
-    };
-  }
 
   if (!["active", "trialing"].includes(status)) {
     await writeRunLog({
@@ -595,9 +543,7 @@ export async function POST(request: Request) {
   let grouped = 0;
   let highConfidence = 0;
   const failed: string[] = [];
-  const highSeverityAlerts: InstantAlertItem[] = [];
   const diagnostics: UrlRunDiagnostic[] = [];
-  const userEmail = user.email || "";
 
   for (const job of jobs) {
     const item = urlById.get(job.monitored_url_id);
@@ -852,20 +798,6 @@ export async function POST(request: Request) {
 
         if (!insertChangesError) {
           changes += rowsToStore.length;
-          for (const row of rowsToStore) {
-            if (
-              row.severity &&
-              severityAtLeast(row.severity, alertSettings.min_email_severity)
-            ) {
-              const summary = (row.metadata.summary as string) || row.field_key;
-              highSeverityAlerts.push({
-                summary,
-                url: item.url,
-                domain: row.domain,
-                severity: row.severity,
-              });
-            }
-          }
         } else {
           failed.push(`${item.url} (DB_INSERT_ERROR)`);
         }
@@ -944,63 +876,6 @@ export async function POST(request: Request) {
         })
         .eq("user_id", userId)
         .eq("monitored_url_id", item.id);
-    }
-  }
-
-  if (
-    resend &&
-    userEmail &&
-    alertSettings.email_mode === "instant" &&
-    highSeverityAlerts.length > 0
-  ) {
-    try {
-      const dedupedAlerts = Array.from(
-        new Map(
-          highSeverityAlerts.map((item) => [
-            `${item.domain}:${item.summary}:${item.url}`,
-            item,
-          ])
-        ).values()
-      ).slice(0, 12);
-      const highCount = dedupedAlerts.filter((item) => item.severity === "high").length;
-      const coveredUrls = new Set(dedupedAlerts.map((item) => item.url)).size;
-      const domainCounts = dedupedAlerts.reduce<Record<string, number>>((acc, item) => {
-        acc[item.domain] = (acc[item.domain] || 0) + 1;
-        return acc;
-      }, {});
-      const topDomain =
-        Object.entries(domainCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || "seo";
-      const uniqueAlerts = dedupedAlerts.map((item) => {
-        return `[${item.severity.toUpperCase()}] ${item.summary} - ${item.url} | Vérification : ${actionSuggestion(item.domain)}`;
-      });
-      const subject =
-        highCount > 0
-          ? `ChronoCrawl — ${highCount} alerte(s) prioritaire(s) détectée(s)`
-          : "ChronoCrawl — Alertes détectées";
-      const { html, text } = renderAlertEmail({
-        title: "Alertes détectées",
-        intro: `Voici les alertes détectées lors du dernier scan. Seuil appliqué : ${alertSettings.min_email_severity.toUpperCase()}.`,
-        items: uniqueAlerts,
-        ctaUrl: "https://chronocrawl.com/dashboard",
-        ctaLabel: "Ouvrir le dashboard",
-        metaChips: [
-          `${dedupedAlerts.length} alerte(s) remontée(s)`,
-          `${coveredUrls} URL(s) concernée(s)`,
-          `${highCount} priorité(s) haute(s)`,
-        ],
-        highlightTitle: "Action conseillée maintenant",
-        highlightBody: actionSuggestion(topDomain as "seo" | "pricing" | "cta"),
-        footerNote: "Tu reçois cet email car les alertes instantanées sont actives sur ton compte.",
-      });
-      await resend.emails.send({
-        from: "ChronoCrawl <hello@chronocrawl.com>",
-        to: userEmail,
-        subject,
-        html,
-        text,
-      });
-    } catch {
-      // Non-blocking: monitoring result must still be returned even if email fails.
     }
   }
 
