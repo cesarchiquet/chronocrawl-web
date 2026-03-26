@@ -20,6 +20,7 @@ import {
   COOLDOWN_MS,
   DAILY_RUN_LIMIT_BY_PLAN,
   JOB_BATCH_SIZE,
+  MANUAL_RUN_LIMIT_BY_PLAN,
   MAX_URLS_BY_PLAN,
   FEATURE_FLAGS,
 } from "@/lib/monitorRunConfig";
@@ -91,11 +92,17 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-function errorResponse(message: string, status: number, code: string) {
+function errorResponse(
+  message: string,
+  status: number,
+  code: string,
+  extras?: Record<string, unknown>
+) {
   return NextResponse.json(
     {
       error: message,
       code,
+      ...(extras || {}),
     },
     { status }
   );
@@ -339,18 +346,24 @@ export async function POST(request: Request) {
         run_count: number;
         last_run_at: string | null;
         last_auto_run_at?: string | null;
+        manual_window_started_at?: string | null;
+        manual_run_count?: number;
       }
     | null = null;
 
   const extendedUsageRes = await supabaseAdmin
     .from("user_monitor_usage")
-    .select("window_started_at,run_count,last_run_at,last_auto_run_at")
+    .select(
+      "window_started_at,run_count,last_run_at,last_auto_run_at,manual_window_started_at,manual_run_count"
+    )
     .eq("user_id", userId)
     .maybeSingle<{
       window_started_at: string;
       run_count: number;
       last_run_at: string | null;
       last_auto_run_at?: string | null;
+      manual_window_started_at?: string | null;
+      manual_run_count?: number;
     }>();
 
   if (extendedUsageRes.error) {
@@ -379,6 +392,12 @@ export async function POST(request: Request) {
   const lastRunAt = usageRow?.last_run_at
     ? new Date(usageRow.last_run_at).getTime()
     : null;
+  const manualLimit = MANUAL_RUN_LIMIT_BY_PLAN[plan] ?? null;
+  const manualWindowStartedAt = usageRow?.manual_window_started_at
+    ? new Date(usageRow.manual_window_started_at).getTime()
+    : now;
+  const manualWindowExpired = now - manualWindowStartedAt >= 24 * 60 * 60 * 1000;
+  const manualRunCount = manualWindowExpired ? 0 : usageRow?.manual_run_count || 0;
 
   if (!continueQueue) {
     if (!isScheduledRun && lastRunAt && now - lastRunAt < COOLDOWN_MS) {
@@ -389,6 +408,21 @@ export async function POST(request: Request) {
         "Analyse trop frequente. Attends 15 secondes avant de relancer.",
         429,
         "RATE_LIMIT_COOLDOWN"
+      );
+    }
+
+    if (!isScheduledRun && manualLimit !== null && manualRunCount >= manualLimit) {
+      await writeRunLog({
+        status: "rate_limited",
+      });
+      return errorResponse(
+        `Limite atteinte : ${manualRunCount}/${manualLimit} scans manuels aujourd'hui. Passe à Pro pour lancer des scans manuels illimités.`,
+        429,
+        "RATE_LIMIT_MANUAL_DAILY",
+        {
+          manualRunCount,
+          manualRunLimit: manualLimit,
+        }
       );
     }
 
@@ -410,6 +444,15 @@ export async function POST(request: Request) {
       run_count: runCount + 1,
       last_run_at: nowIso,
       ...(isScheduledRun ? { last_auto_run_at: nowIso } : {}),
+      ...(!isScheduledRun
+        ? {
+            manual_window_started_at:
+              manualWindowExpired
+                ? nowIso
+                : usageRow?.manual_window_started_at || nowIso,
+            manual_run_count: manualRunCount + 1,
+          }
+        : {}),
       updated_at: nowIso,
     };
 

@@ -7,6 +7,12 @@ export const DAILY_RUN_LIMIT_BY_PLAN: Record<string, number> = {
   agency: 1200,
 };
 
+export const MANUAL_RUN_LIMIT_BY_PLAN: Record<string, number | null> = {
+  starter: 10,
+  pro: null,
+  agency: null,
+};
+
 export const MAX_URLS_BY_PLAN: Record<string, number> = {
   starter: 10,
   pro: 50,

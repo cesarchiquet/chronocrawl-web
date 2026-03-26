@@ -22,7 +22,6 @@ import {
   getUrlStatusInfo,
   normalizeMonitoredUrl,
 } from "@/features/dashboard/utils";
-import DashboardControlPanels from "@/features/dashboard/components/DashboardControlPanels";
 import AlertDetailModal from "@/features/dashboard/components/AlertDetailModal";
 import DashboardSuiteMenu from "@/components/DashboardSuiteMenu";
 
@@ -78,19 +77,15 @@ export default function DashboardPage() {
     "all" | "seo" | "cta" | "pricing"
   >("all");
   const [filterReferenceNow, setFilterReferenceNow] = useState(() => Date.now());
-  const [emailMode, setEmailMode] = useState<"instant" | "daily" | "off">(
-    "instant"
-  );
-  const [minEmailSeverity, setMinEmailSeverity] = useState<
-    "medium" | "high"
-  >("high");
-  const [digestHour, setDigestHour] = useState(8);
-  const [alertSettingsMessage, setAlertSettingsMessage] = useState("");
-  const [digestMessage, setDigestMessage] = useState("");
-  const [savingAlertSettings, setSavingAlertSettings] = useState(false);
-  const [runningDigest, setRunningDigest] = useState(false);
   const [subscriptionState, setSubscriptionState] =
     useState<SubscriptionState | null>(null);
+  const [manualScanUsage, setManualScanUsage] = useState<{
+    count: number;
+    windowStartedAt: string | null;
+  }>({
+    count: 0,
+    windowStartedAt: null,
+  });
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
   const [urlMeta, setUrlMeta] = useState<Record<string, UrlMeta>>({});
   const [showOnlyFavorites, setShowOnlyFavorites] = useState(false);
@@ -296,6 +291,31 @@ export default function DashboardPage() {
 
     setEvents(ranked);
 
+    const manualUsageRes = await supabase
+      .from("user_monitor_usage")
+      .select("manual_run_count,manual_window_started_at")
+      .eq("user_id", userId)
+      .maybeSingle<{
+        manual_run_count: number | null;
+        manual_window_started_at: string | null;
+      }>();
+
+    if (!manualUsageRes.error && manualUsageRes.data) {
+      const startedAt = manualUsageRes.data.manual_window_started_at;
+      const isWindowExpired =
+        !startedAt ||
+        Date.now() - new Date(startedAt).getTime() >= 24 * 60 * 60 * 1000;
+      setManualScanUsage({
+        count: isWindowExpired ? 0 : manualUsageRes.data.manual_run_count || 0,
+        windowStartedAt: isWindowExpired ? null : startedAt,
+      });
+    } else {
+      setManualScanUsage({
+        count: 0,
+        windowStartedAt: null,
+      });
+    }
+
   }, [loadAllEvents]);
 
   const loadSubscriptionState = useCallback(async (userId: string) => {
@@ -305,30 +325,6 @@ export default function DashboardPage() {
       .eq("user_id", userId)
       .maybeSingle<SubscriptionState>();
     setSubscriptionState(data || null);
-  }, []);
-
-  const loadAlertSettings = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("user_alert_settings")
-      .select("email_mode,min_email_severity,digest_hour")
-      .eq("user_id", userId)
-      .maybeSingle<{
-        email_mode: "instant" | "daily" | "off";
-        min_email_severity: "low" | "medium" | "high";
-        digest_hour: number;
-      }>();
-
-    if (error) {
-      setAlertSettingsMessage(
-        "Preferences alertes indisponibles (vérifie la migration SQL et recharge)."
-      );
-      return;
-    }
-
-    if (!data) return;
-    setEmailMode(data.email_mode || "instant");
-    setMinEmailSeverity(data.min_email_severity === "high" ? "high" : "medium");
-    setDigestHour(Number.isFinite(data.digest_hour) ? data.digest_hour : 8);
   }, []);
 
   const markAlertAsRead = async (id: string, isRead: boolean) => {
@@ -382,8 +378,7 @@ export default function DashboardPage() {
     const userId = session.user.id;
     void loadSubscriptionState(userId);
     void loadData(userId);
-    void loadAlertSettings(userId);
-  }, [loadAlertSettings, loadData, loadSubscriptionState, session?.user?.id]);
+  }, [loadData, loadSubscriptionState, session?.user?.id]);
 
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -408,62 +403,6 @@ export default function DashboardPage() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [expandedAlertId]);
-
-  const saveAlertSettings = async () => {
-    if (!session?.user) return;
-    setAlertSettingsMessage("");
-    setSavingAlertSettings(true);
-    const { error } = await supabase.from("user_alert_settings").upsert(
-      {
-        user_id: session.user.id,
-        email_mode: emailMode,
-        min_email_severity: minEmailSeverity,
-        digest_hour: digestHour,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" }
-    );
-
-    if (error) {
-      setAlertSettingsMessage(
-        "Impossible de sauvegarder les preferences. Verifie la migration SQL."
-      );
-      setSavingAlertSettings(false);
-      return;
-    }
-
-    setAlertSettingsMessage("Preferences enregistrees.");
-    setSavingAlertSettings(false);
-  };
-
-  const runDailyDigestNow = async () => {
-    if (!session?.user?.id || !session?.access_token) return;
-    setDigestMessage("");
-    setRunningDigest(true);
-    try {
-      const response = await fetch("/api/alerts/digest", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ userId: session.user.id }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error || "Digest impossible.");
-      }
-      setDigestMessage(
-        `Digest traité : ${data.processed ?? 0} compte(s), ${data.sent ?? 0} email(s) envoyé(s).`
-      );
-    } catch (error: unknown) {
-      setDigestMessage(
-        error instanceof Error ? error.message : "Erreur digest."
-      );
-    } finally {
-      setRunningDigest(false);
-    }
-  };
 
   const addUrl = async () => {
     if (!newUrl || !session?.user) return;
@@ -514,6 +453,12 @@ export default function DashboardPage() {
 
   const runAnalysis = async () => {
     if (!session?.user?.id || !session?.access_token) return;
+    if (hasReachedManualScanLimit) {
+      setAnalysisMessage(
+        "Limite atteinte : 10/10 scans manuels aujourd'hui. Passe à Pro pour lancer des scans manuels illimités."
+      );
+      return;
+    }
     setAnalysisMessage("");
     setAnalysisRunning(true);
     const hadEventsBefore = events.length > 0;
@@ -586,12 +531,12 @@ export default function DashboardPage() {
       setAnalysisMessage(
         `${runHeadline} ${totalChecked} URL vérifiée(s), ${totalChanges} changement(s), ${totalDeduped} dédoublonné(s), ${totalNoise} bruit(s) ignoré(s), ${totalGrouped} événement(s) groupé(s), ${totalFailed} échec(s).${failedSamples.length > 0 ? ` Exemples : ${failedSamples.join(" | ")}.` : ""}${overflowNote}`
       );
-      await loadData(session.user.id);
     } catch (error: unknown) {
       const details =
         error instanceof Error ? error.message : "Erreur pendant le scan.";
       setAnalysisMessage(details);
     } finally {
+      await loadData(session.user.id);
       setAnalysisRunning(false);
     }
   };
@@ -641,6 +586,22 @@ export default function DashboardPage() {
   const unreadCount = events.filter((item) => !item.is_read).length;
   const isStarterPlan = plan === "starter";
   const showProUpsell = hasActiveSubscription && isStarterPlan;
+  const manualScanLimit = isStarterPlan ? 10 : null;
+  const manualScanCount = manualScanUsage.count;
+  const manualScanRemaining =
+    manualScanLimit === null ? null : Math.max(0, manualScanLimit - manualScanCount);
+  const hasReachedManualScanLimit =
+    manualScanLimit !== null && manualScanCount >= manualScanLimit;
+  const manualScanLabel =
+    manualScanLimit === null
+      ? "Scans manuels illimités"
+      : `${manualScanCount}/${manualScanLimit} scans manuels aujourd'hui`;
+  const manualScanHint =
+    manualScanLimit === null
+      ? "Tu peux lancer des scans manuels sans limite sur ce plan."
+      : manualScanRemaining === 0
+        ? "Limite atteinte pour aujourd'hui. Passe à Pro pour des scans manuels illimités."
+        : `${manualScanRemaining} scan(s) manuel(s) restant(s) aujourd'hui.`;
   const alertUrls = useMemo(() => {
     const values = new Set<string>();
     for (const item of urls) {
@@ -1135,6 +1096,18 @@ export default function DashboardPage() {
               >
                 {analysisRunning ? "Scan en cours..." : "Lancer un scan"}
               </button>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span
+                  className={`rounded-full border px-2.5 py-1 text-[11px] ${
+                    hasReachedManualScanLimit
+                      ? "border-red-400/35 bg-red-500/10 text-red-200"
+                      : "cc-chip text-gray-200"
+                  }`}
+                >
+                  {manualScanLabel}
+                </span>
+                <span className="text-xs text-white/62">{manualScanHint}</span>
+              </div>
               {analysisMessage && (
                 <p className="text-white/72 text-sm mt-2">{analysisMessage}</p>
               )}
@@ -1485,21 +1458,6 @@ export default function DashboardPage() {
           onClose={() => setExpandedAlertId(null)}
         />
       )}
-
-      <DashboardControlPanels
-        emailMode={emailMode}
-        minEmailSeverity={minEmailSeverity}
-        digestHour={digestHour}
-        savingAlertSettings={savingAlertSettings}
-        runningDigest={runningDigest}
-        alertSettingsMessage={alertSettingsMessage}
-        digestMessage={digestMessage}
-        onEmailModeChange={setEmailMode}
-        onMinEmailSeverityChange={setMinEmailSeverity}
-        onDigestHourChange={setDigestHour}
-        onSaveAlertSettings={saveAlertSettings}
-        onRunDailyDigestNow={runDailyDigestNow}
-      />
     </main>
   );
 }

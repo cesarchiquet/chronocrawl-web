@@ -14,9 +14,7 @@ const plans = [
     details: [
       "10 URLs surveillées",
       "Fréquence toutes les 6h",
-      "Alertes email",
-      "Historique 7 jours",
-      "Audit SEO concurrent inclus",
+      "10 scans manuels par jour",
     ],
   },
   {
@@ -27,9 +25,7 @@ const plans = [
     details: [
       "50 URLs surveillées",
       "Fréquence toutes les 60 min",
-      "Alertes email + Slack",
-      "Historique 30 jours",
-      "Audit SEO concurrent inclus",
+      "Scans manuels illimités",
     ],
     highlight: true,
   },
@@ -41,9 +37,7 @@ const plans = [
     details: [
       "200 URLs surveillées",
       "Fréquence toutes les 15 min",
-      "Alertes email + Slack + Webhook",
-      "Historique 90 jours",
-      "Audit SEO concurrent inclus",
+      "Scans manuels illimités",
     ],
   },
 ];
@@ -51,9 +45,7 @@ const plans = [
 const comparisonRows = [
   { label: "URLs surveillées", starter: "10", pro: "50", agency: "200" },
   { label: "Fréquence max", starter: "Toutes les 6h", pro: "Toutes les 60 min", agency: "Toutes les 15 min" },
-  { label: "Canaux d'alerte", starter: "Email", pro: "Email + Slack", agency: "Email + Slack + Webhook" },
-  { label: "Historique", starter: "7 jours", pro: "30 jours", agency: "90 jours" },
-  { label: "Audit SEO concurrent", starter: "Inclus", pro: "Inclus", agency: "Inclus" },
+  { label: "Scans manuels", starter: "10 / jour", pro: "Illimités", agency: "Illimités" },
 ];
 
 export default function TarifsPage() {

@@ -291,10 +291,6 @@ export default function Home() {
               <h2 className="mt-2 text-3xl font-semibold">
                 Les pages clés de ChronoCrawl
               </h2>
-              <p className="mt-2 max-w-2xl text-sm text-gray-300">
-                Cette structure simple aide aussi Google à comprendre les sections
-                importantes du site : produit, tarifs, blog, FAQ, connexion et création de compte.
-              </p>
             </div>
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -549,8 +545,7 @@ export default function Home() {
               features: [
                 "10 URLs surveillées",
                 "Fréquence toutes les 6h",
-                "Alertes email",
-                "Historique 7 jours",
+                "10 scans manuels par jour",
               ],
             },
             {
@@ -561,8 +556,7 @@ export default function Home() {
               features: [
                 "50 URLs surveillées",
                 "Fréquence toutes les 60 min",
-                "Alertes email + Slack",
-                "Historique 30 jours",
+                "Scans manuels illimités",
               ],
               highlight: true,
             },
@@ -574,8 +568,7 @@ export default function Home() {
               features: [
                 "200 URLs surveillées",
                 "Fréquence toutes les 15 min",
-                "Alertes email + Slack + Webhook",
-                "Historique 90 jours",
+                "Scans manuels illimités",
               ],
             },
           ].map((plan, i) => (
@@ -663,7 +656,7 @@ export default function Home() {
             des que tu veux un rythme de veille vraiment exploitable.
           </p>
           <p className="mt-1 text-xs text-white/60">
-            -20% avec l&apos;abonnement annuel. Annulation a tout moment.
+            Annulation à tout moment.
           </p>
         </div>
       </section>
