@@ -18,6 +18,9 @@ export default function PublicFooter() {
           <Link href="/confidentialite" className="transition hover:text-white">
             Confidentialité
           </Link>
+          <Link href="/cookies" className="transition hover:text-white">
+            Cookies
+          </Link>
           <Link href="/cgu" className="transition hover:text-white">
             CGU
           </Link>

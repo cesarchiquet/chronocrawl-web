@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import { GeistMono } from "geist/font/mono";
 import "./globals.css";
+import CookieBanner from "@/components/CookieBanner";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -138,6 +139,7 @@ export default function RootLayout({
         className={`${manrope.variable} ${geistMono.variable} antialiased`}
       >
         {children}
+        <CookieBanner />
       </body>
     </html>
   );
